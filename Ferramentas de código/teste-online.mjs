@@ -29,6 +29,7 @@ let sessionNow = null;
 let authCb = null;
 let cloud = {}; // user_id -> dados (o "banco" em memória)
 let upsertCalls = [];
+let falharCarga = false; // quando true, a leitura da nuvem falha (teste de falha de carga)
 
 function makeBuilder() {
   const st = { filtros: {} };
@@ -41,6 +42,8 @@ function makeBuilder() {
       return b;
     },
     async maybeSingle() {
+      if (falharCarga)
+        return { data: null, error: { message: "Failed to fetch" } };
       const uid = st.filtros.user_id;
       if (uid in cloud) return { data: { dados: cloud[uid] }, error: null };
       return { data: null, error: null };
@@ -182,9 +185,32 @@ const login = (user) => {
       upsertCalls[upsertCalls.length - 1].dados.fichas.some((f) => f.id === "f2"),
   );
 
-  /* Teste 5 — logout limpa a memória */
+  /* Teste 5 — falha de carga NÃO arma o autosave (não sobrescreve a nuvem) */
   g("window.sairDaConta && window.sairDaConta()");
-  await until(() => w.document.body.classList.contains("pre-login"));
+  await sleep(60);
+  cloud = { "user-C": JSON.parse(JSON.stringify(catalogo)) }; // catálogo real na nuvem
+  falharCarga = true;
+  upsertCalls = [];
+  login({ id: "user-C", email: "c@test.com" });
+  await sleep(250); // tenta carregar e falha
+  ok(
+    "falha de carga: continua na tela de login (não entra)",
+    w.document.body.classList.contains("pre-login"),
+  );
+  // Mesmo forçando uma alteração, o autosave deve estar DESARMADO (não logado).
+  g(
+    "DADOS.fichas.push({id:'fX',titulo:'x',sala:'',grupos:[],personagens:[],conexoes:[],notas:'',pendente:false,fav:false,status:'',paginas:[]}); _persistApenas();",
+  );
+  await sleep(1800);
+  ok(
+    "falha de carga: NÃO sobrescreve a nuvem (zero gravações)",
+    upsertCalls.length === 0,
+  );
+  falharCarga = false;
+
+  /* Teste 6 — logout limpa a memória */
+  await g("window.sairDaConta && window.sairDaConta()");
+  await until(() => g("DADOS.fichas.length") === 0);
   ok("logout: voltou para a tela de login", w.document.body.classList.contains("pre-login"));
   ok("logout: limpou o catálogo da memória", g("DADOS.fichas.length") === 0);
 

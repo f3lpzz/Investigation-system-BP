@@ -16,9 +16,22 @@
   if (!window.MODO_ONLINE) return;
 
   if (!window.supabase || !window.supabase.createClient) {
-    alert(
-      "Não consegui carregar o componente de nuvem (Supabase). Verifique a conexão e recarregue a página.",
-    );
+    // Falha ao carregar o SDK (CDN fora do ar/bloqueado/offline): degrada com
+    // aviso VISÍVEL e mantém o painel escondido — nunca um login "morto" e mudo.
+    document.body.classList.add("pre-login");
+    var _m = document.getElementById("authMsg");
+    if (_m) {
+      _m.textContent =
+        "Não foi possível carregar o componente de nuvem. Verifique a conexão e recarregue a página.";
+      _m.className = "auth-msg show erro";
+    }
+    var _b = document.getElementById("authPrimary");
+    if (_b) {
+      _b.textContent = "Recarregar";
+      _b.onclick = function () {
+        location.reload();
+      };
+    }
     return;
   }
 
@@ -60,7 +73,8 @@
 
   /* ---- Estado ---- */
   var usuarioAtual = null;
-  var modoForm = "login"; // login | signup | reset
+  var modoForm = "login"; // login | signup | reset | nova-senha
+  var entrando = false; // trava síncrona contra entrada dupla no app
   var saveTimer = null;
   var salvandoAgora = false;
   var precisaSalvarDeNovo = false;
@@ -222,11 +236,17 @@
     aplicarModo("login");
   }
   async function entrarNoApp(user) {
-    usuarioAtual = user;
-    window.USUARIO = user;
+    // Guarda síncrona: impede entrada dupla (getSession + onAuthStateChange) e reentrância.
+    if (entrando || usuarioAtual) return;
+    entrando = true;
     try {
       msg("Carregando o seu catálogo…", "info");
       await carregarDaNuvem(user);
+      // SÓ considera "logado" DEPOIS de carregar com sucesso. Se marcássemos antes
+      // e a carga falhasse, o autosave poderia gravar o esqueleto VAZIO por cima
+      // do catálogo real na nuvem (perda de dados).
+      usuarioAtual = user;
+      window.USUARIO = user;
       document.body.classList.remove("pre-login");
       msg("");
       // No modo online não há arquivo local: desliga o autosave de arquivo.
@@ -234,7 +254,17 @@
         if (typeof setAuto === "function") setAuto(false);
       } catch (e) {}
     } catch (e) {
-      msg("Não consegui carregar seu catálogo. " + traduzErro(e), "erro");
+      // Carga falhou: NÃO fica logado, então nenhum salvamento pode ocorrer.
+      usuarioAtual = null;
+      window.USUARIO = null;
+      msg(
+        "Não consegui carregar seu catálogo. " +
+          traduzErro(e) +
+          " Recarregue a página (F5) para tentar de novo.",
+        "erro",
+      );
+    } finally {
+      entrando = false;
     }
   }
 
@@ -245,6 +275,10 @@
       linkSignup = $("authToSignup"),
       linkReset = $("authToReset"),
       sub = $("authSub");
+    // E-mail não faz sentido na tela de "nova senha" (a sessão de recuperação já existe).
+    var emailEl = $("authEmail");
+    var emailWrap = emailEl && emailEl.closest ? emailEl.closest("label") : null;
+    if (emailWrap) emailWrap.style.display = m === "nova-senha" ? "none" : "";
     msg("");
     if (m === "login") {
       if (primary) primary.textContent = "Entrar";
@@ -264,13 +298,20 @@
       if (sub) sub.textContent = "Recuperar acesso";
       if (linkSignup) linkSignup.textContent = "Voltar a entrar";
       if (linkReset) linkReset.style.display = "none";
+    } else if (m === "nova-senha") {
+      if (primary) primary.textContent = "Salvar nova senha";
+      if (p2) p2.style.display = "";
+      if (sub) sub.textContent = "Defina uma nova senha";
+      if (linkSignup) linkSignup.textContent = "Voltar a entrar";
+      if (linkReset) linkReset.style.display = "none";
     }
   }
 
   async function aoEnviar() {
     var email = (($("authEmail") || {}).value || "").trim();
     var senha = ($("authPass") || {}).value || "";
-    if (!email) return msg("Digite o seu e-mail.", "erro");
+    if (modoForm !== "nova-senha" && !email)
+      return msg("Digite o seu e-mail.", "erro");
     if (modoForm !== "reset" && !senha) return msg("Digite a sua senha.", "erro");
 
     ocupado(true);
@@ -311,6 +352,23 @@
           "ok",
         );
         aplicarModo("login");
+      } else if (modoForm === "nova-senha") {
+        var senha2b = ($("authPass2") || {}).value || "";
+        if (senha.length < 6) {
+          ocupado(false);
+          return msg("A senha precisa de pelo menos 6 caracteres.", "erro");
+        }
+        if (senha !== senha2b) {
+          ocupado(false);
+          return msg("As senhas não conferem.", "erro");
+        }
+        var ru = await sb.auth.updateUser({ password: senha });
+        if (ru.error) throw ru.error;
+        try {
+          await sb.auth.signOut();
+        } catch (e2) {}
+        msg("Senha alterada! Agora entre com a nova senha.", "ok");
+        aplicarModo("login");
       }
     } catch (e) {
       msg(traduzErro(e), "erro");
@@ -332,6 +390,11 @@
   }
 
   async function sair() {
+    // Limpa a camada de salvamento para não vazar timers/flags entre sessões.
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    salvandoAgora = false;
+    precisaSalvarDeNovo = false;
     try {
       await sb.auth.signOut();
     } catch (e) {}
@@ -371,7 +434,7 @@
     if (ls)
       ls.addEventListener("click", function (ev) {
         ev.preventDefault();
-        aplicarModo(modoForm === "signup" ? "login" : "signup");
+        aplicarModo(modoForm === "login" ? "signup" : "login");
       });
     var lr = $("authToReset");
     if (lr)
@@ -386,7 +449,13 @@
   }
 
   /* ---- Reage a login/logout em qualquer aba ---- */
-  sb.auth.onAuthStateChange(function (_evento, sessao) {
+  sb.auth.onAuthStateChange(function (evento, sessao) {
+    if (evento === "PASSWORD_RECOVERY") {
+      // Voltou do link "esqueci a senha": deixa digitar a nova senha (NÃO entra no app).
+      document.body.classList.add("pre-login");
+      aplicarModo("nova-senha");
+      return;
+    }
     if (sessao && sessao.user) {
       if (!usuarioAtual) entrarNoApp(sessao.user);
     } else {
