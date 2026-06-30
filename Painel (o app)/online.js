@@ -410,6 +410,16 @@
     mostrarLogin();
   }
   window.sairDaConta = sair;
+  // Versão com confirmação, usada pelo botão "Sair" da barra lateral.
+  window.sairComConfirmacao = function () {
+    if (
+      window.confirm(
+        "Sair da conta? Você será desconectado e voltará para a tela de login.",
+      )
+    ) {
+      sair();
+    }
+  };
 
   function traduzErro(e) {
     var t = e && e.message ? e.message : String(e);
@@ -449,16 +459,21 @@
         ev.preventDefault();
         aplicarModo("reset");
       });
-    // Olhinho: mostrar/ocultar a senha.
+    // Olhinho: mostrar/ocultar a senha (ícones SVG; herdam a cor clara via currentColor).
+    var OLHO_ABERTO =
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var OLHO_FECHADO =
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
     var olhos = document.querySelectorAll(".auth-eye");
     Array.prototype.forEach.call(olhos, function (b) {
+      b.innerHTML = OLHO_FECHADO; // começa com a senha oculta (•••)
       b.addEventListener("click", function () {
         var inp = document.getElementById(b.getAttribute("data-alvo"));
         if (!inp) return;
-        var vaiMostrar = inp.type === "password";
-        inp.type = vaiMostrar ? "text" : "password";
-        b.textContent = vaiMostrar ? "🙈" : "👁";
-        b.setAttribute("aria-label", vaiMostrar ? "Ocultar senha" : "Mostrar senha");
+        var mostrar = inp.type === "password"; // oculta agora -> vamos mostrar
+        inp.type = mostrar ? "text" : "password";
+        b.innerHTML = mostrar ? OLHO_ABERTO : OLHO_FECHADO;
+        b.setAttribute("aria-label", mostrar ? "Ocultar senha" : "Mostrar senha");
       });
     });
     // No modo online, o botão "Salvar" salva na nuvem.
