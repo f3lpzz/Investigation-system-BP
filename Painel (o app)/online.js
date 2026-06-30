@@ -229,6 +229,145 @@
     carregar: carregarDaNuvem,
   };
 
+  /* ===========================================================
+     IMAGENS NA NUVEM (Storage privado, pasta por usuário)
+     - Anexar: comprime -> upload em imagens/{user_id}/... -> guarda "nuvem:caminho".
+     - Exibir: um observer troca todo <img src="nuvem:..."> por uma URL assinada.
+     - URLs da web (http...) e base64 (data:) seguem como estão.
+     =========================================================== */
+  var BUCKET_IMG = "imagens";
+  var urlCacheImg = {}; // caminho -> { url, exp }
+
+  // Comprime o arquivo para um JPEG (máx. 1100px, qualidade 0.82) -> Blob.
+  function comprimirParaBlob(file) {
+    return new Promise(function (res) {
+      try {
+        var rd = new FileReader();
+        rd.onload = function () {
+          var img = new Image();
+          img.onload = function () {
+            var max = 1100;
+            var w = img.width,
+              h = img.height;
+            if (w > max || h > max) {
+              var s = max / Math.max(w, h);
+              w = Math.round(w * s);
+              h = Math.round(h * s);
+            }
+            var cv = document.createElement("canvas");
+            cv.width = w;
+            cv.height = h;
+            cv.getContext("2d").drawImage(img, 0, 0, w, h);
+            try {
+              cv.toBlob(
+                function (b) {
+                  res(b || file);
+                },
+                "image/jpeg",
+                0.82,
+              );
+            } catch (e) {
+              res(file);
+            }
+          };
+          img.onerror = function () {
+            res(file);
+          };
+          img.src = rd.result;
+        };
+        rd.onerror = function () {
+          res(file);
+        };
+        rd.readAsDataURL(file);
+      } catch (e) {
+        res(file);
+      }
+    });
+  }
+
+  // Substitui o salvar-em-arquivo-local do app: envia ao Storage privado e
+  // devolve "nuvem:{user_id}/arquivo". Se não der, devolve null e o app cai
+  // no base64 embutido (a imagem não se perde).
+  window.salvarImagemArquivo = async function (blob, base) {
+    if (!usuarioAtual || !blob) return null;
+    try {
+      var comp = await comprimirParaBlob(blob);
+      var nome =
+        (base || "img") +
+        "-" +
+        Date.now() +
+        "-" +
+        Math.floor(Math.random() * 1e6) +
+        ".jpg";
+      var caminho = usuarioAtual.id + "/" + nome;
+      var up = await sb.storage
+        .from(BUCKET_IMG)
+        .upload(caminho, comp, { upsert: true, contentType: "image/jpeg" });
+      if (up.error) throw up.error;
+      return "nuvem:" + caminho;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Exibição: resolve "nuvem:caminho" -> URL assinada temporária (com cache).
+  var PLACEHOLDER_IMG =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>');
+  function resolverImg(img) {
+    var raw = img.getAttribute("src") || "";
+    if (raw.indexOf("nuvem:") !== 0) return;
+    var caminho = raw.slice(6);
+    var c = urlCacheImg[caminho];
+    if (c && c.exp > Date.now()) {
+      img.src = c.url;
+      return;
+    }
+    img.src = PLACEHOLDER_IMG; // evita o ícone de "imagem quebrada" enquanto resolve
+    sb.storage
+      .from(BUCKET_IMG)
+      .createSignedUrl(caminho, 3600)
+      .then(function (r) {
+        if (r && r.data && r.data.signedUrl) {
+          urlCacheImg[caminho] = {
+            url: r.data.signedUrl,
+            exp: Date.now() + 50 * 60 * 1000,
+          };
+          img.src = r.data.signedUrl;
+        }
+      })
+      .catch(function () {});
+  }
+  function varrerImgs(root) {
+    if (!root || !root.querySelectorAll) return;
+    var imgs = root.querySelectorAll('img[src^="nuvem:"]');
+    Array.prototype.forEach.call(imgs, resolverImg);
+  }
+  var obsImg = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var m = muts[i];
+      if (m.type === "attributes") {
+        if (m.target && m.target.tagName === "IMG") resolverImg(m.target);
+      } else {
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          var n = m.addedNodes[j];
+          if (!n || n.nodeType !== 1) continue;
+          if (n.tagName === "IMG") resolverImg(n);
+          else varrerImgs(n);
+        }
+      }
+    }
+  });
+  if (document.body) {
+    obsImg.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["src"],
+    });
+    varrerImgs(document.body);
+  }
+
   /* ---- Telas: login / cadastro / esqueci a senha ---- */
   function mostrarLogin() {
     usuarioAtual = null;
