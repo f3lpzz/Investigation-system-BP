@@ -11,8 +11,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="estilos.css" />
+    <link rel="stylesheet" href="online.css" />
   </head>
-  <body>
+  <body class="pre-login">
     <div class="shell">
       <aside class="side" id="side">
         <div class="side-brand">
@@ -416,7 +417,69 @@
         </div>
       </div>
     </div>
-    <script src="dados.js"></script>
+    <!-- ===== Tela de login (versão online) ===== -->
+    <div id="authScreen">
+      <div class="auth-card">
+        <div class="emblem">βP</div>
+        <h1>Blue Prince</h1>
+        <div class="auth-sub" id="authSub">Entre na sua conta</div>
+        <div class="auth-msg" id="authMsg"></div>
+        <form class="auth-form" id="authForm" autocomplete="on">
+          <label
+            >E-mail
+            <input id="authEmail" type="email" autocomplete="email" required />
+          </label>
+          <label
+            >Senha
+            <input
+              id="authPass"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+          <div id="authPass2wrap" style="display: none">
+            <label
+              >Confirmar senha
+              <input
+                id="authPass2"
+                type="password"
+                autocomplete="new-password"
+              />
+            </label>
+          </div>
+          <button type="submit" class="auth-btn primary" id="authPrimary">
+            Entrar
+          </button>
+        </form>
+        <button
+          class="auth-btn google"
+          id="authGoogle"
+          type="button"
+          style="display: none"
+        >
+          Entrar com Google
+        </button>
+        <div class="auth-links">
+          <a id="authToSignup" href="#">Criar conta</a>
+          <a id="authToReset" href="#">Esqueci a senha</a>
+        </div>
+        <div class="auth-foot">
+          Projeto fan-made, não oficial. Seus dados ficam só com você.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Scripts ===== -->
+    <!-- SDK do Supabase (cliente de auth + banco + storage) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Config pública (URL + chave anon) e liga o MODO_ONLINE -->
+    <script src="supabase-config.js"></script>
+    <!-- Esqueleto v6 vazio: a fonte real é a nuvem (não o dados.js) -->
+    <script src="dados-vazio.js"></script>
+    <!-- O app (miolo inalterado) -->
     <script src="app.js"></script>
+    <!-- Camada online: login + carregar/salvar na nuvem -->
+    <script src="online.js"></script>
   </body>
 </html>

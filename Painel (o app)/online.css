@@ -1,0 +1,192 @@
+/* ============================================================
+   online.css — estilos da tela de login (versão online).
+   Só afeta a versão online; o MVP não carrega este arquivo.
+   ============================================================ */
+
+/* Enquanto não logado, esconde o painel e o onboarding do MVP. */
+body.pre-login .shell,
+body.pre-login #onboard {
+  display: none !important;
+}
+
+/* A tela de login só aparece quando o body está "pre-login". */
+#authScreen {
+  display: none;
+}
+body.pre-login #authScreen {
+  display: flex;
+}
+
+#authScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(1200px 600px at 50% -10%, #16314a 0%, #0c1622 55%, #0a121c 100%);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  color: #e9f2fb;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: #0f1d2b;
+  border: 1px solid #1f3b54;
+  border-radius: 16px;
+  padding: 28px 26px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.auth-card .emblem {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #5ec8ff, #2b7fb8);
+  color: #06131f;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  font-size: 22px;
+}
+
+.auth-card h1 {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 600;
+  font-size: 26px;
+  margin: 0 0 2px;
+  color: #f4f9ff;
+}
+
+.auth-sub {
+  font-size: 13.5px;
+  color: #9fb6cc;
+  margin-bottom: 18px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  color: #9fb6cc;
+}
+
+.auth-form input {
+  padding: 11px 12px;
+  border-radius: 9px;
+  border: 1px solid #294257;
+  background: #0a1622;
+  color: #eaf3fb;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.auth-form input:focus {
+  border-color: #5ec8ff;
+  box-shadow: 0 0 0 3px rgba(94, 200, 255, 0.18);
+}
+
+.auth-btn {
+  margin-top: 4px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s, opacity 0.15s;
+}
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.auth-btn.primary {
+  background: linear-gradient(160deg, #5ec8ff, #3592cf);
+  color: #06131f;
+}
+.auth-btn.primary:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+.auth-btn.google {
+  margin-top: 12px;
+  width: 100%;
+  background: #16273a;
+  border-color: #294257;
+  color: #eaf3fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.auth-btn.google:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.auth-links a {
+  color: #7fc4ef;
+  text-decoration: none;
+  cursor: pointer;
+}
+.auth-links a:hover {
+  text-decoration: underline;
+}
+
+.auth-msg {
+  min-height: 0;
+  margin-bottom: 0;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  overflow: hidden;
+  max-height: 0;
+  padding: 0 12px;
+  transition: max-height 0.2s, padding 0.2s, margin 0.2s;
+}
+.auth-msg.show {
+  max-height: 200px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+}
+.auth-msg.erro {
+  background: #3a1620;
+  border: 1px solid #7d2740;
+  color: #ffb9c8;
+}
+.auth-msg.ok {
+  background: #10301f;
+  border: 1px solid #1f6b43;
+  color: #aef0c8;
+}
+.auth-msg.info {
+  background: #122a3e;
+  border: 1px solid #295a7e;
+  color: #b8dcf5;
+}
+
+.auth-foot {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #6f879c;
+  line-height: 1.5;
+}
