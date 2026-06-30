@@ -16,3 +16,8 @@ window.SUPABASE_ANON_KEY =
    (login -> carregar da nuvem) para a camada online (online.js),
    em vez do fluxo de arquivo local do MVP. */
 window.MODO_ONLINE = true;
+
+/* O botão "Apagar minha conta" só aparece quando a Edge Function
+   "apagar-conta" estiver publicada no Supabase. Mude para true depois
+   de autorizar e publicar a função. */
+window.APAGAR_CONTA_ATIVO = false;

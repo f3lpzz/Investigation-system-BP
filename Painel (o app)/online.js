@@ -536,8 +536,10 @@
       var item = btn && btn.closest ? btn.closest(".ftitem") : null;
       if (item) item.style.display = "none";
     });
+    // O botão "Apagar minha conta" só aparece quando a Edge Function
+    // "apagar-conta" estiver publicada (window.APAGAR_CONTA_ATIVO = true).
     var ft = document.querySelector("#modalGestao .ftbtns");
-    if (ft && !ft.querySelector(".btn-apagar-conta")) {
+    if (window.APAGAR_CONTA_ATIVO && ft && !ft.querySelector(".btn-apagar-conta")) {
       var span = document.createElement("span");
       span.className = "ftitem";
       span.innerHTML =
