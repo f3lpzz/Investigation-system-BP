@@ -463,6 +463,89 @@
     inp.click();
   };
 
+  /* ===========================================================
+     CONTA / LGPD: apagar conta + faxina dos botões locais
+     - Exportar: o app já tem exportarBackup() (baixa o JSON) — segue valendo.
+     - Apagar conta: chama a Edge Function "apagar-conta" (servidor) que remove
+       imagens + catálogo + login. A chave secreta vive só no servidor.
+     =========================================================== */
+  window.apagarConta = async function () {
+    if (!usuarioAtual) return;
+    var c = window.prompt(
+      "Isto vai APAGAR sua conta e TODOS os seus dados (catálogo + imagens), para sempre — não tem como desfazer.\n\nPara confirmar, digite APAGAR:",
+    );
+    if (c == null) return;
+    if (c.trim().toUpperCase() !== "APAGAR") {
+      alert('Cancelado (você não digitou "APAGAR").');
+      return;
+    }
+    try {
+      if (typeof toast === "function") toast("Apagando sua conta…", 5000);
+      var sess = await sb.auth.getSession();
+      var token =
+        sess && sess.data && sess.data.session
+          ? sess.data.session.access_token
+          : null;
+      if (!token) throw new Error("sessão expirada — entre de novo e tente.");
+      var r = await fetch(window.SUPABASE_URL + "/functions/v1/apagar-conta", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          apikey: window.SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+      });
+      var res = {};
+      try {
+        res = await r.json();
+      } catch (e) {}
+      if (!r.ok || res.error)
+        throw new Error(res.error || "HTTP " + r.status);
+      // Sucesso: limpa tudo localmente e volta ao login.
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      usuarioAtual = null;
+      window.USUARIO = null;
+      try {
+        await sb.auth.signOut();
+      } catch (e) {}
+      aplicarDadosNoApp(esqueletoVazioV6());
+      mostrarLogin();
+      alert("Sua conta e seus dados foram apagados. Até mais!");
+    } catch (e) {
+      alert(
+        "Não consegui apagar a conta: " +
+          (e && e.message ? e.message : String(e)),
+      );
+    }
+  };
+
+  // Esconde os botões do "Gerenciar" que só fazem sentido na versão LOCAL
+  // e adiciona o botão "Apagar minha conta".
+  function ajustarUIConta() {
+    var locais = [
+      "trocarArquivo",
+      "conectarPasta",
+      "migrarImagens",
+      "abrirBackups",
+    ];
+    locais.forEach(function (fn) {
+      var btn = document.querySelector(
+        '#modalGestao [onclick^="' + fn + '"]',
+      );
+      var item = btn && btn.closest ? btn.closest(".ftitem") : null;
+      if (item) item.style.display = "none";
+    });
+    var ft = document.querySelector("#modalGestao .ftbtns");
+    if (ft && !ft.querySelector(".btn-apagar-conta")) {
+      var span = document.createElement("span");
+      span.className = "ftitem";
+      span.innerHTML =
+        '<button class="topbtn btn-apagar-conta" onclick="if(window.apagarConta)window.apagarConta()">🗑️ Apagar minha conta</button>';
+      ft.appendChild(span);
+    }
+  }
+
   /* ---- Telas: login / cadastro / esqueci a senha ---- */
   function mostrarLogin() {
     usuarioAtual = null;
@@ -735,6 +818,7 @@
   /* ---- Início ---- */
   function iniciar() {
     ligarEventos();
+    ajustarUIConta();
     sb.auth
       .getSession()
       .then(function (r) {

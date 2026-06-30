@@ -260,3 +260,14 @@ body.app-carregando #authLoading {
 .auth-eye:hover {
   opacity: 1;
 }
+
+/* Botão perigoso (apagar conta) no menu Gerenciar. */
+.btn-apagar-conta {
+  border-color: #7d2740 !important;
+  background: #3a1620 !important;
+  color: #ffb9c8 !important;
+}
+.btn-apagar-conta:hover {
+  background: #50202e !important;
+  filter: brightness(1.05);
+}
