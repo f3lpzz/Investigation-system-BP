@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blue Prince — Painel de Pistas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="estilos.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="side" id="side">
+        <div class="side-brand">
+          <div class="emblem">βP</div>
+          <div>
+            <h1>Blue Prince</h1>
+            <div class="sub">Painel de pistas</div>
+          </div>
+        </div>
+        <div class="side-scroll">
+          <div class="side-head">Visões</div>
+          <nav class="side-nav">
+            <button id="vGrade" class="navit active" title="Grade">
+              <span class="ni-ic">▦</span><span class="ni-lb">Grade</span>
+            </button>
+            <button id="vMapa" class="navit" title="Mapa de conexões">
+              <span class="ni-ic">🕸</span><span class="ni-lb">Mapa</span>
+            </button>
+            <button id="vMundo" class="navit" title="Dossiês">
+              <span class="ni-ic">🌐</span><span class="ni-lb">Mundo</span>
+            </button>
+            <button id="vDir" class="navit" title="Diretório de salas">
+              <span class="ni-ic">📖</span><span class="ni-lb">Diretório</span>
+            </button>
+            <button id="vTeorias" class="navit" title="Quadros (estilo Miro)">
+              <span class="ni-ic">🧠</span><span class="ni-lb">Quadros</span>
+            </button>
+          </nav>
+        </div>
+        <div class="side-foot">
+          <button
+            id="btnGerenciar"
+            class="navit"
+            onclick="abrirGestao()"
+            title="Gerenciar"
+          >
+            <span class="ni-ic">⚙</span><span class="ni-lb">Gerenciar</span>
+          </button>
+          <button
+            id="btnSalvar"
+            class="navit save"
+            onclick="salvarTudo()"
+            title="Estado do salvamento — clique para salvar agora"
+          >
+            <span class="ni-ic" id="saveIc">☁</span
+            ><span class="ni-lb" id="saveLb">Tudo salvo</span>
+          </button>
+        </div>
+      </aside>
+      <div class="appwrap">
+        <div class="topbar">
+          <div class="search">
+            🔎<input
+              id="busca"
+              placeholder="Buscar pistas, salas, personagens…"
+            /><button
+              class="searchx"
+              onclick="limparBusca()"
+              title="Limpar busca"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="topactions">
+            <button
+              id="btnUndo"
+              class="topbtn ic"
+              onclick="desfazer()"
+              title="Desfazer (Ctrl+Z)"
+              disabled
+            >
+              ↶
+            </button>
+            <button
+              id="btnRedo"
+              class="topbtn ic"
+              onclick="refazer()"
+              title="Refazer (Ctrl+Y / Ctrl+Shift+Z)"
+              disabled
+            >
+              ↷
+            </button>
+            <button
+              id="btnFiltros"
+              class="topbtn"
+              onclick="toggleFiltros()"
+              title="Abrir/fechar filtros"
+            >
+              ⛃ Filtros
+            </button>
+            <button
+              id="btnInc"
+              class="topbtn ic"
+              onclick="toggleIncompletas()"
+              title="Só incompletas"
+            >
+              ⚠
+            </button>
+            <button
+              id="btnPend"
+              class="topbtn ic"
+              onclick="togglePendentes()"
+              title="Só pendentes"
+            >
+              ⏳
+            </button>
+            <button
+              id="btnOrfas"
+              class="topbtn ic"
+              onclick="toggleOrfas()"
+              title="Sem conexão"
+            >
+              🧩
+            </button>
+            <button
+              id="btnFav"
+              class="topbtn ic"
+              onclick="toggleFavoritas()"
+              title="Só favoritas"
+            >
+              ⭐
+            </button>
+            <button
+              id="btnIdioma"
+              class="topbtn"
+              onclick="toggleIdioma()"
+              title="Idioma dos cards"
+            >
+              🌐 PT
+            </button>
+            <button
+              id="btnSel"
+              class="topbtn ic"
+              onclick="toggleSelMode()"
+              title="Selecionar várias"
+            >
+              ☑
+            </button>
+            <label class="ordlbl"
+              >Ordenar
+              <select id="ordenar" class="ordsel">
+                <option value="recentes">Recentes</option>
+                <option value="sala">Sala</option>
+                <option value="titulo">Título</option>
+              </select></label
+            >
+            <button
+              id="btnNova"
+              class="topbtn primary"
+              onclick="novaFicha()"
+              title="Criar uma pista do zero"
+            >
+              ＋ Nova pista
+            </button>
+            <span id="contador" class="contador"></span>
+          </div>
+        </div>
+        <div class="filtros-pills" id="filtrosPills"></div>
+        <div class="selbar" id="selbar"></div>
+        <div class="filtros-panel" id="filtrosPanel">
+          <div class="fgrp">
+            <label>Sala</label
+            ><select id="fsala">
+              <option value="">Todas as salas</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label>Personagem</label
+            ><select id="fpessoa">
+              <option value="">Todos os personagens</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label>Grupo</label
+            ><select id="fgrupo">
+              <option value="">Todos os grupos</option>
+            </select>
+          </div>
+          <button class="topbtn" onclick="limparFiltros()">Limpar tudo</button>
+        </div>
+        <main>
+          <div id="grade"></div>
+          <div id="mapa">
+            <svg id="svg"></svg>
+            <div class="hint">
+              Arraste o fundo p/ navegar • roda do mouse = zoom • arraste um
+              ponto p/ reposicionar
+            </div>
+            <button
+              class="mapbtn"
+              id="btnFit"
+              onclick="fitCamera(true)"
+              title="Reenquadrar todo o mapa na tela"
+            >
+              ⤢ Centralizar
+            </button>
+            <div class="maptoggles" id="maptoggles"></div>
+            <div class="legend" id="legend"></div>
+            <div class="minimap" id="minimap"><svg id="minisvg"></svg></div>
+          </div>
+          <div id="mundo"></div>
+          <div id="diretorio"></div>
+          <div id="teorias"></div>
+          <aside id="drawer"></aside>
+          <div id="modalGestao" class="modal">
+            <div class="modalbox gest">
+              <div class="modalhd">
+                <h2>⚙ Gerenciar</h2>
+                <button class="close" onclick="fecharGestao()">✕</button>
+              </div>
+              <div class="modalbody">
+                <div class="gcols">
+                  <div class="gsec card">
+                    <h3>
+                      🚪 Salas <span class="gcount" id="gc-salas">0</span>
+                      <span
+                        class="qmark"
+                        title="Locais do casarão usados nas pistas. Renomear propaga o nome em todas as pistas; excluir desvincula das pistas e apaga o dossiê. Salas só aparecem aqui depois de descobertas."
+                        >?</span
+                      >
+                    </h3>
+                    <div id="g-salas" class="glist"></div>
+                    <div class="gadd">
+                      <input id="add-sala" placeholder="Nova sala..." /><button
+                        onclick="addSala()"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                  <div class="gsec card">
+                    <h3>
+                      👤 Personagens
+                      <span class="gcount" id="gc-pessoas">0</span>
+                      <span
+                        class="qmark"
+                        title="Pessoas citadas nas pistas. Renomear propaga em todas as pistas; excluir desvincula. Para unir dois nomes da mesma pessoa, use a ferramenta Mesclar abaixo."
+                        >?</span
+                      >
+                    </h3>
+                    <div id="g-pessoas" class="glist"></div>
+                    <div class="gadd">
+                      <input
+                        id="add-pessoa"
+                        placeholder="Novo personagem..."
+                      /><button onclick="addPessoa()">+ Add</button>
+                    </div>
+                  </div>
+                  <div class="gsec card">
+                    <h3>
+                      📦 Grupos <span class="gcount" id="gc-grupos">0</span>
+                      <span
+                        class="qmark"
+                        title="Conjuntos de pistas (ex.: Cartas Vermelhas). A cor identifica o grupo no mapa e nas etiquetas, e é escurecida automaticamente quando necessário para o nome branco ficar sempre legível. Clique no quadradinho para mudar a cor."
+                        >?</span
+                      >
+                    </h3>
+                    <div id="g-grupos" class="glist"></div>
+                    <div class="gadd">
+                      <input
+                        id="add-grupo"
+                        placeholder="Novo grupo..."
+                      /><button onclick="addGrupo()">+ Add</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="gsec card gtool">
+                  <h3>
+                    🔗 Mesclar personagens
+                    <span
+                      class="qmark"
+                      title="Une dois nomes que são a mesma pessoa. O 1º (Manter) é preservado; o 2º (Absorver) é incorporado: dados, apelidos e ligações vão para o 1º."
+                      >?</span
+                    >
+                  </h3>
+                  <div class="mescla">
+                    <div class="mescla-f">
+                      <span class="mescla-lb">Manter (1º)</span
+                      ><select
+                        id="mesclaPrin"
+                        class="ginput"
+                        title="Nome que será mantido"
+                      ></select>
+                    </div>
+                    <span class="mescla-arrow" title="O 2º é absorvido pelo 1º"
+                      >⟵ absorver</span
+                    >
+                    <div class="mescla-f">
+                      <span class="mescla-lb">Absorver (2º)</span
+                      ><select
+                        id="mesclaSec"
+                        class="ginput"
+                        title="Nome que será absorvido"
+                      ></select>
+                    </div>
+                  </div>
+                  <div class="gadd mescla-btns">
+                    <button
+                      onclick="mesclarPessoas('alias')"
+                      title="O 2º nome vira apelido do 1º; as pistas continuam citando o 2º, que passa a resolver para o 1º"
+                    >
+                      🏷️ Tornar pseudônimo</button
+                    ><button
+                      onclick="mesclarPessoas('full')"
+                      title="Junta tudo no 1º nome e o 2º deixa de existir (citações reescritas para o 1º)"
+                    >
+                      ⛓️ Juntar e manter o 1º
+                    </button>
+                  </div>
+                  <div class="mescla-dica">
+                    <b>Tornar pseudônimo:</b> as pistas seguem citando o 2º
+                    nome, que passa a resolver para o 1º. &nbsp;·&nbsp;
+                    <b>Juntar:</b> as citações do 2º são reescritas para o 1º e
+                    o 2º nome deixa de existir.
+                  </div>
+                </div>
+              </div>
+              <div class="modalft">
+                <div class="ft-note">
+                  As mudanças valem na hora e são
+                  <b>salvas automaticamente</b> no dados.js. Renomear propaga
+                  nas pistas; excluir limpa.
+                </div>
+                <div class="ftbtns">
+                  <span class="ftitem"
+                    ><button class="topbtn" onclick="trocarArquivo()">
+                      📁 Trocar arquivo de dados</button
+                    ><span
+                      class="qmark"
+                      title="Escolhe outro arquivo dados.js (ou cria um novo) como destino do salvamento automático. Útil se você moveu o painel de pasta ou quer salvar em outro lugar."
+                      >?</span
+                    ></span
+                  ><span class="ftitem"
+                    ><button class="topbtn" onclick="exportarBackup()">
+                      ⬇ Exportar backup</button
+                    ><span
+                      class="qmark"
+                      title="Baixa agora uma cópia do dados.js atual como um arquivo separado, para você guardar em segurança."
+                      >?</span
+                    ></span
+                  ><span class="ftitem"
+                    ><button class="topbtn" onclick="importarDados()">
+                      ⬆ Restaurar/Importar</button
+                    ><span
+                      class="qmark"
+                      title="Carrega os dados a partir de um arquivo de backup, substituindo os dados atuais do painel."
+                      >?</span
+                    ></span
+                  ><span class="ftitem"
+                    ><button class="topbtn" onclick="conectarPasta()">
+                      📂 Conectar pasta de imagens</button
+                    ><span
+                      class="qmark"
+                      title="Permite salvar as imagens coladas como arquivos na pasta imagens/ (em vez de embutidas no dados.js), deixando o arquivo mais leve."
+                      >?</span
+                    ></span
+                  ><span class="ftitem"
+                    ><button class="topbtn" onclick="migrarImagens()">
+                      🖼 Converter imagens embutidas</button
+                    ><span
+                      class="qmark"
+                      title="Converte as imagens que já estão embutidas (base64) no dados.js em arquivos na pasta imagens/, reduzindo o tamanho do arquivo."
+                      >?</span
+                    ></span
+                  ><span class="ftitem"
+                    ><button class="topbtn" onclick="abrirBackups()">
+                      🛟 Backups / Restaurar</button
+                    ><span
+                      class="qmark"
+                      title="Abre a lista de backups automáticos (pasta backups/) para visualizar e restaurar uma versão anterior dos dados."
+                      >?</span
+                    ></span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div id="onboard" class="onboard" style="display: none">
+      <div class="onboard-card">
+        <div class="emblem">βP</div>
+        <h2>Escolha onde salvar</h2>
+        <p id="onboardMsg">
+          Para o painel guardar tudo automaticamente, escolha o arquivo
+          <b>dados.js</b> da pasta do painel. É só uma vez — nas próximas
+          aberturas ele reconecta sozinho.
+        </p>
+        <button
+          id="onboardBtn"
+          class="onboard-btn"
+          onclick="escolherArquivoSalvar()"
+        >
+          📂 Escolher onde salvar
+        </button>
+        <div class="onboard-dica">
+          Funciona no Chrome ou Edge. Selecione (ou crie) o arquivo
+          <b>dados.js</b> na pasta do painel.
+        </div>
+      </div>
+    </div>
+    <script src="dados.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

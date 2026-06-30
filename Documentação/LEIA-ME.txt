@@ -1,0 +1,4 @@
+Esta pasta tem os DOCUMENTOS do projeto (explicacoes - nao e o programa).
+
+Comece pelo  README.md  (visao geral, como rodar, estrutura).
+O COMO_PROCESSAR.md tem as regras de conteudo do jogo.

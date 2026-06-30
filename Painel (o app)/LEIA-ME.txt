@@ -1,0 +1,7 @@
+Esta pasta e o APLICATIVO (o sistema em si).
+
+Para usar: abra o arquivo  painel.html  (de preferencia no Chrome ou Edge).
+
+Os outros itens (estilos.css, app.js, dados.js) e as pastas imagens/ e backups/
+sao usados pelo app por baixo dos panos - voce nao precisa abrir nem mexer
+neles a mao. O dados.js e onde suas pistas ficam guardadas.

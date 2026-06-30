@@ -1,0 +1,144 @@
+<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blue Prince — Redesign · Grade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#081326; --bg2:#0b1b38; --ink:#e9eefc; --soft:#9db2da; --faint:#6f87b6;
+  --gold:#d8b25a; --goldsoft:#caa53a; --line:#22406f; --card:#102444; --card2:#0e2040;
+  --g-jornal:#c89b5a; --g-aviso:#6f86b4; --g-xadrez:#9a7fd0; --g-bib:#3fb0a0; --g-vermelha:#cf5a72;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);
+  background:
+   radial-gradient(1100px 520px at 78% -8%,#16336a55,transparent),
+   linear-gradient(#0a1a3622 1px,transparent 1px) 0 0/30px 30px,
+   linear-gradient(90deg,#0a1a3622 1px,transparent 1px) 0 0/30px 30px,
+   var(--bg);
+  min-height:100vh}
+.serif{font-family:"Cormorant Garamond",Georgia,serif}
+header{display:flex;align-items:center;gap:18px;padding:18px 26px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#0c1f4099,#0a182f00);backdrop-filter:blur(4px);position:sticky;top:0;z-index:5}
+.emblem{width:42px;height:42px;border:1.5px solid var(--gold);border-radius:9px;display:grid;place-items:center;color:var(--gold);
+  box-shadow:inset 0 0 18px #d8b25a22}
+.brand h1{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:26px;margin:0;letter-spacing:.5px;line-height:1}
+.brand span{font-size:12px;color:var(--faint);letter-spacing:3px;text-transform:uppercase}
+nav{display:flex;gap:4px;margin-left:8px}
+nav a{padding:8px 15px;border-radius:9px;color:var(--soft);text-decoration:none;font-size:14px;font-weight:500;border:1px solid transparent}
+nav a.on{color:#1a1300;background:var(--gold);border-color:var(--gold)}
+nav a:not(.on):hover{border-color:var(--line);color:var(--ink)}
+.spacer{flex:1}
+.icbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:#0e2244;color:var(--soft);display:grid;place-items:center;cursor:pointer;font-size:17px}
+.toolbar{display:flex;align-items:center;gap:12px;padding:14px 26px;flex-wrap:wrap}
+.search{flex:1;min-width:240px;display:flex;align-items:center;gap:9px;background:#0d2247;border:1px solid var(--line);border-radius:11px;padding:9px 13px;color:var(--soft)}
+.search input{flex:1;background:none;border:0;color:var(--ink);font-size:14px;outline:none}
+.pill-btn{display:flex;align-items:center;gap:8px;background:#0d2247;border:1px solid var(--line);color:var(--soft);border-radius:11px;padding:9px 13px;font-size:13px;cursor:pointer}
+.pill-btn.gold{color:var(--gold);border-color:#3a4d7a}
+.chips{display:flex;gap:8px;padding:0 26px 8px;flex-wrap:wrap}
+.chip{font-size:12px;color:var(--soft);background:#0d2247;border:1px solid var(--line);border-radius:20px;padding:5px 12px}
+.chip.on{background:#1b335f;border-color:var(--gold);color:var(--gold)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:18px;padding:14px 26px 40px}
+.card{position:relative;background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
+  border-left:4px solid var(--accent,#5b6b86);border-radius:14px;padding:14px 14px 13px;overflow:hidden;
+  transition:.15s;box-shadow:0 4px 18px #00081e66}
+.card:hover{transform:translateY(-3px);border-color:#33538c;box-shadow:0 10px 30px #00081ea0}
+.tag{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:6px}
+.star{position:absolute;top:12px;right:12px}
+.star{color:#43507a;font-size:16px;cursor:pointer}.star.on{color:var(--gold)}
+.idbadge{display:inline-block;font-family:"Inter";font-size:11px;font-weight:600;color:#1a1300;background:var(--gold);border-radius:5px;padding:0 6px;margin-right:6px;vertical-align:1px}
+.title{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:20px;line-height:1.15;margin:7px 0 9px;color:#f3f1e6}
+.thumb{height:128px;border-radius:9px;border:1px solid #21407a;background:
+   repeating-linear-gradient(45deg,#0a1c3a,#0a1c3a 9px,#0c2042 9px,#0c2042 18px);
+   display:grid;place-items:center;color:#5d76a8;position:relative;overflow:hidden}
+.thumb .pg{position:absolute;left:8px;bottom:8px;background:#0c2c4ae0;border:1px solid #2c6aa0;color:#bcdcff;border-radius:8px;font-size:11px;padding:1px 7px;display:flex;gap:4px;align-items:center}
+.paper{width:78%;height:88%;margin-top:6px;border-radius:4px;background:linear-gradient(180deg,#efe7d2,#ddd0b0);box-shadow:0 4px 12px #00000055;position:relative}
+.paper:before{content:"";position:absolute;left:12%;right:12%;top:16%;height:6px;border-radius:3px;background:#b9a87f;box-shadow:0 14px 0 #c8b78c,0 28px 0 #c8b78c,0 42px 0 #cdbd95}
+.excerpt{font-size:13px;color:#bccbe8;line-height:1.5;margin:10px 0 12px;max-height:60px;overflow:hidden}
+.meta{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.gtag{font-size:11.5px;font-weight:600;color:#fff;border-radius:7px;padding:3px 9px;display:inline-flex;gap:5px;align-items:center;text-shadow:0 1px 1px #0006}
+.room{font-size:11.5px;color:#bfe0ff;background:#10325f;border:1px solid #2c5a98;border-radius:7px;padding:3px 9px}
+.foot{padding:10px 26px 40px;color:var(--faint);font-size:12px;text-align:center}
+</style></head><body>
+<header>
+  <div class="emblem serif" style="font-size:22px;font-weight:700">βP</div>
+  <div class="brand"><h1>Blue Prince</h1><span>Dossiê de pistas</span></div>
+  <nav>
+    <a class="on" href="#">Grade</a><a href="#">Mapa</a><a href="#">Mundo</a><a href="#">Diretório</a><a href="#">Quadros</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="icbtn" title="Idioma">🌐</div>
+  <div class="icbtn" title="Gerenciar">⚙</div>
+  <div class="icbtn" style="color:var(--gold);border-color:#3a4d7a" title="Salvar">💾</div>
+</header>
+<div class="toolbar">
+  <label class="search"><span style="opacity:.7">🔍</span><input placeholder="Buscar em todas as pistas, salas e personagens..."></label>
+  <div class="pill-btn">Ordenar: Recentes ▾</div>
+  <div class="pill-btn gold">⛃ Filtros (1)</div>
+  <div class="pill-btn">☑ Selecionar</div>
+</div>
+<div class="chips">
+  <span class="chip on">Grupo: Cartas Vermelhas ✕</span>
+  <span class="chip">Sala: todas</span>
+  <span class="chip">Personagem: todos</span>
+  <span class="chip">⏳ Pendentes</span>
+  <span class="chip">★ Favoritas</span>
+</div>
+<div class="grid">
+
+  <div class="card" style="--accent:var(--g-vermelha)">
+    <div class="star on">★</div>
+    <div class="tag">🚪 Boudoir</div>
+    <div class="title"><span class="idbadge">f13</span> Carta Vermelha 4</div>
+    <div class="thumb"><div class="paper"></div><div class="pg">📄 3 páginas</div></div>
+    <div class="excerpt">22 de fev — “…fiquei desolado ao saber que você escolheu omitir os detalhes do desaparecimento da nossa querida Marion…”</div>
+    <div class="meta"><span class="gtag" style="background:var(--g-vermelha)">📦 Cartas Vermelhas</span></div>
+  </div>
+
+  <div class="card" style="--accent:var(--g-jornal)">
+    <div class="star">★</div>
+    <div class="tag">🚪 Archives</div>
+    <div class="title"><span class="idbadge">f1</span> Jornal — sumiço da herdeira</div>
+    <div class="thumb"><div class="paper"></div></div>
+    <div class="excerpt">“Nenhum vestígio da herdeira Synka é encontrado, mas a busca continua. Mary Matthew Jones, autora…”</div>
+    <div class="meta"><span class="gtag" style="background:var(--g-jornal)">📦 Recortes de jornal</span></div>
+  </div>
+
+  <div class="card" style="--accent:var(--g-xadrez)">
+    <div class="star">★</div>
+    <div class="tag">🚪 Parlor</div>
+    <div class="title"><span class="idbadge">f4</span> Peça de xadrez — Torre</div>
+    <div class="thumb" style="color:#7e93c4"><div style="font-size:46px">♜</div></div>
+    <div class="excerpt">Peça de xadrez no formato de Torre (Rook), encontrada na Parlor.</div>
+    <div class="meta"><span class="gtag" style="background:var(--g-xadrez)">📦 Peças de Xadrez</span></div>
+  </div>
+
+  <div class="card" style="--accent:var(--g-bib)">
+    <div class="star">★</div>
+    <div class="tag">🚪 Library</div>
+    <div class="title"><span class="idbadge">f10</span> Ficha de empréstimo</div>
+    <div class="thumb"><div class="paper" style="background:linear-gradient(180deg,#cfe0f0,#b9cfe6)"></div></div>
+    <div class="excerpt">“A Sightseer’s Guide to Reddington”, de Andrew Darle. Tomadores: Anne Babbage, Lord Evanson…</div>
+    <div class="meta"><span class="gtag" style="background:var(--g-bib)">📦 Fichas da biblioteca</span></div>
+  </div>
+
+  <div class="card" style="--accent:var(--g-aviso)">
+    <div class="star">★</div>
+    <div class="tag">🚪 Hovel</div>
+    <div class="title"><span class="idbadge">f2</span> Aviso de demissão</div>
+    <div class="thumb"><div class="paper"></div></div>
+    <div class="excerpt">“…seus serviços como zelador em Mount Holly não serão mais necessários, com efeito imediato.” — Anne Babbage</div>
+    <div class="meta"><span class="gtag" style="background:var(--g-aviso)">📦 Avisos oficiais</span></div>
+  </div>
+
+  <div class="card" style="--accent:#5b6b86">
+    <div class="star">★</div>
+    <div class="tag">🚪 Garage</div>
+    <div class="title"><span class="idbadge">f9</span> Bilhete — entrega</div>
+    <div class="thumb"><div class="paper"></div></div>
+    <div class="excerpt">“O endereço de entrega é 14227 Sandy Heights. Uma pequena garagem na borda sul de Trinsdale…”</div>
+    <div class="meta"><span class="room">sem grupo</span></div>
+  </div>
+
+</div>
+<div class="foot">Mockup de redesign · tela 1/12 — Grade de pistas · direção “Blueprint da Mansão”</div>
+</body></html>

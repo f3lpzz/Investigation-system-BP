@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"/c/Users/T-GAMER/Desktop/Blue Prince\" && echo \"=== .gitignore ===\" && cat .gitignore && echo \"\" && echo \"=== Painel \\(o app\\) ===\" && ls -la \"Painel \\(o app\\)\" && echo \"\" && echo \"=== Ferramentas de código ===\" && ls -la \"Ferramentas de código\")"
+    ]
+  }
+}

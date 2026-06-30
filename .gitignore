@@ -1,0 +1,15 @@
+# Lixo de sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Dependências e ferramentas (se forem adicionadas depois)
+node_modules/
+
+# Segredos (precaução — não deve haver nenhum aqui)
+.env
+.env.*
+
+# Backups automáticos do app e backups soltos (o git já guarda o histórico do dados.js)
+backups/
+dados_backup_*.js

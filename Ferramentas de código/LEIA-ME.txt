@@ -1,0 +1,5 @@
+Esta pasta tem FERRAMENTAS DE CODIGO (scripts de teste e configuracao).
+
+Uteis so para quem for EDITAR o codigo do app. Voce NAO precisa disto para
+usar o aplicativo. As instrucoes de como rodar estao no README.md
+(pasta Documentacao).

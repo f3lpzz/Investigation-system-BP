@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b3e76"/><stop offset="1" stop-color="#0e2750"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="200" fill="url(#g)"/>
+  <g stroke="#3f6bb0" stroke-width="1" opacity="0.35">
+    <path d="M0 25 H320 M0 50 H320 M0 75 H320 M0 100 H320 M0 125 H320 M0 150 H320 M0 175 H320"/>
+    <path d="M25 0 V200 M50 0 V200 M75 0 V200 M100 0 V200 M125 0 V200 M150 0 V200 M175 0 V200 M200 0 V200 M225 0 V200 M250 0 V200 M275 0 V200 M300 0 V200"/>
+  </g>
+  <rect x="22" y="22" width="276" height="156" rx="8" fill="#0b1c3a" stroke="#6f9be0" stroke-width="2"/>
+  <text x="160" y="86" text-anchor="middle" fill="#bfd6ff" font-family="Segoe UI, sans-serif" font-size="40">🖼️</text>
+  <text x="160" y="120" text-anchor="middle" fill="#cfe0ff" font-family="Segoe UI, sans-serif" font-size="15">Miniatura da carta</text>
+  <text x="160" y="142" text-anchor="middle" fill="#88a6da" font-family="Segoe UI, sans-serif" font-size="11">(exemplo — sua foto aparece aqui)</text>
+</svg>
