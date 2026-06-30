@@ -368,6 +368,101 @@
     varrerImgs(document.body);
   }
 
+  /* ===========================================================
+     IMPORTAR o dados.js para a nuvem (com as imagens)
+     - Sobe imagens locais (imagens/...) e base64 (data:) para o Storage.
+     - Traz as 8 listas (via aplicarDadosNoApp) e salva na nuvem.
+     - URLs da web seguem como estão.
+     =========================================================== */
+  async function subirImagemImport(valor, base) {
+    if (typeof valor !== "string" || !valor) return valor;
+    if (valor.indexOf("nuvem:") === 0 || valor.indexOf("http") === 0) return valor;
+    // local (imagens/...) ou base64 (data:): busca o conteúdo e envia ao Storage.
+    try {
+      var resp = await fetch(valor);
+      var blob = await resp.blob();
+      var novo = await window.salvarImagemArquivo(blob, base || "import");
+      return novo || valor; // se o upload falhar, mantém o original
+    } catch (e) {
+      return valor;
+    }
+  }
+  async function migrarImagensDoImport(o) {
+    var conta = 0;
+    async function trata(obj, campo, base) {
+      var v = obj[campo];
+      if (
+        typeof v === "string" &&
+        v &&
+        v.indexOf("nuvem:") !== 0 &&
+        v.indexOf("http") !== 0
+      ) {
+        var nv = await subirImagemImport(v, base);
+        if (nv !== v) {
+          obj[campo] = nv;
+          conta++;
+        }
+      }
+    }
+    var fs = o.fichas || [];
+    for (var i = 0; i < fs.length; i++) {
+      if (fs[i].imagem) await trata(fs[i], "imagem", "ficha");
+      var pgs = fs[i].paginas || [];
+      for (var j = 0; j < pgs.length; j++) await trata(pgs[j], "imagem", "ficha");
+    }
+    var listas = ["salas", "personagens", "grupos", "colecoes"];
+    for (var k = 0; k < listas.length; k++) {
+      var arr = o[listas[k]] || [];
+      for (var m = 0; m < arr.length; m++)
+        await trata(arr[m], "imagem", listas[k].slice(0, 4));
+    }
+    return conta;
+  }
+  window.importarDados = function () {
+    var inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = ".js,.json,text/javascript,application/json";
+    inp.onchange = function () {
+      var file = inp.files && inp.files[0];
+      if (!file) return;
+      var rd = new FileReader();
+      rd.onload = async function () {
+        try {
+          var t = String(rd.result || "");
+          var o = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+          if (!o || !Array.isArray(o.fichas))
+            throw new Error("não parece um dados.js válido");
+          if (
+            !window.confirm(
+              "Importar vai SUBSTITUIR o seu catálogo na nuvem pelo do arquivo (e enviar as imagens). Continuar?",
+            )
+          )
+            return;
+          if (typeof toast === "function")
+            toast("Importando… enviando imagens para a nuvem.", 4000);
+          var n = await migrarImagensDoImport(o);
+          aplicarDadosNoApp(o);
+          await salvarNaNuvem();
+          if (typeof toast === "function")
+            toast(
+              "Catálogo importado ✓ — " +
+                (o.fichas ? o.fichas.length : 0) +
+                " ficha(s), " +
+                n +
+                " imagem(ns) enviada(s) à nuvem.",
+              6000,
+            );
+        } catch (e) {
+          alert(
+            "Não consegui importar: " + (e && e.message ? e.message : String(e)),
+          );
+        }
+      };
+      rd.readAsText(file);
+    };
+    inp.click();
+  };
+
   /* ---- Telas: login / cadastro / esqueci a senha ---- */
   function mostrarLogin() {
     usuarioAtual = null;
