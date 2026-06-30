@@ -18,6 +18,7 @@
   if (!window.supabase || !window.supabase.createClient) {
     // Falha ao carregar o SDK (CDN fora do ar/bloqueado/offline): degrada com
     // aviso VISÍVEL e mantém o painel escondido — nunca um login "morto" e mudo.
+    document.body.classList.remove("app-carregando");
     document.body.classList.add("pre-login");
     var _m = document.getElementById("authMsg");
     if (_m) {
@@ -232,6 +233,7 @@
   function mostrarLogin() {
     usuarioAtual = null;
     window.USUARIO = null;
+    document.body.classList.remove("app-carregando");
     document.body.classList.add("pre-login");
     aplicarModo("login");
   }
@@ -239,14 +241,17 @@
     // Guarda síncrona: impede entrada dupla (getSession + onAuthStateChange) e reentrância.
     if (entrando || usuarioAtual) return;
     entrando = true;
+    // Mostra a tela de "Carregando…" (não a de login) enquanto busca a nuvem — evita a piscada.
+    document.body.classList.remove("pre-login");
+    document.body.classList.add("app-carregando");
     try {
-      msg("Carregando o seu catálogo…", "info");
       await carregarDaNuvem(user);
       // SÓ considera "logado" DEPOIS de carregar com sucesso. Se marcássemos antes
       // e a carga falhasse, o autosave poderia gravar o esqueleto VAZIO por cima
       // do catálogo real na nuvem (perda de dados).
       usuarioAtual = user;
       window.USUARIO = user;
+      document.body.classList.remove("app-carregando");
       document.body.classList.remove("pre-login");
       msg("");
       // No modo online não há arquivo local: desliga o autosave de arquivo.
@@ -257,6 +262,8 @@
       // Carga falhou: NÃO fica logado, então nenhum salvamento pode ocorrer.
       usuarioAtual = null;
       window.USUARIO = null;
+      document.body.classList.remove("app-carregando");
+      document.body.classList.add("pre-login");
       msg(
         "Não consegui carregar seu catálogo. " +
           traduzErro(e) +
@@ -335,23 +342,23 @@
         }
         var rs = await sb.auth.signUp({ email: email, password: senha });
         if (rs.error) throw rs.error;
+        aplicarModo("login");
         msg(
           "Conta criada! Enviamos um e-mail de confirmação para " +
             email +
             ". Confirme o e-mail e depois entre.",
           "ok",
         );
-        aplicarModo("login");
       } else if (modoForm === "reset") {
         var ro = await sb.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.href,
         });
         if (ro.error) throw ro.error;
+        aplicarModo("login");
         msg(
           "Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha.",
           "ok",
         );
-        aplicarModo("login");
       } else if (modoForm === "nova-senha") {
         var senha2b = ($("authPass2") || {}).value || "";
         if (senha.length < 6) {
@@ -367,8 +374,8 @@
         try {
           await sb.auth.signOut();
         } catch (e2) {}
-        msg("Senha alterada! Agora entre com a nova senha.", "ok");
         aplicarModo("login");
+        msg("Senha alterada! Agora entre com a nova senha.", "ok");
       }
     } catch (e) {
       msg(traduzErro(e), "erro");
@@ -442,6 +449,18 @@
         ev.preventDefault();
         aplicarModo("reset");
       });
+    // Olhinho: mostrar/ocultar a senha.
+    var olhos = document.querySelectorAll(".auth-eye");
+    Array.prototype.forEach.call(olhos, function (b) {
+      b.addEventListener("click", function () {
+        var inp = document.getElementById(b.getAttribute("data-alvo"));
+        if (!inp) return;
+        var vaiMostrar = inp.type === "password";
+        inp.type = vaiMostrar ? "text" : "password";
+        b.textContent = vaiMostrar ? "🙈" : "👁";
+        b.setAttribute("aria-label", vaiMostrar ? "Ocultar senha" : "Mostrar senha");
+      });
+    });
     // No modo online, o botão "Salvar" salva na nuvem.
     window.salvarTudo = function () {
       return salvarNaNuvem();
@@ -452,6 +471,7 @@
   sb.auth.onAuthStateChange(function (evento, sessao) {
     if (evento === "PASSWORD_RECOVERY") {
       // Voltou do link "esqueci a senha": deixa digitar a nova senha (NÃO entra no app).
+      document.body.classList.remove("app-carregando");
       document.body.classList.add("pre-login");
       aplicarModo("nova-senha");
       return;

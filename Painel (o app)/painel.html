@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="estilos.css" />
     <link rel="stylesheet" href="online.css" />
   </head>
-  <body class="pre-login">
+  <body class="app-carregando">
     <div class="shell">
       <aside class="side" id="side">
         <div class="side-brand">
@@ -60,6 +60,14 @@
           >
             <span class="ni-ic" id="saveIc">☁</span
             ><span class="ni-lb" id="saveLb">Tudo salvo</span>
+          </button>
+          <button
+            id="btnSair"
+            class="navit"
+            onclick="if (window.sairDaConta) window.sairDaConta()"
+            title="Sair da conta (volta para a tela de login)"
+          >
+            <span class="ni-ic">🚪</span><span class="ni-lb">Sair</span>
           </button>
         </div>
       </aside>
@@ -417,6 +425,14 @@
         </div>
       </div>
     </div>
+    <!-- ===== Tela de "Carregando…" (versão online) ===== -->
+    <div id="authLoading">
+      <div class="auth-load-box">
+        <div class="auth-spinner"></div>
+        <div>Carregando…</div>
+      </div>
+    </div>
+
     <!-- ===== Tela de login (versão online) ===== -->
     <div id="authScreen">
       <div class="auth-card">
@@ -431,21 +447,43 @@
           </label>
           <label
             >Senha
-            <input
-              id="authPass"
-              type="password"
-              autocomplete="current-password"
-              required
-            />
+            <div class="auth-pass-wrap">
+              <input
+                id="authPass"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                class="auth-eye"
+                data-alvo="authPass"
+                aria-label="Mostrar senha"
+                tabindex="-1"
+              >
+                👁
+              </button>
+            </div>
           </label>
           <div id="authPass2wrap" style="display: none">
             <label
               >Confirmar senha
-              <input
-                id="authPass2"
-                type="password"
-                autocomplete="new-password"
-              />
+              <div class="auth-pass-wrap">
+                <input
+                  id="authPass2"
+                  type="password"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="auth-eye"
+                  data-alvo="authPass2"
+                  aria-label="Mostrar senha"
+                  tabindex="-1"
+                >
+                  👁
+                </button>
+              </div>
             </label>
           </div>
           <button type="submit" class="auth-btn primary" id="authPrimary">

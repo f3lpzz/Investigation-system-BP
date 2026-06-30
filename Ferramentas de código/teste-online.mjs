@@ -117,6 +117,10 @@ const login = (user) => {
   sessionNow = { user };
   if (authCb) authCb("SIGNED_IN", sessionNow);
 };
+// "Entrou de fato" = não está na tela de login NEM na de carregando.
+const entrou = () =>
+  !w.document.body.classList.contains("pre-login") &&
+  !w.document.body.classList.contains("app-carregando");
 
 (async () => {
   /* Teste 1 — esqueleto v6 */
@@ -136,8 +140,8 @@ const login = (user) => {
   cloud = {};
   upsertCalls = [];
   login({ id: "user-A", email: "a@test.com" });
-  await until(() => !w.document.body.classList.contains("pre-login"));
-  ok("1º acesso: entrou no app", !w.document.body.classList.contains("pre-login"));
+  await until(entrou);
+  ok("1º acesso: entrou no app", entrou());
   ok("1º acesso: criou a linha na nuvem (upsert)", upsertCalls.length >= 1);
   ok("1º acesso: catálogo começa vazio (0 fichas)", g("DADOS.fichas.length") === 0);
   ok("1º acesso: tipos padrão presentes", g("DADOS.tipos.length") > 0);
