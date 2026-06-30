@@ -7,7 +7,9 @@
   "scripts": {
     "verificar": "node verificar-dados.mjs",
     "teste-carga": "node teste-carga.mjs",
+    "teste-online": "node teste-online.mjs",
     "checar": "node verificar-dados.mjs && node teste-carga.mjs",
+    "checar-online": "node verificar-dados.mjs && node teste-carga.mjs && node teste-online.mjs",
     "format": "prettier --write \"../Painel (o app)/painel.html\" \"../Painel (o app)/estilos.css\" \"../Painel (o app)/app.js\" *.mjs",
     "lint": "eslint \"../Painel (o app)/app.js\""
   },
