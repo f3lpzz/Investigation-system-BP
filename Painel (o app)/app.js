@@ -1628,6 +1628,9 @@ function _persistApenas() {
   dirty = true;
   atualizarSalvar();
   agendarAuto();
+  // GANCHO ONLINE (inerte no MVP): se a camada online estiver ativa, agenda o salvamento na nuvem.
+  if (window.NUVEM && typeof window.NUVEM.agendarSalvar === "function")
+    window.NUVEM.agendarSalvar();
 }
 function marcarAlterado() {
   _pushHist();
@@ -1730,7 +1733,8 @@ function updateSaveStatus(st) {
   var ic = document.getElementById("saveIc"),
     lb = document.getElementById("saveLb"),
     b = document.getElementById("btnSalvar");
-  if (!fileHandle && !DADOS_BROKEN) st = "nohandle";
+  // No modo online o salvamento é na nuvem (não há "pasta"/fileHandle); a camada online cuida do status.
+  if (!window.MODO_ONLINE && !fileHandle && !DADOS_BROKEN) st = "nohandle";
   var M = {
     saving: ["☁", "Salvando…", "info"],
     pending: ["☁", "Salvando…", "info"],
@@ -5028,18 +5032,22 @@ function render() {
   else if (state.view === "teorias") renderTeorias();
 }
 render();
-reconectarAoCarregar()
-  .then(function () {
-    return lerMtime();
-  })
-  .then(function (m) {
-    if (m) _diskMtime = m;
-  })
-  .catch(function () {})
-  .then(function () {
-    atualizarSalvar();
-    if (!fileHandle && !DADOS_BROKEN) mostrarOnboard();
-  });
+// No modo online quem comanda o início (login -> carregar da nuvem) é a camada online (online.js).
+// Sem o modo online, segue o MVP: reconecta o arquivo local e, se não houver, mostra o onboarding.
+if (!window.MODO_ONLINE) {
+  reconectarAoCarregar()
+    .then(function () {
+      return lerMtime();
+    })
+    .then(function (m) {
+      if (m) _diskMtime = m;
+    })
+    .catch(function () {})
+    .then(function () {
+      atualizarSalvar();
+      if (!fileHandle && !DADOS_BROKEN) mostrarOnboard();
+    });
+}
 snapshotDB(true);
 histInit();
 atualizarSalvar();
