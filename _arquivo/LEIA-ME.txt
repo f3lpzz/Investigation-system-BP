@@ -1,2 +1,0 @@
-Copias antigas e rascunhos, guardados por seguranca (rollback).
-O app NAO usa nada daqui. Inclui o painel.html original antes da separacao.

@@ -19,3 +19,13 @@ dados_backup_*.js
 # local e o import; a versão online usa dados-vazio.js + imagens na nuvem.
 Painel (o app)/dados.js
 Painel (o app)/imagens/
+
+# Fora do repositório ONLINE (mantidos só no PC): MVP local, cópias e docs do MVP.
+_arquivo/
+Documentação/CHECKLIST.md
+Documentação/GUIA - O que cada documento precisa ter.md
+Documentação/INSTRUCOES PARA A IA - Colocar o Sistema Online.md
+Documentação/INSTRUCOES PARA A IA - Estruturar o Projeto.md
+Documentação/LEIA-ME.txt
+Documentação/README.md
+.claude/settings.local.json

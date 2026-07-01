@@ -1,4 +1,0 @@
-Pasta de "codebase" para o Claude Design.
-- painel.html : o app inteiro (UI, CSS e JS embutidos) - fonte de cores, tipografia e componentes atuais.
-- dados.js    : EXEMPLO do modelo de dados v6 (pistas com paginas, grupos com cor, salas, personagens).
-Arraste ESTA pasta na opcao "Codebase" do Claude Design (ou conecte via GitHub se preferir).
