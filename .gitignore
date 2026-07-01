@@ -13,3 +13,9 @@ node_modules/
 # Backups automáticos do app e backups soltos (o git já guarda o histórico do dados.js)
 backups/
 dados_backup_*.js
+
+# Versão ONLINE (branch online): o catálogo real e as imagens locais do dono
+# NÃO vão para o site publicado (privacidade). Ficam no disco para o teste
+# local e o import; a versão online usa dados-vazio.js + imagens na nuvem.
+Painel (o app)/dados.js
+Painel (o app)/imagens/
