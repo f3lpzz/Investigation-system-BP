@@ -54,7 +54,12 @@
     return {
       version: typeof SCHEMA_VERSION !== "undefined" ? SCHEMA_VERSION : 6,
       fichas: [],
-      salas: [],
+      // Diretório: começa com TODAS as salas do jogo, "não descobertas" (lista-base
+      // igual pra todos). Cópia própria (deep clone) — cada usuário descobre no seu ritmo.
+      salas:
+        typeof window !== "undefined" && Array.isArray(window.SALAS_BASE)
+          ? JSON.parse(JSON.stringify(window.SALAS_BASE))
+          : [],
       personagens: [],
       colecoes: [],
       grupos: [],

@@ -16,6 +16,7 @@ const html = ler("painel.html");
 const dadosVazio = ler("dados-vazio.js");
 const app = ler("app.js");
 const online = ler("online.js");
+const salasBase = ler("salas-base.js"); // lista-base das salas (semeia o Diretório)
 
 let falhas = 0;
 const erros = [];
@@ -99,7 +100,7 @@ w.MODO_ONLINE = true;
 const ctx = vm.createContext(w);
 const g = (s) => vm.runInContext(s, ctx);
 try {
-  g(dadosVazio + "\n" + app + "\n" + online);
+  g(salasBase + "\n" + dadosVazio + "\n" + app + "\n" + online);
 } catch (e) {
   erros.push("THROW no carregamento: " + e.message);
 }
@@ -132,6 +133,14 @@ const entrou = () =>
   ok("esqueleto: version = 6", esq.version === 6);
   ok("esqueleto: 8 listas são arrays", listas.every((k) => Array.isArray(esq[k])));
   ok("esqueleto: fichas vazias", esq.fichas.length === 0);
+  ok(
+    "esqueleto: Diretório semeado com as salas-base",
+    esq.salas.length > 0 && esq.salas.length === g("window.SALAS_BASE.length"),
+  );
+  ok(
+    "esqueleto: salas começam NÃO descobertas",
+    esq.salas.every((s) => s.descoberta === false),
+  );
 
   await sleep(60);
   ok("sem sessão -> mostra tela de login", w.document.body.classList.contains("pre-login"));
@@ -144,6 +153,7 @@ const entrou = () =>
   ok("1º acesso: entrou no app", entrou());
   ok("1º acesso: criou a linha na nuvem (upsert)", upsertCalls.length >= 1);
   ok("1º acesso: catálogo começa vazio (0 fichas)", g("DADOS.fichas.length") === 0);
+  ok("1º acesso: Diretório vem com as salas do jogo", g("DADOS.salas.length") > 0);
   ok("1º acesso: tipos padrão presentes", g("DADOS.tipos.length") > 0);
 
   /* Teste 3 — round-trip "ler = salvar" idêntico */
