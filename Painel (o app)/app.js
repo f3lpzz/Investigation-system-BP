@@ -1034,19 +1034,25 @@ document.addEventListener("keydown", function (e) {
     if (digitando) return;
     _space = true;
   }
-  // Atalhos de câmera do Mapa (convenção tldraw): Shift+1 enquadra, Shift+0 = 100%.
-  if (
-    !digitando &&
-    e.shiftKey &&
-    typeof state !== "undefined" &&
-    state.view === "mapa"
-  ) {
-    if (e.code === "Digit1") {
-      e.preventDefault();
-      fitCamera(true);
-    } else if (e.code === "Digit0") {
-      e.preventDefault();
-      zoom100Mapa();
+  // Atalhos de câmera (convenção tldraw): Shift+1 enquadra, Shift+0 = 100%.
+  // Valem no Mapa e nos Quadros (cada um com a própria câmera).
+  if (!digitando && e.shiftKey && typeof state !== "undefined") {
+    if (state.view === "mapa") {
+      if (e.code === "Digit1") {
+        e.preventDefault();
+        fitCamera(true);
+      } else if (e.code === "Digit0") {
+        e.preventDefault();
+        zoom100Mapa();
+      }
+    } else if (state.view === "teorias") {
+      if (e.code === "Digit1") {
+        e.preventDefault();
+        qFitCamera();
+      } else if (e.code === "Digit0") {
+        e.preventDefault();
+        qZoom100();
+      }
     }
   }
 });
@@ -4349,6 +4355,19 @@ function _replaceArr(t, s) {
   t.length = 0;
   (s || []).forEach((x) => t.push(x));
 }
+// Aplica um objeto importado sobre o DADOS (substituição das listas).
+// Separada do seletor de arquivo para poder ser testada "sem tela".
+function aplicarImport(o) {
+  _replaceArr(DADOS.salas, o.salas);
+  _replaceArr(DADOS.personagens, o.personagens);
+  _replaceArr(DADOS.colecoes, o.colecoes);
+  _replaceArr(fichas, o.fichas);
+  _replaceArr(DADOS.teorias, o.teorias);
+  // Conserto: quadros eram esquecidos no restaurar (o backup os contém).
+  // Defensivo: backups antigos podem não ter a lista.
+  if (Array.isArray(o.quadros)) _replaceArr(DADOS.quadros, o.quadros);
+  if (o.tipos && o.tipos.length) _replaceArr(TIPOS, o.tipos);
+}
 function importarDados() {
   const inp = document.createElement("input");
   inp.type = "file";
@@ -4367,12 +4386,7 @@ function importarDados() {
           )
         )
           return;
-        _replaceArr(DADOS.salas, o.salas);
-        _replaceArr(DADOS.personagens, o.personagens);
-        _replaceArr(DADOS.colecoes, o.colecoes);
-        _replaceArr(fichas, o.fichas);
-        _replaceArr(DADOS.teorias, o.teorias);
-        if (o.tipos && o.tipos.length) _replaceArr(TIPOS, o.tipos);
+        aplicarImport(o);
         marcarAlterado();
         buildChips();
         rebuildFilters();
@@ -4652,6 +4666,102 @@ function desenhaSetas() {
   }
   svg.innerHTML = s;
 }
+/* Câmera dos Quadros nas mesmas convenções do Mapa (canvas infinito):
+   limites unificados, Shift+1 = enquadrar, Shift+0 = 100%, zoom persistido. */
+const QUADRO_ZOOM_MIN = 0.1,
+  QUADRO_ZOOM_MAX = 8;
+let _qCamTimer = null;
+// Persistência com atraso: navegar (zoom) não grava a cada tick da roda.
+function qAgendaSalvarCam() {
+  clearTimeout(_qCamTimer);
+  _qCamTimer = setTimeout(function () {
+    marcarAlterado();
+  }, 800);
+}
+function qBounds(q) {
+  let a = 1e9,
+    b = 1e9,
+    c = -1e9,
+    d = -1e9;
+  q.nodes.forEach(function (n) {
+    const el = nodeEl(n.id);
+    const w = el ? el.offsetWidth : 250,
+      h = el ? el.offsetHeight : 80;
+    if (n.x < a) a = n.x;
+    if (n.y < b) b = n.y;
+    if (n.x + w > c) c = n.x + w;
+    if (n.y + h > d) d = n.y + h;
+  });
+  return a > c ? null : { minX: a, minY: b, maxX: c, maxY: d };
+}
+function qFitCamera() {
+  const q = quadroAtual(),
+    cv = document.getElementById("qcanvas");
+  if (!q || !cv) return;
+  const bb = qBounds(q);
+  if (!bb) return;
+  const W = cv.clientWidth || 700,
+    H = cv.clientHeight || 450,
+    m = 60;
+  const w = bb.maxX - bb.minX || 1,
+    h = bb.maxY - bb.minY || 1;
+  q.cam.s = Math.max(
+    QUADRO_ZOOM_MIN,
+    Math.min((W - m * 2) / w, (H - m * 2) / h, 1.4),
+  );
+  q.cam.x = W / 2 - ((bb.minX + bb.maxX) / 2) * q.cam.s;
+  q.cam.y = H / 2 - ((bb.minY + bb.maxY) / 2) * q.cam.s;
+  aplicaCam();
+  qAgendaSalvarCam();
+}
+function qZoom100() {
+  const q = quadroAtual(),
+    cv = document.getElementById("qcanvas");
+  if (!q || !cv) return;
+  const W = cv.clientWidth || 700,
+    H = cv.clientHeight || 450;
+  const cx = (W / 2 - q.cam.x) / q.cam.s,
+    cy = (H / 2 - q.cam.y) / q.cam.s;
+  q.cam.s = 1;
+  q.cam.x = W / 2 - cx;
+  q.cam.y = H / 2 - cy;
+  aplicaCam();
+  qAgendaSalvarCam();
+}
+// Handler ÚNICO de mouseup na window (antes era re-adicionado a cada
+// renderTeorias — vazamento de listeners; agora registra uma vez só).
+let _qWinWired = false;
+function qMouseUpGlobal(e) {
+  if (_qArrow) {
+    const t = e.target.closest && e.target.closest(".qnode");
+    if (t) {
+      const para = t.getAttribute("data-id");
+      if (para && para !== _qArrow.de) {
+        const q = quadroAtual();
+        if (!q.setas.some((s) => s.de === _qArrow.de && s.para === para)) {
+          q.setas.push({ de: _qArrow.de, para: para });
+          marcarAlterado();
+        }
+      }
+    }
+    _qArrow = null;
+    _qArrowCur = null;
+    desenhaSetas();
+  }
+  if (_qDrag) {
+    if (_qDrag.moved) marcarAlterado();
+    _qDrag = null;
+  }
+  if (_qPan) {
+    marcarAlterado();
+    _qPan = null;
+  }
+  if (_qMarq) {
+    _qMarq = null;
+    hideSelBox();
+    markSelDom();
+  }
+}
 function wireQuadro() {
   const cv = document.getElementById("qcanvas");
   if (!cv) return;
@@ -4741,37 +4851,10 @@ function wireQuadro() {
       markSelDom();
     }
   });
-  window.addEventListener("mouseup", function (e) {
-    if (_qArrow) {
-      const t = e.target.closest && e.target.closest(".qnode");
-      if (t) {
-        const para = t.getAttribute("data-id");
-        if (para && para !== _qArrow.de) {
-          const q = quadroAtual();
-          if (!q.setas.some((s) => s.de === _qArrow.de && s.para === para)) {
-            q.setas.push({ de: _qArrow.de, para: para });
-            marcarAlterado();
-          }
-        }
-      }
-      _qArrow = null;
-      _qArrowCur = null;
-      desenhaSetas();
-    }
-    if (_qDrag) {
-      if (_qDrag.moved) marcarAlterado();
-      _qDrag = null;
-    }
-    if (_qPan) {
-      marcarAlterado();
-      _qPan = null;
-    }
-    if (_qMarq) {
-      _qMarq = null;
-      hideSelBox();
-      markSelDom();
-    }
-  });
+  if (!_qWinWired) {
+    _qWinWired = true;
+    window.addEventListener("mouseup", qMouseUpGlobal);
+  }
   cv.addEventListener(
     "wheel",
     function (e) {
@@ -4781,10 +4864,15 @@ function wireQuadro() {
       const wx = (p.x - q.cam.x) / q.cam.s,
         wy = (p.y - q.cam.y) / q.cam.s;
       const f = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-      q.cam.s = Math.max(0.2, Math.min(3, q.cam.s * f));
+      q.cam.s = Math.max(
+        QUADRO_ZOOM_MIN,
+        Math.min(QUADRO_ZOOM_MAX, q.cam.s * f),
+      );
       q.cam.x = p.x - wx * q.cam.s;
       q.cam.y = p.y - wy * q.cam.s;
       aplicaCam();
+      // Antes o zoom não era salvo (só o pan); agora persiste, com atraso.
+      qAgendaSalvarCam();
     },
     { passive: false },
   );
