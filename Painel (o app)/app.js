@@ -1024,16 +1024,39 @@ function nodesInRect(svg, m) {
   return s;
 }
 document.addEventListener("keydown", function (e) {
+  var t = ((e.target && e.target.tagName) || "").toLowerCase();
+  var digitando =
+    t === "input" ||
+    t === "textarea" ||
+    t === "select" ||
+    (e.target && e.target.isContentEditable);
   if (e.code === "Space") {
-    var t = ((e.target && e.target.tagName) || "").toLowerCase();
-    if (
-      t === "input" ||
-      t === "textarea" ||
-      (e.target && e.target.isContentEditable)
-    )
-      return;
+    if (digitando) return;
     _space = true;
   }
+  // Atalhos de câmera do Mapa (convenção tldraw): Shift+1 enquadra, Shift+0 = 100%.
+  if (
+    !digitando &&
+    e.shiftKey &&
+    typeof state !== "undefined" &&
+    state.view === "mapa"
+  ) {
+    if (e.code === "Digit1") {
+      e.preventDefault();
+      fitCamera(true);
+    } else if (e.code === "Digit0") {
+      e.preventDefault();
+      zoom100Mapa();
+    }
+  }
+});
+// Canvas reage a redimensionar a janela (viewport/minimapa não ficam defasados).
+window.addEventListener("resize", function () {
+  var svg = document.getElementById("svg");
+  if (!svg || typeof state === "undefined" || state.view !== "mapa") return;
+  _viewW = svg.clientWidth || _viewW;
+  _viewH = svg.clientHeight || _viewH;
+  camRedraw();
 });
 document.addEventListener("keyup", function (e) {
   if (e.code === "Space") _space = false;
@@ -1069,12 +1092,20 @@ function fitCamera(redraw) {
   const w = bb.maxX - bb.minX || 1,
     h = bb.maxY - bb.minY || 1;
   cam.s = Math.max(
-    0.2,
+    MAPA_ZOOM_MIN,
     Math.min((_viewW - m * 2) / w, (_viewH - m * 2) / h, 1.6),
   );
   cam.x = _viewW / 2 - ((bb.minX + bb.maxX) / 2) * cam.s;
   cam.y = _viewH / 2 - ((bb.minY + bb.maxY) / 2) * cam.s;
-  if (redraw) draw(document.getElementById("svg"));
+  if (redraw) camRedraw();
+}
+// Zoom 100% mantendo o ponto do centro da tela fixo (Shift+0).
+function zoom100Mapa() {
+  const c = s2w(_viewW / 2, _viewH / 2);
+  cam.s = 1;
+  cam.x = _viewW / 2 - c.x;
+  cam.y = _viewH / 2 - c.y;
+  camRedraw();
 }
 function wrapLabel(s, maxc, maxl) {
   s = String(s == null ? "" : s).trim();
@@ -1189,9 +1220,61 @@ function draw(svg) {
     posCache[n.id] = { x: n.x, y: n.y };
   });
   const grid =
-    '<defs><pattern id="mgrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(120,170,255,.05)" stroke-width="1"/></pattern></defs><rect x="-6000" y="-6000" width="12000" height="12000" fill="url(#mgrid)"/>';
-  svg.innerHTML = `<g transform="translate(${cam.x},${cam.y}) scale(${cam.s})">${grid}${lh + nh}</g>`;
+    '<defs><pattern id="mgrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(120,170,255,.05)" stroke-width="1"/></pattern></defs><rect id="mgridRect" x="-6000" y="-6000" width="12000" height="12000" fill="url(#mgrid)"/>';
+  svg.innerHTML = `<g id="mapworld" transform="translate(${cam.x},${cam.y}) scale(${cam.s})">${grid}${lh + nh}</g>`;
+  aplicaCamMapa();
   drawMini();
+}
+/* Canvas infinito: pan/zoom só atualizam o transform do mundo (#mapworld),
+   sem reconstruir o SVG — e a grade é reposicionada para cobrir a viewport
+   (alinhada aos 40px do padrão, para as linhas não "nadarem"). */
+const MAPA_ZOOM_MIN = 0.1,
+  MAPA_ZOOM_MAX = 8;
+function aplicaCamMapa() {
+  const g = document.getElementById("mapworld");
+  if (!g) return;
+  g.setAttribute("transform", `translate(${cam.x},${cam.y}) scale(${cam.s})`);
+  const r = document.getElementById("mgridRect");
+  if (r) {
+    const tl = s2w(0, 0),
+      br = s2w(_viewW, _viewH);
+    const mx = (br.x - tl.x) * 0.5 + 120,
+      my = (br.y - tl.y) * 0.5 + 120;
+    r.setAttribute("x", Math.floor((tl.x - mx) / 40) * 40);
+    r.setAttribute("y", Math.floor((tl.y - my) / 40) * 40);
+    r.setAttribute("width", Math.ceil((br.x - tl.x + mx * 2) / 40) * 40 + 40);
+    r.setAttribute("height", Math.ceil((br.y - tl.y + my * 2) / 40) * 40 + 40);
+  }
+  miniViewUpdate();
+}
+// Redesenho leve pós-câmera: usa o transform quando o mundo já existe.
+function camRedraw() {
+  if (document.getElementById("mapworld")) aplicaCamMapa();
+  else {
+    const svg = document.getElementById("svg");
+    if (svg) draw(svg);
+  }
+}
+// Anima a câmera até (tx,ty,ts) com easing — usada pelo "centralizar no nó".
+let _camAnim = null;
+function animarCamera(tx, ty, ts, ms) {
+  if (_camAnim) cancelAnimationFrame(_camAnim);
+  const x0 = cam.x,
+    y0 = cam.y,
+    s0 = cam.s,
+    t0 = performance.now(),
+    dur = ms || 260;
+  function passo(t) {
+    let k = Math.min(1, (t - t0) / dur);
+    k = 1 - Math.pow(1 - k, 3); // easeOutCubic
+    cam.x = x0 + (tx - x0) * k;
+    cam.y = y0 + (ty - y0) * k;
+    cam.s = s0 + (ts - s0) * k;
+    camRedraw();
+    if (k < 1) _camAnim = requestAnimationFrame(passo);
+    else _camAnim = null;
+  }
+  _camAnim = requestAnimationFrame(passo);
 }
 function drawMini() {
   const mini = document.getElementById("minisvg");
@@ -1214,8 +1297,19 @@ function drawMini() {
     .join("");
   const tl = s2w(0, 0),
     br = s2w(_viewW, _viewH);
-  const rect = `<rect x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="#5b8def22" stroke="#9fc0ff" stroke-width="1.2"/>`;
+  const rect = `<rect id="miniview" x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="#5b8def22" stroke="#9fc0ff" stroke-width="1.2"/>`;
   mini.innerHTML = dots + rect;
+}
+// Atualiza só o retângulo de viewport do minimapa (barato; roda a cada pan/zoom).
+function miniViewUpdate() {
+  const vr = document.getElementById("miniview");
+  if (!vr || !_miniT) return;
+  const tl = s2w(0, 0),
+    br = s2w(_viewW, _viewH);
+  vr.setAttribute("x", tl.x * _miniT.s + _miniT.ox);
+  vr.setAttribute("y", tl.y * _miniT.s + _miniT.oy);
+  vr.setAttribute("width", (br.x - tl.x) * _miniT.s);
+  vr.setAttribute("height", (br.y - tl.y) * _miniT.s);
 }
 function wireMap(svg) {
   if (_mapWired) return;
@@ -1294,7 +1388,7 @@ function wireMap(svg) {
       cam.x = _pan.cx + (pp.x - _pan.mx);
       cam.y = _pan.cy + (pp.y - _pan.my);
       _pan.moved = true;
-      draw(svg);
+      aplicaCamMapa();
     } else if (_marq) {
       _marq.x1 = e.clientX;
       _marq.y1 = e.clientY;
@@ -1377,10 +1471,10 @@ function wireMap(svg) {
       const pp = rel(e),
         w = s2w(pp.x, pp.y);
       const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      cam.s = Math.max(0.12, Math.min(4, cam.s * f));
+      cam.s = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * f));
       cam.x = pp.x - w.x * cam.s;
       cam.y = pp.y - w.y * cam.s;
-      draw(svg);
+      aplicaCamMapa();
     },
     { passive: false },
   );
@@ -1391,9 +1485,7 @@ function wireMap(svg) {
       const r = mini.getBoundingClientRect();
       const wx = (e.clientX - r.left - _miniT.ox) / _miniT.s,
         wy = (e.clientY - r.top - _miniT.oy) / _miniT.s;
-      cam.x = _viewW / 2 - wx * cam.s;
-      cam.y = _viewH / 2 - wy * cam.s;
-      draw(svg);
+      animarCamera(_viewW / 2 - wx * cam.s, _viewH / 2 - wy * cam.s, cam.s, 200);
     });
 }
 
@@ -4236,9 +4328,8 @@ function centralizarNo(id) {
   const n = nodes.find((x) => x.id === id);
   const svg = document.getElementById("svg");
   if (!n || !svg) return;
-  cam.x = _viewW / 2 - n.x * cam.s;
-  cam.y = _viewH / 2 - n.y * cam.s;
-  draw(svg);
+  // Desliza suave até o nó (o draw do foco já rodou; aqui é só câmera).
+  animarCamera(_viewW / 2 - n.x * cam.s, _viewH / 2 - n.y * cam.s, cam.s, 300);
 }
 /* -- Backup / restaurar -- */
 function exportarBackup() {
