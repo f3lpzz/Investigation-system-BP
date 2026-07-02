@@ -292,12 +292,25 @@ const entrou = () =>
       "(function(){var p=qClipRect(100,100,300,100,{x:50,y:50,w:100,h:100},0);return Math.round(p.x)===150 && Math.round(p.y)===100;})()",
     ),
   );
-  // cria 2 cartões + 1 seta e dá rótulo (com HTML malicioso p/ provar o escape)
-  w.prompt = () => "<b>rot &</b>";
+  ok(
+    "seta: retângulo de seleção detecta a linha (geometria)",
+    g(
+      "qSegCruzaRect(0,50,100,50,40,40,60,60) === true && qSegCruzaRect(0,0,10,10,40,40,60,60) === false",
+    ),
+  );
+  // cria 2 cartões + 1 seta e dá rótulo via MODAL do sistema (com HTML malicioso p/ provar o escape)
   g(
     "(function(){var q=quadroAtual();var n1=qNovoTextoEm(0,0);var n2=qNovoTextoEm(400,0);q.setas.push({de:n1.id,para:n2.id});desenhaSetas();window._nA=n1.id;window._nB=n2.id;})()",
   );
   g("qRotuloSeta(0)");
+  ok(
+    "seta: rótulo abre em modal do SISTEMA (não prompt do navegador)",
+    g(
+      'document.getElementById("qrotulo") !== null && document.getElementById("qrotuloInput") !== null',
+    ),
+  );
+  g('document.getElementById("qrotuloInput").value = "<b>rot &</b>"');
+  g("qRotuloSalvar(0)");
   ok(
     "seta: rótulo salvo (campo aditivo) e renderizado com ESCAPE",
     g('quadroAtual().setas[0].rotulo === "<b>rot &</b>"') &&
@@ -316,13 +329,13 @@ const entrou = () =>
     "seta: religar para o PRÓPRIO cartão é recusado",
     g('qReligarSeta(0, "para", quadroAtual().setas[0].de) === false'),
   );
-  // seleção + delete da seta
+  // seleção + delete da seta (seleção múltipla via qApagarSelecao)
   g("qSelSeta(0)");
-  ok("seta: clique seleciona (não apaga mais direto)", g("_qSetaSel === 0"));
-  g("qDelSeta(0)");
+  ok("seta: clique seleciona (não apaga mais direto)", g("_qSetaSel.has(0)"));
+  g("qApagarSelecao()");
   ok(
-    "seta: Delete apaga a selecionada e zera a seleção",
-    g("quadroAtual().setas.length === 0 && _qSetaSel === -1"),
+    "seta: Delete apaga a(s) selecionada(s) e zera a seleção",
+    g("quadroAtual().setas.length === 0 && _qSetaSel.size === 0"),
   );
 
   ok("zero erros de runtime", erros.length === 0);
