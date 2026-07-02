@@ -285,6 +285,46 @@ const entrou = () =>
   ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
   g('qSetTool("select")');
 
+  /* Teste 9 — Setas estilo tldraw (Etapa D) */
+  ok(
+    "seta: geometria corta na BORDA do cartão (não no centro)",
+    g(
+      "(function(){var p=qClipRect(100,100,300,100,{x:50,y:50,w:100,h:100},0);return Math.round(p.x)===150 && Math.round(p.y)===100;})()",
+    ),
+  );
+  // cria 2 cartões + 1 seta e dá rótulo (com HTML malicioso p/ provar o escape)
+  w.prompt = () => "<b>rot &</b>";
+  g(
+    "(function(){var q=quadroAtual();var n1=qNovoTextoEm(0,0);var n2=qNovoTextoEm(400,0);q.setas.push({de:n1.id,para:n2.id});desenhaSetas();window._nA=n1.id;window._nB=n2.id;})()",
+  );
+  g("qRotuloSeta(0)");
+  ok(
+    "seta: rótulo salvo (campo aditivo) e renderizado com ESCAPE",
+    g('quadroAtual().setas[0].rotulo === "<b>rot &</b>"') &&
+      g('document.getElementById("qsvg").innerHTML.indexOf("&lt;b&gt;") !== -1') &&
+      g('document.getElementById("qsvg").innerHTML.indexOf("<b>rot") === -1'),
+  );
+  // religar a ponta para outro cartão
+  g("(function(){var n3=qNovoTextoEm(0,300);window._nC=n3.id;})()");
+  ok(
+    "seta: religar a ponta para outro cartão funciona",
+    g(
+      'qReligarSeta(0, "para", window._nC) === true && quadroAtual().setas[0].para === window._nC',
+    ),
+  );
+  ok(
+    "seta: religar para o PRÓPRIO cartão é recusado",
+    g('qReligarSeta(0, "para", quadroAtual().setas[0].de) === false'),
+  );
+  // seleção + delete da seta
+  g("qSelSeta(0)");
+  ok("seta: clique seleciona (não apaga mais direto)", g("_qSetaSel === 0"));
+  g("qDelSeta(0)");
+  ok(
+    "seta: Delete apaga a selecionada e zera a seleção",
+    g("quadroAtual().setas.length === 0 && _qSetaSel === -1"),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 

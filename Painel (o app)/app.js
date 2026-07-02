@@ -1066,10 +1066,18 @@ document.addEventListener("keydown", function (e) {
       else if (e.code === "Escape") {
         qSetTool("select");
         _qSelSet = new Set();
+        _qSetaSel = -1;
+        _qRebind = null;
+        _qRebindCur = null;
         if (typeof markSelDom === "function") markSelDom();
+        if (typeof desenhaSetas === "function") desenhaSetas();
       } else if (e.code === "Delete" || e.code === "Backspace") {
         e.preventDefault();
-        qApagarSelecao();
+        if (_qSetaSel >= 0) {
+          qDelSeta(_qSetaSel);
+        } else {
+          qApagarSelecao();
+        }
       }
     } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyD") {
       e.preventDefault();
@@ -4531,7 +4539,7 @@ function renderTeorias() {
     .join("");
   box.innerHTML = `<div class="qbar">
     <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
-    <div class="qtools"><span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">🅣</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Seta — arraste de um cartão a outro (A)">↗</button></span><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Texto</button><button class="topbtn" onclick="qAddNota()">🗒 Nota</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">V/H/T/N/A ferramentas · Del apaga · Ctrl+D duplica · Shift+1 enquadra · Shift+0 100% · 2 cliques num item p/ abrir</span></div>
+    <div class="qtools"><span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">🅣</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Seta — arraste de um cartão a outro (A)">↗</button></span><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Texto</button><button class="topbtn" onclick="qAddNota()">🗒 Nota</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">V/H/T/N/A ferramentas · Del apaga · Ctrl+D duplica · clique na seta seleciona · 2× na seta = rótulo · Shift+1 enquadra</span></div>
   </div>
   <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div></div>`;
   wireQuadro();
@@ -4678,15 +4686,37 @@ function desenhaSetas() {
   const svg = document.getElementById("qsvg");
   if (!svg || !q) return;
   let s =
-    '<defs><marker id="qar" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#9fc0ff"/></marker></defs>';
+    '<defs><marker id="qar" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#9fc0ff"/></marker><marker id="qarSel" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#e3c074"/></marker></defs>';
   q.setas.forEach(function (se, i) {
     const a = q.nodes.find((n) => n.id === se.de),
       b = q.nodes.find((n) => n.id === se.para);
     if (!a || !b) return;
-    const ca = nodeCenter(a),
-      cb = nodeCenter(b);
-    s += `<line x1="${ca.x}" y1="${ca.y}" x2="${cb.x}" y2="${cb.y}" stroke="#9fc0ff" stroke-width="2" marker-end="url(#qar)"/>`;
-    s += `<line x1="${ca.x}" y1="${ca.y}" x2="${cb.x}" y2="${cb.y}" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" onclick="qDelSeta(${i})"><title>Clique para remover</title></line>`;
+    // Geometria derivada (estilo tldraw): mira o centro, corta na borda.
+    const ra = qNodeRect(a),
+      rb = qNodeRect(b);
+    const ca = { x: ra.x + ra.w / 2, y: ra.y + ra.h / 2 },
+      cb = { x: rb.x + rb.w / 2, y: rb.y + rb.h / 2 };
+    let p1 = qClipRect(ca.x, ca.y, cb.x, cb.y, ra, 4);
+    let p2 = qClipRect(cb.x, cb.y, ca.x, ca.y, rb, 7);
+    const religando = _qRebind && _qRebind.i === i && _qRebindCur;
+    if (religando) {
+      if (_qRebind.end === "de") p1 = _qRebindCur;
+      else p2 = _qRebindCur;
+    }
+    const sel = i === _qSetaSel;
+    const cor = sel ? "#e3c074" : "#9fc0ff";
+    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${sel ? 3 : 2}" marker-end="url(#${sel ? "qarSel" : "qar"})"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
+    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></line>`;
+    if (se.rotulo) {
+      const mx = (p1.x + p2.x) / 2,
+        my = (p1.y + p2.y) / 2;
+      s += `<text x="${mx}" y="${my - 6}" text-anchor="middle" font-size="12" fill="#eaf0fb" paint-order="stroke" stroke="#0a1428" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
+    }
+    if (sel && !religando) {
+      // Alças das pontas: arrastar reconecta a outro cartão.
+      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+    }
   });
   if (_qArrow && _qArrowCur) {
     const a = q.nodes.find((n) => n.id === _qArrow.de);
@@ -4821,6 +4851,7 @@ function qApagarSelecao() {
   q.nodes = q.nodes.filter((n) => !ids.has(n.id));
   q.setas = q.setas.filter((s) => !ids.has(s.de) && !ids.has(s.para));
   _qSelSet = new Set();
+  _qSetaSel = -1; // setas podem ter mudado de índice
   marcarAlterado();
   desenhaQuadro();
 }
@@ -4843,6 +4874,70 @@ function qDuplicarSelecao() {
   marcarAlterado();
   desenhaQuadro();
 }
+/* ---- Setas estilo tldraw (nível 1) ----
+   A seta continua sendo o registro { de, para } (campos novos são ADITIVOS:
+   rotulo opcional). A geometria é DERIVADA a cada render: a linha vai de
+   centro a centro, mas é CORTADA na borda dos cartões (entra "de frente"). */
+let _qSetaSel = -1; // índice da seta selecionada (-1 = nenhuma; transiente)
+let _qRebind = null, // religando uma ponta: { i, end: "de"|"para" }
+  _qRebindCur = null;
+// Do centro (cx,cy) em direção a (tx,ty): ponto onde o segmento cruza a
+// borda do retângulo r {x,y,w,h}, empurrado "folga" px para fora.
+function qClipRect(cx, cy, tx, ty, r, folga) {
+  const dx = tx - cx,
+    dy = ty - cy;
+  if (!dx && !dy) return { x: cx, y: cy };
+  let tSai = Infinity;
+  if (dx > 0) tSai = Math.min(tSai, (r.x + r.w - cx) / dx);
+  if (dx < 0) tSai = Math.min(tSai, (r.x - cx) / dx);
+  if (dy > 0) tSai = Math.min(tSai, (r.y + r.h - cy) / dy);
+  if (dy < 0) tSai = Math.min(tSai, (r.y - cy) / dy);
+  if (!isFinite(tSai) || tSai < 0) tSai = 0;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const t = Math.min(tSai + (folga || 0) / len, 1);
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+function qNodeRect(n) {
+  const el = nodeEl(n.id);
+  return {
+    x: n.x,
+    y: n.y,
+    w: (el && el.offsetWidth) || 120,
+    h: (el && el.offsetHeight) || 40,
+  };
+}
+// Clique numa seta: seleciona/desseleciona (Delete apaga; Esc desmarca).
+function qSelSeta(i) {
+  _qSetaSel = _qSetaSel === i ? -1 : i;
+  desenhaSetas();
+}
+// Duplo clique numa seta: rótulo (texto sobre a linha; campo aditivo).
+function qRotuloSeta(i) {
+  const q = quadroAtual();
+  const se = q && q.setas[i];
+  if (!se) return;
+  const nv = prompt("Rótulo da seta (vazio remove):", se.rotulo || "");
+  if (nv === null) return;
+  if (nv.trim()) se.rotulo = nv.trim();
+  else delete se.rotulo;
+  marcarAlterado();
+  desenhaSetas();
+}
+// Reconecta uma ponta da seta a outro cartão (valida auto-loop e duplicata).
+function qReligarSeta(i, end, novoId) {
+  const q = quadroAtual();
+  const se = q && q.setas[i];
+  if (!se || !novoId) return false;
+  const de = end === "de" ? novoId : se.de,
+    para = end === "para" ? novoId : se.para;
+  if (de === para) return false;
+  if (q.setas.some((s2, j) => j !== i && s2.de === de && s2.para === para))
+    return false;
+  se[end] = novoId;
+  marcarAlterado();
+  desenhaSetas();
+  return true;
+}
 // Handler ÚNICO de mouseup na window (antes era re-adicionado a cada
 // renderTeorias — vazamento de listeners; agora registra uma vez só).
 let _qWinWired = false;
@@ -4864,6 +4959,14 @@ function qMouseUpGlobal(e) {
     desenhaSetas();
     // Convenção tldraw: depois de criar a seta, a ferramenta volta pra seleção.
     if (_qTool === "seta") qSetTool("select");
+  }
+  if (_qRebind) {
+    // Soltou a alça: sobre um cartão religa; no vazio, mantém como estava.
+    const alvo = e.target.closest && e.target.closest(".qnode");
+    if (alvo) qReligarSeta(_qRebind.i, _qRebind.end, alvo.getAttribute("data-id"));
+    _qRebind = null;
+    _qRebindCur = null;
+    desenhaSetas();
   }
   if (_qDrag) {
     if (_qDrag.moved) marcarAlterado();
@@ -4896,6 +4999,22 @@ function wireQuadro() {
     if (conn && e.button === 0) {
       _qArrow = { de: conn.getAttribute("data-conn") };
       _qArrowCur = toW(rel(e));
+      e.preventDefault();
+      return;
+    }
+    // Alça de RELIGAR a ponta de uma seta selecionada (arrastar reconecta).
+    const alca = e.target.closest && e.target.closest("[data-seta-end]");
+    if (alca && e.button === 0) {
+      _qRebind = {
+        i: +alca.getAttribute("data-seta-i"),
+        end: alca.getAttribute("data-seta-end"),
+      };
+      _qRebindCur = toW(rel(e));
+      e.preventDefault();
+      return;
+    }
+    // Clique numa seta: o onclick/ondblclick dela cuida — não inicia marquee.
+    if (e.target.closest && e.target.closest("[data-seta]")) {
       e.preventDefault();
       return;
     }
@@ -4956,6 +5075,11 @@ function wireQuadro() {
     }
     _qMarq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
     _qSelSet = new Set();
+    // Clique no fundo também desmarca a seta selecionada.
+    if (_qSetaSel !== -1) {
+      _qSetaSel = -1;
+      desenhaSetas();
+    }
     showSelBox(_qMarq);
     markSelDom();
     // Impede a seleção nativa de texto (azul) durante o retângulo — igual ao Mapa.
@@ -4989,6 +5113,9 @@ function wireQuadro() {
       aplicaCam();
     } else if (_qArrow) {
       _qArrowCur = toW(p);
+      desenhaSetas();
+    } else if (_qRebind) {
+      _qRebindCur = toW(p);
       desenhaSetas();
     } else if (_qMarq) {
       _qMarq.x1 = e.clientX;
@@ -5049,12 +5176,14 @@ function qDelNode(id) {
   const q = quadroAtual();
   q.nodes = q.nodes.filter((n) => n.id !== id);
   q.setas = q.setas.filter((s) => s.de !== id && s.para !== id);
+  _qSetaSel = -1; // setas podem ter mudado de índice
   marcarAlterado();
   desenhaQuadro();
 }
 function qDelSeta(i) {
   const q = quadroAtual();
   q.setas.splice(i, 1);
+  _qSetaSel = -1; // índices mudaram; evita destacar/apagar a seta errada
   marcarAlterado();
   desenhaSetas();
 }
