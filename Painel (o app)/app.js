@@ -1055,6 +1055,27 @@ document.addEventListener("keydown", function (e) {
       }
     }
   }
+  // Ferramentas dos Quadros: V/H/T/N/A, Esc, Delete, Ctrl+D (fora de campos de texto).
+  if (!digitando && typeof state !== "undefined" && state.view === "teorias") {
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      if (e.code === "KeyV") qSetTool("select");
+      else if (e.code === "KeyH") qSetTool("hand");
+      else if (e.code === "KeyT") qSetTool("texto");
+      else if (e.code === "KeyN") qSetTool("nota");
+      else if (e.code === "KeyA") qSetTool("seta");
+      else if (e.code === "Escape") {
+        qSetTool("select");
+        _qSelSet = new Set();
+        if (typeof markSelDom === "function") markSelDom();
+      } else if (e.code === "Delete" || e.code === "Backspace") {
+        e.preventDefault();
+        qApagarSelecao();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyD") {
+      e.preventDefault();
+      qDuplicarSelecao();
+    }
+  }
 });
 // Canvas reage a redimensionar a janela (viewport/minimapa não ficam defasados).
 window.addEventListener("resize", function () {
@@ -4510,11 +4531,12 @@ function renderTeorias() {
     .join("");
   box.innerHTML = `<div class="qbar">
     <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
-    <div class="qtools"><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Caixa de texto</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">Arraste o fundo p/ mover · roda = zoom · arraste a alça ● p/ ligar · 2 cliques num item p/ abrir</span></div>
+    <div class="qtools"><span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">🅣</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Seta — arraste de um cartão a outro (A)">↗</button></span><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Texto</button><button class="topbtn" onclick="qAddNota()">🗒 Nota</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">V/H/T/N/A ferramentas · Del apaga · Ctrl+D duplica · Shift+1 enquadra · Shift+0 100% · 2 cliques num item p/ abrir</span></div>
   </div>
   <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div></div>`;
   wireQuadro();
   desenhaQuadro();
+  qSetTool(_qTool); // restaura a ferramenta ativa (a barra é recriada a cada render)
 }
 function trocarQuadro(i) {
   _qIdx = i;
@@ -4577,7 +4599,16 @@ function qRefInfo(n) {
 function nodeHTML(n) {
   const sel = _qSelSet.has(n.id) ? " sel" : "";
   if (n.tipo === "texto") {
-    return `<div class="qnode qtexto${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px"><div class="qhandle" data-drag="${n.id}">≡ texto</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><span class="qdel" onclick="qDelNode('${n.id}')">✕</span><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+    // "estilo: nota" é ADITIVO: ausente = caixa de texto normal (dados antigos).
+    // A cor é um ÍNDICE numa paleta fixa (nunca CSS vindo dos dados).
+    const nota = n.estilo === "nota";
+    const corBg = nota
+      ? `;background:${QCORES_NOTA[(n.cor | 0) % QCORES_NOTA.length]}`
+      : "";
+    const btnCor = nota
+      ? `<span class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor">🎨</span>`
+      : "";
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><span class="qdel" onclick="qDelNode('${n.id}')">✕</span>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
@@ -4728,6 +4759,90 @@ function qZoom100() {
   aplicaCam();
   qAgendaSalvarCam();
 }
+/* Ferramentas dos Quadros (estilo tldraw): UMA ferramenta ativa por vez;
+   Esc volta pra seleção. Estado transiente (não vai para o DADOS). */
+let _qTool = "select"; // select | hand | texto | nota | seta
+const QCORES_NOTA = ["#f5d76e", "#ffb8dd", "#8ff0b4", "#9cc9ff", "#ffc09f"];
+function qSetTool(t) {
+  _qTool = t;
+  _qArrow = null;
+  _qArrowCur = null;
+  const cv = document.getElementById("qcanvas");
+  if (cv)
+    cv.style.cursor =
+      t === "hand" ? "grab" : t === "select" ? "default" : "crosshair";
+  document.querySelectorAll(".qtoolbtn").forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-tool") === t);
+  });
+}
+// Cria caixa de texto (ou nota adesiva) num ponto do mundo e foca o editor.
+function qNovoTextoEm(x, y, estilo) {
+  const q = quadroAtual();
+  if (!q) return null;
+  const n = {
+    id: "n" + Date.now() + Math.floor(Math.random() * 999),
+    tipo: "texto",
+    texto: "",
+    x: Math.round(x),
+    y: Math.round(y),
+    w: estilo === "nota" ? 190 : 250,
+  };
+  if (estilo === "nota") {
+    n.estilo = "nota"; // campo aditivo (ausente = caixa de texto de sempre)
+    n.cor = 0; // índice na paleta QCORES_NOTA
+  }
+  q.nodes.push(n);
+  marcarAlterado();
+  desenhaQuadro();
+  const el = nodeEl(n.id);
+  if (el) {
+    const ed = el.querySelector(".qtxt");
+    if (ed) ed.focus();
+  }
+  return n;
+}
+function qAddNota() {
+  const c = qCentro();
+  qNovoTextoEm(c.x, c.y, "nota");
+}
+function qCorNota(id) {
+  const q = quadroAtual();
+  const n = q && q.nodes.find((x) => x.id === id);
+  if (!n) return;
+  n.cor = ((n.cor | 0) + 1) % QCORES_NOTA.length;
+  marcarAlterado();
+  desenhaQuadro();
+}
+// Apaga todos os selecionados (e as setas que os citavam).
+function qApagarSelecao() {
+  const q = quadroAtual();
+  if (!q || !_qSelSet.size) return;
+  const ids = new Set(_qSelSet);
+  q.nodes = q.nodes.filter((n) => !ids.has(n.id));
+  q.setas = q.setas.filter((s) => !ids.has(s.de) && !ids.has(s.para));
+  _qSelSet = new Set();
+  marcarAlterado();
+  desenhaQuadro();
+}
+// Duplica os selecionados (ids novos, deslocados 24px) e seleciona as cópias.
+function qDuplicarSelecao() {
+  const q = quadroAtual();
+  if (!q || !_qSelSet.size) return;
+  const novos = [];
+  let k = 0;
+  q.nodes.forEach(function (n) {
+    if (!_qSelSet.has(n.id)) return;
+    const c = JSON.parse(JSON.stringify(n));
+    c.id = "n" + Date.now() + "d" + k++ + Math.floor(Math.random() * 999);
+    c.x = (c.x | 0) + 24;
+    c.y = (c.y | 0) + 24;
+    novos.push(c);
+  });
+  q.nodes = q.nodes.concat(novos);
+  _qSelSet = new Set(novos.map((n) => n.id));
+  marcarAlterado();
+  desenhaQuadro();
+}
 // Handler ÚNICO de mouseup na window (antes era re-adicionado a cada
 // renderTeorias — vazamento de listeners; agora registra uma vez só).
 let _qWinWired = false;
@@ -4747,6 +4862,8 @@ function qMouseUpGlobal(e) {
     _qArrow = null;
     _qArrowCur = null;
     desenhaSetas();
+    // Convenção tldraw: depois de criar a seta, a ferramenta volta pra seleção.
+    if (_qTool === "seta") qSetTool("select");
   }
   if (_qDrag) {
     if (_qDrag.moved) marcarAlterado();
@@ -4788,6 +4905,34 @@ function wireQuadro() {
       return;
     }
     if (e.button !== 0) return;
+    // ---- Ferramentas (estilo tldraw) ----
+    if (_qTool === "hand") {
+      // Mão: qualquer arraste vira pan (ignora os cartões).
+      _qPan = { mx: rel(e).x, my: rel(e).y, cx: q.cam.x, cy: q.cam.y };
+      e.preventDefault();
+      return;
+    }
+    if (_qTool === "texto" || _qTool === "nota") {
+      // Clique no fundo cria a caixa/nota no ponto; depois volta pra seleção.
+      if (!(e.target.closest && e.target.closest(".qnode"))) {
+        const w = toW(rel(e));
+        qNovoTextoEm(w.x, w.y, _qTool === "nota" ? "nota" : undefined);
+        qSetTool("select");
+        e.preventDefault();
+        return;
+      }
+      // Sobre um cartão: cai no comportamento normal (selecionar/arrastar).
+    }
+    if (_qTool === "seta") {
+      // Arrastar a partir de QUALQUER ponto de um cartão inicia a seta.
+      const alvo = e.target.closest && e.target.closest(".qnode");
+      if (alvo) {
+        _qArrow = { de: alvo.getAttribute("data-id") };
+        _qArrowCur = toW(rel(e));
+        e.preventDefault();
+        return;
+      }
+    }
     if (
       e.target.tagName === "TEXTAREA" ||
       e.target.isContentEditable ||
@@ -4888,18 +5033,8 @@ function qCentro() {
   };
 }
 function qAddTexto() {
-  const q = quadroAtual();
   const c = qCentro();
-  q.nodes.push({
-    id: "n" + Date.now(),
-    tipo: "texto",
-    texto: "",
-    x: c.x,
-    y: c.y,
-    w: 250,
-  });
-  marcarAlterado();
-  desenhaQuadro();
+  qNovoTextoEm(c.x, c.y);
 }
 function qSetTexto(id, v) {
   const n = quadroAtual().nodes.find((x) => x.id === id);

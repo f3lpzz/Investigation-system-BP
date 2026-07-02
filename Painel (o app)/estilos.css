@@ -2023,6 +2023,63 @@ select:focus {
   align-items: center;
   flex-wrap: wrap;
 }
+/* Barra de ferramentas dos Quadros (V/H/T/N/A) */
+.qtoolbar {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.qtoolbtn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.qtoolbtn:hover {
+  background: var(--s2);
+}
+.qtoolbtn.active {
+  background: var(--s2);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold) inset;
+}
+/* Nota adesiva (post-it): fundo claro da paleta, texto escuro */
+.qnode.qnota {
+  border-color: rgba(0, 0, 0, 0.25);
+}
+.qnode.qnota .qhandle {
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(20, 24, 34, 0.65);
+}
+.qnode.qnota .qtxt {
+  color: #1c2330;
+  min-height: 90px;
+}
+.qnode.qnota .qtxt[contenteditable]:empty:before {
+  color: rgba(28, 35, 48, 0.45);
+}
+.qnode.qnota .qdel {
+  color: #a02040;
+}
+.qcor {
+  position: absolute;
+  right: 22px;
+  top: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  display: none;
+  z-index: 2;
+}
+.qnode:hover .qcor {
+  display: inline;
+}
 .qcanvas {
   flex: 1;
   position: relative;
