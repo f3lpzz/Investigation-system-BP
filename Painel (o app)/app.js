@@ -4958,6 +4958,8 @@ function wireQuadro() {
     _qSelSet = new Set();
     showSelBox(_qMarq);
     markSelDom();
+    // Impede a seleção nativa de texto (azul) durante o retângulo — igual ao Mapa.
+    e.preventDefault();
   });
   cv.addEventListener("mousemove", function (e) {
     const q = quadroAtual();

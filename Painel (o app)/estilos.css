@@ -2085,6 +2085,9 @@ select:focus {
   position: relative;
   overflow: hidden;
   cursor: grab;
+  /* Sem seleção nativa de texto ao arrastar no canvas… */
+  user-select: none;
+  -webkit-user-select: none;
   background:
     linear-gradient(rgba(120, 170, 255, 0.05) 1px, transparent 1px) 0 0/30px
       30px,
@@ -2201,6 +2204,9 @@ select:focus {
   cursor: text;
   white-space: pre-wrap;
   word-break: break-word;
+  /* …mas dentro das caixas de texto a seleção continua normal (para editar). */
+  user-select: text;
+  -webkit-user-select: text;
 }
 .qnode.sel {
   outline: 2px solid var(--gold);
