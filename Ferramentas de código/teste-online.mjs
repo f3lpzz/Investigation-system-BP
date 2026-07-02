@@ -97,6 +97,14 @@ w.SUPABASE_URL = "http://localhost";
 w.SUPABASE_ANON_KEY = "anon-fake";
 w.MODO_ONLINE = true;
 
+// Contador: quantas vezes o app registra "mouseup" na window (pega vazamento).
+let mouseupAdds = 0;
+const _origAddEv = w.addEventListener.bind(w);
+w.addEventListener = function (tipo, fn, opts) {
+  if (tipo === "mouseup") mouseupAdds++;
+  return _origAddEv(tipo, fn, opts);
+};
+
 const ctx = vm.createContext(w);
 const g = (s) => vm.runInContext(s, ctx);
 try {
@@ -227,6 +235,24 @@ const entrou = () =>
   await until(() => g("DADOS.fichas.length") === 0);
   ok("logout: voltou para a tela de login", w.document.body.classList.contains("pre-login"));
   ok("logout: limpou o catálogo da memória", g("DADOS.fichas.length") === 0);
+
+  /* Teste 7 — Quadros: sem vazamento de listener + import restaura quadros */
+  g('setView("teorias"); render();');
+  const addsAposPrimeiro = mouseupAdds;
+  g("render(); render(); render();");
+  ok(
+    "quadros: re-renders NÃO empilham mouseup na window (vazamento corrigido)",
+    mouseupAdds === addsAposPrimeiro,
+  );
+  g(
+    'aplicarImport({salas:[],personagens:[],colecoes:[],fichas:[],teorias:[],tipos:[],quadros:[{nome:"Q Teste",cam:{x:0,y:0,s:1},nodes:[{id:"nT",tipo:"texto",texto:"oi",x:10,y:10,w:250}],setas:[]}]})',
+  );
+  ok(
+    "import: restaura os QUADROS do backup (bug corrigido)",
+    g(
+      'DADOS.quadros.length === 1 && DADOS.quadros[0].nome === "Q Teste" && DADOS.quadros[0].nodes.length === 1',
+    ),
+  );
 
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
