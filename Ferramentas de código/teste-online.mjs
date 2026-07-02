@@ -254,6 +254,37 @@ const entrou = () =>
     ),
   );
 
+  /* Teste 8 — Ferramentas dos Quadros (Etapa C) */
+  g("trocarQuadro(0)");
+  g('qNovoTextoEm(100, 100, "nota")');
+  ok(
+    "nota: criada com campo aditivo (estilo/cor de paleta)",
+    g(
+      '(function(){var q=quadroAtual();var n=q.nodes[q.nodes.length-1];return q.nodes.length===2 && n.estilo==="nota" && typeof n.cor==="number";})()',
+    ),
+  );
+  g(
+    "(function(){var q=quadroAtual();_qSelSet=new Set([q.nodes[q.nodes.length-1].id]);qDuplicarSelecao();})()",
+  );
+  ok(
+    "duplicar (Ctrl+D): cria cópia deslocada e seleciona a cópia",
+    g(
+      "(function(){var q=quadroAtual();var c=q.nodes[q.nodes.length-1];return q.nodes.length===3 && _qSelSet.size===1 && c.estilo===\"nota\";})()",
+    ),
+  );
+  g(
+    "(function(){var q=quadroAtual();var a=q.nodes[1].id,b=q.nodes[2].id;q.setas.push({de:a,para:b});_qSelSet=new Set([a,b]);qApagarSelecao();})()",
+  );
+  ok(
+    "apagar seleção (Delete): remove os cartões E as setas deles",
+    g(
+      "(function(){var q=quadroAtual();return q.nodes.length===1 && q.setas.length===0;})()",
+    ),
+  );
+  g('qSetTool("nota")');
+  ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
+  g('qSetTool("select")');
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
