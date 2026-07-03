@@ -147,7 +147,10 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: modelo,
-        max_completion_tokens: 4000,
+        // GPT-5: os tokens de raciocínio contam DENTRO deste limite —
+        // teto alto + esforço baixo evita resposta vazia por "length".
+        max_completion_tokens: 16000,
+        reasoning_effort: "low",
         messages: [
           { role: "system", content: REGRAS },
           { role: "user", content: conteudoUsuario },
@@ -168,11 +171,27 @@ Deno.serve(async (req) => {
     if (escolha?.message?.refusal) {
       return json({ error: "A IA recusou o pedido: " + escolha.message.refusal }, 502);
     }
+    if (escolha?.finish_reason === "length") {
+      return json(
+        { error: "A IA estourou o limite de resposta (length). Tente de novo; se persistir, aumente max_completion_tokens." },
+        502,
+      );
+    }
     let resultado;
     try {
       resultado = JSON.parse(escolha?.message?.content || "");
     } catch {
-      return json({ error: "Resposta da IA não veio no formato esperado" }, 502);
+      return json(
+        {
+          error:
+            "Resposta da IA não veio no formato esperado (finish_reason=" +
+            (escolha?.finish_reason || "?") +
+            ", conteudo_vazio=" +
+            String(!(escolha?.message?.content || "").length) +
+            ")",
+        },
+        502,
+      );
     }
 
     return json({
