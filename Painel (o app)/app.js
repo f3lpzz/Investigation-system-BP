@@ -1656,7 +1656,7 @@ function abrir(id) {
     <div class="dh">
       <button class="close" onclick="fechar()">✕</button>
       <h2><span class="idref idref-lg">${esc(f.id)}</span> ${esc(f.titulo)}</h2>
-      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">✏️ Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">🎯 Focar no mapa</button><button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button></div>
+      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">✏️ Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">🎯 Focar no mapa</button>${window.IA_ATIVA && f.pendente ? `<button class="dbtn" onclick="iaProcessarPista('${f.id}')" title="A IA transcreve, traduz e preenche a ficha — você revisa antes de aplicar">✨ Processar com IA</button>` : ""}<button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button></div>
     </div>
     <div class="db">
       <div id="pgtabs" class="pgtabs"></div>
