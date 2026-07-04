@@ -538,6 +538,35 @@ main {
   line-height: 1.5;
   color: var(--ink);
 }
+/* Características da sala: "tabela invisível" — até 3 itens por coluna,
+   depois segue na coluna ao lado. Espaço confortável para leitura. */
+.sala-caract {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px 28px;
+  margin: 10px 0 16px;
+  align-items: start;
+}
+.sala-caract .sc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sala-caract .sc-lab {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--hint);
+  font-family: var(--font-mono);
+}
+.sala-caract .sc-val {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink);
+}
 .twocol {
   display: grid;
   grid-template-columns: 1fr 1fr;

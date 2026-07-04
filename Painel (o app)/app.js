@@ -3803,27 +3803,51 @@ function tagPistas(arr) {
     : "<span class='gvazio'>(nenhuma)</span>";
 }
 // Dossiê de uma SALA: mostra os dados do JOGO (compartilhados), com EN e PT.
+// As características vão numa grade "tabela invisível": até 3 por coluna,
+// depois seguem na coluna ao lado.
 function salaDossieJogo(e) {
-  const linha = [];
-  if (e.num) linha.push(`<b>Nº</b> ${esc(String(e.num))}`);
+  const itens = [];
+  if (e.num) itens.push(["Nº", String(e.num)]);
   const cat = (e.categorias || []).join(", ");
-  if (cat) linha.push(`<b>Categoria:</b> ${esc(cat)}`);
+  if (cat) itens.push(["Categoria", cat]);
   const rar = e.raridade_pt || e.raridade;
-  if (rar) linha.push(`<b>Raridade:</b> ${esc(rar)}`);
-  if (e.custo_pt) linha.push(`<b>Custo:</b> ${esc(e.custo_pt)}`);
+  if (rar) itens.push(["Raridade", rar]);
+  if (e.custo_pt) itens.push(["Custo", e.custo_pt]);
   const tip = e.tipo_pt || e.tipo;
-  if (tip) linha.push(`<b>Tipo:</b> ${esc(tip)}`);
-  let html = linha.length ? `<p class="dica">${linha.join(" &nbsp;·&nbsp; ")}</p>` : "";
+  if (tip) itens.push(["Tipo", tip]);
+  let html = "";
+  if (itens.length) {
+    html +=
+      `<div class="sala-caract">` +
+      itens
+        .map(
+          ([l, v]) =>
+            `<div class="sc-item"><span class="sc-lab">${esc(l)}</span><span class="sc-val">${esc(v)}</span></div>`,
+        )
+        .join("") +
+      `</div>`;
+  }
   const dPt = e.descricao_pt || e.descricao;
   if (dPt) html += field("Descrição (PT)", esc(dPt));
   if (e.descricao_en) html += field("Description (EN)", esc(e.descricao_en));
   if (e.efeito) html += field("Efeito", esc(e.efeito));
-  if (e.fonte)
-    html += field(
-      "Fonte",
-      `<a href="${esc(e.fonte)}" target="_blank" rel="noopener">${esc(e.fonte)}</a> <small style="opacity:.6">(wiki fan-made)</small>`,
-    );
   return html;
+}
+// Edição inline dos campos PESSOAIS da sala (fatos/notas), direto no dossiê.
+// Não re-renderiza (não perde o foco); só atualiza os dados e salva.
+function salaEditInline() {
+  if (!_entAtual || _entAtual.kind !== "sala") return;
+  const s = acharEnt(DADOS.salas, _entAtual.nome);
+  if (!s) return;
+  const ft = document.getElementById("sala-fatos");
+  const nt = document.getElementById("sala-notas");
+  if (ft)
+    s.fatos = ft.value
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  if (nt) s.notas = nt.value;
+  marcarAlterado();
 }
 let _entAtual = null;
 function abrirEntidade(kind, nome) {
@@ -3836,19 +3860,31 @@ function abrirEntidade(kind, nome) {
     (f) => !idsDir.has(f.id) && mencionaTexto(f, nome),
   );
   const d = document.getElementById("drawer");
+  // Salas do diretório: sem "Editar dossiê" nem "Excluir" (não se apaga sala).
+  const ehSala = kind === "sala";
+  const acoesHtml =
+    (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">✏️ Editar dossiê</button>`) +
+    `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">🎯 Focar no mapa</button>` +
+    (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">📖 Folhear</button>` : "") +
+    (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">🔒 Re-bloquear</button>` : "");
+  // Sala: fatos e notas EDITÁVEIS direto no dossiê (sem tela de edição separada).
+  const pessoalHtml = ehSala
+    ? `<div class="field"><div class="lab">Fatos conhecidos <small style="opacity:.55">(um por linha)</small></div><textarea id="sala-fatos" class="edinput edarea" placeholder="Anote fatos desta sala…" onchange="salaEditInline()">${esc((e.fatos || []).join("\n"))}</textarea></div>
+      <div class="field"><div class="lab">Notas</div><textarea id="sala-notas" class="edinput edarea" placeholder="Suas anotações pessoais…" onchange="salaEditInline()">${esc(e.notas || "")}</textarea></div>`
+    : field("Fatos conhecidos", e.fatos && e.fatos.length ? `<ul class="fatos">${e.fatos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<span class='gvazio'>(nenhum ainda)</span>") +
+      (e.notas ? field("Notas", esc(e.notas)) : "");
   d.innerHTML = `
     <div class="dh">
       <button class="close" onclick="fechar()">✕</button>
       <div class="tipo" style="color:${corKind(kind)}">${iconKind(kind)} ${rotKind(kind)} (dossiê)</div>
       <h2>${esc(nome)}</h2>
-      <div class="dactions"><button class="dbtn" onclick="editarEntidade()">✏️ Editar dossiê</button><button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">🎯 Focar no mapa</button>${kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">📖 Folhear</button>` : ""}${kind === "sala" ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">🔒 Re-bloquear</button>` : ""}</div>
+      <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
       ${e.imagem ? `<img src="${esc(e.imagem)}" onerror="this.style.display='none'">` : ""}
-      ${kind === "sala" ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
+      ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
-      ${field("Fatos conhecidos", e.fatos && e.fatos.length ? `<ul class="fatos">${e.fatos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<span class='gvazio'>(nenhum ainda)</span>")}
-      ${e.notas ? field("Notas", esc(e.notas)) : ""}
+      ${pessoalHtml}
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
       ${field("Mencionam em outro lugar (" + mencoes.length + ")", tagPistas(mencoes))}
     </div>`;
@@ -3934,6 +3970,11 @@ function excluirEntPainel() {
   if (!_entAtual) return;
   const kind = _entAtual.kind,
     nome = _entAtual.nome;
+  // Salas são do diretório compartilhado do jogo: não podem ser excluídas.
+  if (kind === "sala") {
+    alert("As salas fazem parte do diretório do jogo e não podem ser excluídas.");
+    return;
+  }
   if (!confirm('Excluir o dossiê de "' + nome + '" e desvincular das fichas?'))
     return;
   excluirEnt(kind, nome);

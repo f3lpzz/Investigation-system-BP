@@ -423,6 +423,32 @@ const entrou = () =>
     g('(function(){var antes=JSON.stringify(window.__d);window.NUVEM.sobreporDiretorioSalas(window.__d, []);return JSON.stringify(window.__d)===antes;})()'),
   );
 
+  /* Teste 12 — Dossiê da sala: dados do jogo + edição inline, sem editar/excluir/fonte */
+  g('DADOS.salas.push({nome:"Sala UI Teste",descoberta:true,num:7,categorias:["Blueprint"],raridade_pt:"Raro",custo_pt:"Nenhum (sem custo em gemas)",tipo_pt:"Permanente, Blueprint",descricao_pt:"desc em portugues",descricao_en:"desc in english",fonte:"https://blueprince.wiki.gg/wiki/x",fatos:[],notas:""});');
+  g('abrirEntidade("sala","Sala UI Teste")');
+  const dh = () => g('document.getElementById("drawer").innerHTML');
+  ok(
+    "dossiê sala: características em grade (sala-caract)",
+    g('document.getElementById("drawer").innerHTML.indexOf("sala-caract")>0'),
+  );
+  ok(
+    "dossiê sala: fatos e notas editáveis na 1ª tela",
+    g('!!document.getElementById("sala-fatos") && !!document.getElementById("sala-notas")'),
+  );
+  ok(
+    "dossiê sala: SEM botão Editar, SEM Excluir, SEM Fonte/wiki",
+    g('(function(){var h=document.getElementById("drawer").innerHTML;return h.indexOf("Editar dossiê")<0 && h.indexOf("Excluir")<0 && h.indexOf(">Fonte<")<0 && h.indexOf("wiki.gg")<0;})()'),
+  );
+  g('document.getElementById("sala-notas").value="minha anotacao"; document.getElementById("sala-fatos").value="fato 1\\nfato 2"; salaEditInline();');
+  ok(
+    "dossiê sala: escrever fatos/notas inline salva na sala",
+    g('(function(){var s=acharEnt(DADOS.salas,"Sala UI Teste");return s.notas==="minha anotacao" && s.fatos.length===2 && s.fatos[0]==="fato 1";})()'),
+  );
+  ok(
+    "dossiê sala: excluir sala é bloqueado",
+    g('(function(){_entAtual={kind:"sala",nome:"Sala UI Teste"};excluirEntPainel();return !!acharEnt(DADOS.salas,"Sala UI Teste");})()'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
