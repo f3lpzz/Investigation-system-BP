@@ -3802,6 +3802,29 @@ function tagPistas(arr) {
     ? `<span class="taglist">${arr.map((f) => `<span class="t conx" onclick="abrir('${f.id}')">🔗 ${esc(f.titulo)}${f.sala && f.sala !== "" ? ` <small style="opacity:.6">· ${esc(f.sala)}</small>` : ""}</span>`).join("")}</span>`
     : "<span class='gvazio'>(nenhuma)</span>";
 }
+// Dossiê de uma SALA: mostra os dados do JOGO (compartilhados), com EN e PT.
+function salaDossieJogo(e) {
+  const linha = [];
+  if (e.num) linha.push(`<b>Nº</b> ${esc(String(e.num))}`);
+  const cat = (e.categorias || []).join(", ");
+  if (cat) linha.push(`<b>Categoria:</b> ${esc(cat)}`);
+  const rar = e.raridade_pt || e.raridade;
+  if (rar) linha.push(`<b>Raridade:</b> ${esc(rar)}`);
+  if (e.custo_pt) linha.push(`<b>Custo:</b> ${esc(e.custo_pt)}`);
+  const tip = e.tipo_pt || e.tipo;
+  if (tip) linha.push(`<b>Tipo:</b> ${esc(tip)}`);
+  let html = linha.length ? `<p class="dica">${linha.join(" &nbsp;·&nbsp; ")}</p>` : "";
+  const dPt = e.descricao_pt || e.descricao;
+  if (dPt) html += field("Descrição (PT)", esc(dPt));
+  if (e.descricao_en) html += field("Description (EN)", esc(e.descricao_en));
+  if (e.efeito) html += field("Efeito", esc(e.efeito));
+  if (e.fonte)
+    html += field(
+      "Fonte",
+      `<a href="${esc(e.fonte)}" target="_blank" rel="noopener">${esc(e.fonte)}</a> <small style="opacity:.6">(wiki fan-made)</small>`,
+    );
+  return html;
+}
 let _entAtual = null;
 function abrirEntidade(kind, nome) {
   const e = acharEnt(entListaDe(kind), nome);
@@ -3822,9 +3845,8 @@ function abrirEntidade(kind, nome) {
     </div>
     <div class="db">
       ${e.imagem ? `<img src="${esc(e.imagem)}" onerror="this.style.display='none'">` : ""}
-      ${e.descricao ? field("Descrição", esc(e.descricao)) : ""}
+      ${kind === "sala" ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
-      ${kind === "sala" ? field("Tipo", esc(e.tipo || (e.categorias || []).join(", ") || "—")) + (e.raridade ? field("Raridade", esc(e.raridade)) : "") + (e.efeito ? field("Efeito", esc(e.efeito)) : "") : ""}
       ${field("Fatos conhecidos", e.fatos && e.fatos.length ? `<ul class="fatos">${e.fatos.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "<span class='gvazio'>(nenhum ainda)</span>")}
       ${e.notas ? field("Notas", esc(e.notas)) : ""}
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
@@ -3849,12 +3871,12 @@ function editarEntidade() {
       <h2>${esc(nome)}</h2>
     </div>
     <div class="db">
-      ${edCampo("Nome", "entnome", e.nome)}
+      ${kind === "sala" ? "" : edCampo("Nome", "entnome", e.nome)}
       ${kind === "grupo" ? '<div class="field"><div class="lab">Cor do grupo</div><input type="color" id="ed-entcor" class="gcolor" value="' + hex6(e.cor) + '"></div>' : ""}
-      ${edCampo("Imagem (ou anexe abaixo)", "entimg", e.imagem)}
-      <div class="field"><button type="button" class="dbtn attachbtn" onclick="escolherImagem('ed-entimg','ed-entimgprev')">📎 Anexar imagem do computador</button><img id="ed-entimgprev" class="imgprev" ${e.imagem ? 'src="' + esc(e.imagem) + '"' : 'style="display:none"'} onerror="this.style.display='none'"></div>
+      ${kind === "sala" ? "" : edCampo("Imagem (ou anexe abaixo)", "entimg", e.imagem)}
+      ${kind === "sala" ? "" : `<div class="field"><button type="button" class="dbtn attachbtn" onclick="escolherImagem('ed-entimg','ed-entimgprev')">📎 Anexar imagem do computador</button><img id="ed-entimgprev" class="imgprev" ${e.imagem ? 'src="' + esc(e.imagem) + '"' : 'style="display:none"'} onerror="this.style.display='none'"></div>`}
       ${kind === "pessoa" ? chipField("Apelidos / pseudônimos", "entalias", e.aliases || [], "pessoa") : ""}
-      ${edArea("Descrição", "entdesc", e.descricao)}
+      ${kind === "sala" ? '<div class="field"><div class="lab">Dados do jogo (compartilhados)</div><p class="dica">Nome, descrição, imagem e características vêm do <b>diretório compartilhado</b> e são iguais para todos — não são editáveis aqui. Anote seus <b>fatos</b> e <b>notas</b> pessoais abaixo.</p></div>' : edArea("Descrição", "entdesc", e.descricao)}
       ${edArea("Fatos conhecidos (um por linha)", "entfatos", (e.fatos || []).join("\n"))}
       ${edArea("Notas", "entnotas", e.notas)}
       <div class="editbtns">
@@ -3870,24 +3892,29 @@ function salvarEntidade() {
   if (!_entAtual) return;
   const kind = _entAtual.kind,
     nome = _entAtual.nome;
+  // Devolve null quando o campo NÃO está no formulário (ex.: salas escondem os
+  // campos do jogo) — assim não sobrescrevemos com vazio o que veio do diretório.
   const g = (k) => {
     const el = document.getElementById("ed-" + k);
-    return el ? el.value : "";
+    return el ? el.value : null;
   };
-  let novo = g("entnome").trim() || nome;
+  let novo = ((g("entnome") || nome).trim()) || nome;
   if (novo !== nome) renomearEnt(kind, nome, novo);
   const e = acharEnt(entListaDe(kind), novo);
   if (!e) {
     _entAtual = null;
     return;
   }
-  e.imagem = g("entimg").trim();
-  e.descricao = g("entdesc");
-  e.fatos = g("entfatos")
+  const imgv = g("entimg");
+  if (imgv !== null) e.imagem = imgv.trim();
+  const descv = g("entdesc");
+  if (descv !== null) e.descricao = descv;
+  e.fatos = (g("entfatos") || "")
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  e.notas = g("entnotas");
+  const notasv = g("entnotas");
+  if (notasv !== null) e.notas = notasv;
   if (kind === "pessoa") {
     e.aliases = g("entalias")
       .split(",")
