@@ -449,6 +449,30 @@ const entrou = () =>
     g('(function(){_entAtual={kind:"sala",nome:"Sala UI Teste"};excluirEntPainel();return !!acharEnt(DADOS.salas,"Sala UI Teste");})()'),
   );
 
+  /* Teste 13 — Gerenciar: salas não podem ser renomeadas nem excluídas */
+  g('buildLista("g-salas",[{nome:"Attic",descoberta:true}],"sala")');
+  g('buildLista("g-pessoas",[{nome:"Fulano"}],"pessoa")');
+  ok(
+    "gerenciar sala: NÃO tem botão de excluir (🗑)",
+    g('document.querySelector("#g-salas .gdel") === null'),
+  );
+  ok(
+    "gerenciar sala: nome é somente-leitura (não renomeia)",
+    g('(function(){var i=document.querySelector("#g-salas .ginput");return !!i && i.readOnly===true;})()'),
+  );
+  ok(
+    "gerenciar sala: mantém o 📋 (abrir dossiê)",
+    g('document.querySelector("#g-salas .gdos") !== null'),
+  );
+  ok(
+    "gerenciar pessoa: continua com excluir e renomear (não afetado)",
+    g('document.querySelector("#g-pessoas .gdel") !== null && document.querySelector("#g-pessoas .ginput").readOnly===false'),
+  );
+  ok(
+    "excluirEnt('sala',...) é bloqueado na raiz",
+    g('(function(){DADOS.salas.push({nome:"Zzz Sala",descoberta:true});excluirEnt("sala","Zzz Sala");return !!acharEnt(DADOS.salas,"Zzz Sala");})()'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 

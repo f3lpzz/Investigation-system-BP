@@ -3305,14 +3305,21 @@ function buildLista(elId, arr, kind) {
     const inp = document.createElement("input");
     inp.className = "ginput";
     inp.value = nome;
-    inp.onchange = () => {
-      const nv = inp.value.trim();
-      if (nv && nv !== nome) {
-        renomearEnt(kind, nome, nv);
-      } else if (!nv) {
-        inp.value = nome;
-      }
-    };
+    if (kind === "sala") {
+      // Salas vêm do diretório compartilhado (Supabase): aqui não se renomeia
+      // nem se exclui — só se abre o dossiê.
+      inp.readOnly = true;
+      inp.title = "Sala do diretório do jogo (não editável aqui)";
+    } else {
+      inp.onchange = () => {
+        const nv = inp.value.trim();
+        if (nv && nv !== nome) {
+          renomearEnt(kind, nome, nv);
+        } else if (!nv) {
+          inp.value = nome;
+        }
+      };
+    }
     const dos = document.createElement("button");
     dos.className = "gdos";
     dos.textContent = "📋";
@@ -3321,20 +3328,23 @@ function buildLista(elId, arr, kind) {
       fecharGestao();
       abrirEntidade(kind, nome);
     };
-    const del = document.createElement("button");
-    del.className = "gdel";
-    del.textContent = "🗑";
-    del.onclick = () => {
-      if (
-        confirm(
-          'Excluir "' +
-            nome +
-            '"? Sera removido das fichas e o dossie apagado.',
-        )
-      ) {
-        excluirEnt(kind, nome);
-      }
-    };
+    let del = null;
+    if (kind !== "sala") {
+      del = document.createElement("button");
+      del.className = "gdel";
+      del.textContent = "🗑";
+      del.onclick = () => {
+        if (
+          confirm(
+            'Excluir "' +
+              nome +
+              '"? Sera removido das fichas e o dossie apagado.',
+          )
+        ) {
+          excluirEnt(kind, nome);
+        }
+      };
+    }
     if (kind === "grupo") {
       const col = document.createElement("input");
       col.type = "color";
@@ -3349,7 +3359,7 @@ function buildLista(elId, arr, kind) {
     }
     row.appendChild(inp);
     row.appendChild(dos);
-    row.appendChild(del);
+    if (del) row.appendChild(del);
     box.appendChild(row);
   });
 }
@@ -3461,6 +3471,8 @@ function renomearEnt(kind, o, nv) {
   renderGestao();
 }
 function excluirEnt(kind, o) {
+  // Salas são do diretório compartilhado do jogo: nunca podem ser excluídas.
+  if (kind === "sala") return;
   const arr = entListaDe(kind);
   const i = arr.findIndex((e) => e.nome === o);
   if (i < 0) return;
