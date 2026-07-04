@@ -32,9 +32,10 @@ let authCb = null;
 let cloud = {}; // user_id -> dados (o "banco" em memória)
 let upsertCalls = [];
 let falharCarga = false; // quando true, a leitura da nuvem falha (teste de falha de carga)
+let diretorioSalas = []; // "tabela" diretorio_salas em memória (vazia = sem sobreposição)
 
-function makeBuilder() {
-  const st = { filtros: {} };
+function makeBuilder(table) {
+  const st = { filtros: {}, table };
   const b = {
     select() {
       return b;
@@ -42,6 +43,12 @@ function makeBuilder() {
     eq(c, v) {
       st.filtros[c] = v;
       return b;
+    },
+    // Permite `await sb.from("diretorio_salas").select("*")` (sem maybeSingle).
+    then(resolve) {
+      if (st.table === "diretorio_salas")
+        resolve({ data: JSON.parse(JSON.stringify(diretorioSalas)), error: null });
+      else resolve({ data: null, error: null });
     },
     async maybeSingle() {
       if (falharCarga)
@@ -83,8 +90,8 @@ const mockSb = {
       return { error: null };
     },
   },
-  from() {
-    return makeBuilder();
+  from(table) {
+    return makeBuilder(table);
   },
 };
 
@@ -364,6 +371,82 @@ const entrou = () =>
     g(
       '(function(){var d=window.IA.duplicata({paginas:[{transcricao:"  DEAR   staff, the west wing is closed. "}]},"outraFicha");var p=window.IA.duplicata({paginas:[{transcricao:"Dear staff, the west wing is closed."}]},"fIA");return d && d.id==="fIA" && p===null;})()',
     ),
+  );
+
+  /* Teste 11 — Diretório de salas compartilhado (sobreposição) */
+  // dados com 1 sala já "descoberta" e com notas pessoais + 1 sala fora do diretório
+  const dadosDir = {
+    salas: [
+      { nome: "Entrance Hall", descoberta: true, notas: "minha nota", fatos: ["f1"], descricao: "velha", imagem: "https://wiki/old.png" },
+      { nome: "Sala Pessoal", descoberta: true, notas: "só minha", fatos: [] },
+    ],
+  };
+  const dir = [
+    {
+      nome: "Entrance Hall", num: 2, nome_en: "Entrance Hall", nome_pt: "Hall de Entrada",
+      descricao_en: "Past the steps...", descricao_pt: "Passados os degraus...",
+      raridade_en: "n/a", raridade_pt: "n/d", custo_en: "None", custo_pt: "Nenhum",
+      tipo_en: "Permanent, Blueprint", tipo_pt: "Permanente, Blueprint",
+      categorias: ["Blueprint"], diretorio: "Rooms 001-012",
+      imagem: "https://sb.co/storage/v1/object/public/salas/x/Entrance%20Hall.png",
+      fonte: "https://wiki/Entrance_Hall",
+    },
+    {
+      nome: "Attic", num: 11, nome_en: "Attic", nome_pt: "Sótão",
+      descricao_en: "High above...", descricao_pt: "Bem no alto...",
+      raridade_en: "Rare", raridade_pt: "Raro", custo_en: "3 gems", custo_pt: "3 gemas",
+      tipo_en: "Blueprint", tipo_pt: "Blueprint", categorias: ["Blueprint"],
+      diretorio: "Rooms 001-012", imagem: "https://sb.co/storage/v1/object/public/salas/x/Attic.png",
+      fonte: "https://wiki/Attic",
+    },
+  ];
+  g("window.__d = " + JSON.stringify(dadosDir) + "; window.__dir = " + JSON.stringify(dir) + ";");
+  g("window.NUVEM.sobreporDiretorioSalas(window.__d, window.__dir)");
+  ok(
+    "diretório: sobrepõe os campos do jogo (descrição PT, imagem do Supabase, EN/PT)",
+    g('(function(){var s=window.__d.salas.find(x=>x.nome==="Entrance Hall");return s.descricao==="Passados os degraus..." && s.imagem.indexOf("/storage/v1/object/public/salas/")>0 && s.descricao_en==="Past the steps..." && s.nome_pt==="Hall de Entrada" && s.custo_pt==="Nenhum";})()'),
+  );
+  ok(
+    "diretório: PRESERVA o que é pessoal (descoberta, notas, fatos)",
+    g('(function(){var s=window.__d.salas.find(x=>x.nome==="Entrance Hall");return s.descoberta===true && s.notas==="minha nota" && s.fatos.length===1;})()'),
+  );
+  ok(
+    "diretório: adiciona sala que faltava (Attic), NÃO descoberta",
+    g('(function(){var s=window.__d.salas.find(x=>x.nome==="Attic");return !!s && s.descoberta===false && s.descricao==="Bem no alto..." && s.num===11;})()'),
+  );
+  ok(
+    "diretório: NÃO mexe em sala fora do diretório (Sala Pessoal intacta)",
+    g('(function(){var s=window.__d.salas.find(x=>x.nome==="Sala Pessoal");return s.descoberta===true && s.notas==="só minha" && s.imagem===undefined;})()'),
+  );
+  ok(
+    "diretório: busca vazia não altera nada (degradação graciosa)",
+    g('(function(){var antes=JSON.stringify(window.__d);window.NUVEM.sobreporDiretorioSalas(window.__d, []);return JSON.stringify(window.__d)===antes;})()'),
+  );
+
+  /* Teste 12 — Dossiê da sala: dados do jogo + edição inline, sem editar/excluir/fonte */
+  g('DADOS.salas.push({nome:"Sala UI Teste",descoberta:true,num:7,categorias:["Blueprint"],raridade_pt:"Raro",custo_pt:"Nenhum (sem custo em gemas)",tipo_pt:"Permanente, Blueprint",descricao_pt:"desc em portugues",descricao_en:"desc in english",fonte:"https://blueprince.wiki.gg/wiki/x",fatos:[],notas:""});');
+  g('abrirEntidade("sala","Sala UI Teste")');
+  const dh = () => g('document.getElementById("drawer").innerHTML');
+  ok(
+    "dossiê sala: características em grade (sala-caract)",
+    g('document.getElementById("drawer").innerHTML.indexOf("sala-caract")>0'),
+  );
+  ok(
+    "dossiê sala: fatos e notas editáveis na 1ª tela",
+    g('!!document.getElementById("sala-fatos") && !!document.getElementById("sala-notas")'),
+  );
+  ok(
+    "dossiê sala: SEM botão Editar, SEM Excluir, SEM Fonte/wiki",
+    g('(function(){var h=document.getElementById("drawer").innerHTML;return h.indexOf("Editar dossiê")<0 && h.indexOf("Excluir")<0 && h.indexOf(">Fonte<")<0 && h.indexOf("wiki.gg")<0;})()'),
+  );
+  g('document.getElementById("sala-notas").value="minha anotacao"; document.getElementById("sala-fatos").value="fato 1\\nfato 2"; salaEditInline();');
+  ok(
+    "dossiê sala: escrever fatos/notas inline salva na sala",
+    g('(function(){var s=acharEnt(DADOS.salas,"Sala UI Teste");return s.notas==="minha anotacao" && s.fatos.length===2 && s.fatos[0]==="fato 1";})()'),
+  );
+  ok(
+    "dossiê sala: excluir sala é bloqueado",
+    g('(function(){_entAtual={kind:"sala",nome:"Sala UI Teste"};excluirEntPainel();return !!acharEnt(DADOS.salas,"Sala UI Teste");})()'),
   );
 
   ok("zero erros de runtime", erros.length === 0);

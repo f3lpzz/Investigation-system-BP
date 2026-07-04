@@ -163,6 +163,53 @@
     statusNuvem("saved");
   }
 
+  /* ---- Diretório de salas COMPARTILHADO (dado do JOGO, igual p/ todos) ----
+     Lê a tabela diretorio_salas e sobrepõe os campos do jogo em cada sala,
+     casando por "nome" e PRESERVANDO o que é pessoal (descoberta, notas,
+     fatos, posição no mapa). Salas do diretório que faltarem são adicionadas.
+     Se a busca falhar, mantém o que já havia (degradação graciosa). */
+  var CAMPOS_JOGO_SALA = [
+    "num", "nome_en", "nome_pt", "descricao_en", "descricao_pt",
+    "raridade_en", "raridade_pt", "custo_en", "custo_pt",
+    "tipo_en", "tipo_pt", "categorias", "diretorio", "imagem", "fonte",
+  ];
+  async function carregarDiretorioSalas() {
+    try {
+      var r = await sb.from("diretorio_salas").select("*");
+      if (r.error) throw r.error;
+      return Array.isArray(r.data) ? r.data : [];
+    } catch (e) {
+      if (typeof console !== "undefined")
+        console.warn("Diretório de salas indisponível:", e && e.message);
+      return null;
+    }
+  }
+  function sobreporDiretorioSalas(dados, diretorio) {
+    if (!dados || !Array.isArray(diretorio) || !diretorio.length) return;
+    if (!Array.isArray(dados.salas)) dados.salas = [];
+    var porNome = {};
+    dados.salas.forEach(function (s) {
+      if (s && s.nome) porNome[s.nome] = s;
+    });
+    diretorio.forEach(function (d) {
+      var s = porNome[d.nome];
+      if (!s) {
+        // sala ainda não existe no catálogo do usuário: cria com o pessoal zerado
+        s = { nome: d.nome, descoberta: false, notas: "", fatos: [] };
+        dados.salas.push(s);
+        porNome[d.nome] = s;
+      }
+      // sobrepõe SÓ os campos do jogo; não toca em descoberta/notas/fatos/etc.
+      CAMPOS_JOGO_SALA.forEach(function (c) {
+        if (d[c] !== undefined && d[c] !== null) s[c] = d[c];
+      });
+      // compatibilidade com o app antigo (campos únicos, em PT)
+      s.descricao = d.descricao_pt || s.descricao || "";
+      s.tipo = d.tipo_pt || "";
+      s.raridade = d.raridade_pt || "";
+    });
+  }
+
   /* ---- Carregar o catálogo da nuvem (ou criar vazio no 1º acesso) ---- */
   async function carregarDaNuvem(user) {
     var r = await sb
@@ -184,6 +231,9 @@
       );
       if (up.error) throw up.error;
     }
+    // Sobrepõe o diretório compartilhado (dado do jogo) antes de aplicar.
+    var diretorio = await carregarDiretorioSalas();
+    if (diretorio) sobreporDiretorioSalas(dados, diretorio);
     aplicarDadosNoApp(dados);
   }
 
@@ -232,6 +282,8 @@
     agendarSalvar: agendarSalvar,
     salvarAgora: salvarNaNuvem,
     carregar: carregarDaNuvem,
+    sobreporDiretorioSalas: sobreporDiretorioSalas,
+    carregarDiretorioSalas: carregarDiretorioSalas,
   };
 
   /* ===========================================================

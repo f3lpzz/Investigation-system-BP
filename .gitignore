@@ -9,6 +9,11 @@ node_modules/
 # Segredos (precaução — não deve haver nenhum aqui)
 .env
 .env.*
+# Chave service_role do Supabase, usada só localmente para subir o diretório
+# de salas. NUNCA vai para o git nem para o site.
+Ferramentas de código/chave-service.local.txt
+# Artefato local do diretório de salas (regenerável; contém caminhos do PC)
+Painel (o app)/diretorio-salas.json
 
 # Backups automáticos do app e backups soltos (o git já guarda o histórico do dados.js)
 backups/
@@ -29,3 +34,6 @@ Documentação/INSTRUCOES PARA A IA - Estruturar o Projeto.md
 Documentação/LEIA-ME.txt
 Documentação/README.md
 .claude/settings.local.json
+
+# Config local do Claude Code em qualquer subpasta
+**/.claude/settings.local.json
