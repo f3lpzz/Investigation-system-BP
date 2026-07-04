@@ -112,7 +112,7 @@
       b = $("btnSalvar");
     var M = {
       saving: ["☁", "Salvando…", "info"],
-      saved: ["☁✓", "Salvo na nuvem", "ok"],
+      saved: ["☁ ✓", "Salvo na nuvem", "ok"],
       erro: ["⚠", "Falha — tentando de novo", "warn"],
     };
     var m = M[st] || M.saved;

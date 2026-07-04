@@ -1861,7 +1861,7 @@ function updateSaveStatus(st) {
   var M = {
     saving: ["☁", "Salvando…", "info"],
     pending: ["☁", "Salvando…", "info"],
-    saved: ["☁✓", "Tudo salvo", "ok"],
+    saved: ["☁ ✓", "Tudo salvo", "ok"],
     nohandle: ["⚠", "Sem pasta", "warn"],
   };
   var m = M[st] || M.saved;

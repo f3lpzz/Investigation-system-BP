@@ -2503,6 +2503,17 @@ select:focus {
   font-size: 15px;
   flex: none;
 }
+/* O botão "Salvar" usa ícone de 2 caracteres (☁ ✓); força os dois lado a
+   lado (inline-flex, sem quebra). O respiro entre a nuvem e o check vem do
+   espaço no próprio texto do ícone (em online.js/app.js). */
+.navit.save .ni-ic {
+  width: auto;
+  min-width: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
 .navit .ni-lb {
   flex: 1;
 }
