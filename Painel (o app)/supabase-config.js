@@ -21,3 +21,9 @@ window.MODO_ONLINE = true;
    "apagar-conta" estiver publicada no Supabase. Mude para true depois
    de autorizar e publicar a função. */
 window.APAGAR_CONTA_ATIVO = false;
+
+/* IA (processar pistas): o botão ✨ só aparece quando a Edge Function
+   "ia-processar" estiver publicada + a secret OPENAI_API_KEY configurada.
+   A chave da OpenAI NUNCA entra neste arquivo — vive só no servidor.
+   (Publicada em 2026-07-03; acesso restrito pela allowlist IA_EMAILS.) */
+window.IA_ATIVA = true;

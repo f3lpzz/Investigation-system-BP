@@ -17,6 +17,7 @@ const dadosVazio = ler("dados-vazio.js");
 const app = ler("app.js");
 const online = ler("online.js");
 const salasBase = ler("salas-base.js"); // lista-base das salas (semeia o Diretório)
+const iaJs = ler("ia.js"); // camada de IA (processar pistas)
 
 let falhas = 0;
 const erros = [];
@@ -108,7 +109,8 @@ w.addEventListener = function (tipo, fn, opts) {
 const ctx = vm.createContext(w);
 const g = (s) => vm.runInContext(s, ctx);
 try {
-  g(salasBase + "\n" + dadosVazio + "\n" + app + "\n" + online);
+  w.IA_ATIVA = true; // liga a camada de IA nos testes (a chamada real é mockada)
+  g(salasBase + "\n" + dadosVazio + "\n" + app + "\n" + online + "\n" + iaJs);
 } catch (e) {
   erros.push("THROW no carregamento: " + e.message);
 }
@@ -336,6 +338,32 @@ const entrou = () =>
   ok(
     "seta: Delete apaga a(s) selecionada(s) e zera a seleção",
     g("quadroAtual().setas.length === 0 && _qSetaSel.size === 0"),
+  );
+
+  /* Teste 10 — IA: aplicador + anti-duplicata (sem chamada real; tudo local) */
+  g(
+    'DADOS.fichas.push({id:"fIA",titulo:"(pendente)",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]});',
+  );
+  g(
+    'window.IA.aplicar("fIA",{titulo:"Carta — Teste da IA",paginas:[{transcricao:"Dear staff, the west wing is closed.",traducao:"Caros funcionários, a ala oeste está fechada."}],resumo:"Um aviso sobre a ala oeste.",personagens_existentes:[],personagens_novos:["Novo Persona"],grupo:"",grupo_sugerido:"Avisos"});',
+  );
+  ok(
+    "IA: aplicar preenche a ficha e tira o 'pendente'",
+    g(
+      '(function(){var f=DADOS.fichas.find(x=>x.id==="fIA");return f.titulo==="Carta — Teste da IA" && f.paginas[0].original.indexOf("west wing")>0 && f.paginas[0].traducao.indexOf("ala oeste")>0 && f.paginas[0].explica.length>0 && f.pendente===false;})()',
+    ),
+  );
+  ok(
+    "IA: cria personagem novo e grupo sugerido (aprovados) no catálogo",
+    g(
+      '(function(){var f=DADOS.fichas.find(x=>x.id==="fIA");return DADOS.personagens.some(p=>p.nome==="Novo Persona") && DADOS.grupos.some(gr=>gr.nome==="Avisos") && f.personagens.indexOf("Novo Persona")>=0 && f.grupos[0]==="Avisos";})()',
+    ),
+  );
+  ok(
+    "IA: anti-duplicata acha transcrição igual em OUTRA ficha (e ignora a própria)",
+    g(
+      '(function(){var d=window.IA.duplicata({paginas:[{transcricao:"  DEAR   staff, the west wing is closed. "}]},"outraFicha");var p=window.IA.duplicata({paginas:[{transcricao:"Dear staff, the west wing is closed."}]},"fIA");return d && d.id==="fIA" && p===null;})()',
+    ),
   );
 
   ok("zero erros de runtime", erros.length === 0);
