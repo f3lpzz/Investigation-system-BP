@@ -3893,7 +3893,7 @@ function abrirEntidade(kind, nome) {
       <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
-      ${e.imagem ? `<img src="${esc(e.imagem)}" onerror="this.style.display='none'">` : ""}
+      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
       ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
       ${pessoalHtml}
@@ -4274,6 +4274,24 @@ function setDirCat(c) {
   state.dirCat = c;
   renderDiretorio();
 }
+// Converte a URL pública de uma imagem do Supabase numa MINIATURA leve
+// (endpoint de transformação -> WebP, ~8KB em vez de ~120KB). O navegador
+// negocia WebP pelo header Accept. URLs que não são do Storage público
+// (data:, web) voltam sem alteração. Só reduz o que a página das salas exibe.
+function thumbSala(url, w) {
+  if (typeof url !== "string") return url || "";
+  var marca = "/storage/v1/object/public/";
+  var i = url.indexOf(marca);
+  if (i < 0) return url;
+  return (
+    url.slice(0, i) +
+    "/storage/v1/render/image/public/" +
+    url.slice(i + marca.length) +
+    "?width=" +
+    (w || 200) +
+    "&quality=60"
+  );
+}
 function renderDiretorio() {
   const box = document.getElementById("diretorio");
   if (!box) return;
@@ -4315,8 +4333,14 @@ function renderDiretorio() {
     lista
       .map((s) => {
         if (s.descoberta !== false) {
+          // Miniatura leve (WebP ~8KB) via transformação do Supabase; se falhar
+          // (ex.: limite do plano), o onerror cai na imagem cheia; e se essa
+          // também falhar, a miniatura some.
+          const thumb = s.imagem
+            ? `<img loading="lazy" decoding="async" src="${esc(thumbSala(s.imagem, 200))}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(s.imagem)}'}">`
+            : "";
           return `<div class="dtile found" onclick="abrirEntidade('sala','${jsq(s.nome)}')" title="${esc(s.nome)}">
-        <div class="dthumb">${s.imagem ? `<img src="${esc(s.imagem)}" onerror="this.style.display='none'">` : ""}</div>
+        <div class="dthumb">${thumb}</div>
         <div class="dname">${esc(s.nome)}</div></div>`;
         }
         return `<div class="dtile locked" style="cursor:pointer" title="Clique para descobrir esta sala" onclick="confirmarDescobrir('${jsq(s.nome)}')">${s.num ? `<span class="dnum">${s.num}</span>` : `<span class="dlock">🔒</span>`}</div>`;

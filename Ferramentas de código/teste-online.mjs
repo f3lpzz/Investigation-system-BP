@@ -486,6 +486,16 @@ const entrou = () =>
     g('(function(){var h=document.getElementById("mundo").innerHTML;return h.indexOf("Personagens")>0 && h.indexOf("Grupos")>0 && h.indexOf("Persona Mundo")>0;})()'),
   );
 
+  /* Teste 15 — Miniatura das imagens de sala (transformação do Supabase) */
+  ok(
+    "thumb: URL pública do Supabase vira miniatura (render/image + width)",
+    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,200);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=200")>0 && t.indexOf("object/public")<0;})()'),
+  );
+  ok(
+    "thumb: URL que não é do Storage público fica intacta (data:/web)",
+    g('thumbSala("data:image/png;base64,AAA",200)==="data:image/png;base64,AAA" && thumbSala("https://site.com/x.png",200)==="https://site.com/x.png"'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
