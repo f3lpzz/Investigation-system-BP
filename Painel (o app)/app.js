@@ -3893,7 +3893,7 @@ function abrirEntidade(kind, nome) {
       <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
-      ${e.imagem ? `<img src="${esc(e.imagem)}" onerror="this.style.display='none'">` : ""}
+      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
       ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
       ${pessoalHtml}
@@ -3996,8 +3996,9 @@ function excluirEntPainel() {
 function renderMundo() {
   const box = document.getElementById("mundo");
   if (!box) return;
+  // As SALAS não entram aqui: têm o Diretório próprio (dados do jogo, no Supabase).
+  // A aba Mundo mostra só Personagens e Grupos (dossiês pessoais).
   const secs = [
-    ["sala", "Salas", DADOS.salas],
     ["pessoa", "Personagens", DADOS.personagens],
     ["grupo", "Grupos", DADOS.grupos],
   ];
@@ -4007,11 +4008,7 @@ function renderMundo() {
         titulo = sec[1],
         arr = sec[2];
       const lista =
-        kind === "sala"
-          ? arr.filter((s) => s.descoberta !== false)
-          : kind === "pessoa"
-            ? arr.filter((e) => !ehAliasPessoa(e.nome))
-            : arr;
+        kind === "pessoa" ? arr.filter((e) => !ehAliasPessoa(e.nome)) : arr;
       const cards =
         [...lista]
           .sort((a, b) => (a.nome < b.nome ? -1 : 1))
@@ -4025,16 +4022,8 @@ function renderMundo() {
         <div class="meta"><span class="pill">🔗 ${n} pista(s)</span>${e.fatos && e.fatos.length ? `<span class="pill">📌 ${e.fatos.length} fato(s)</span>` : ""}</div>
       </div>`;
           })
-          .join("") ||
-        (kind === "sala"
-          ? '<div class="gvazio">Nenhuma sala descoberta ainda. Selecione a sala ao cadastrar uma pista para liberá-la.</div>'
-          : '<div class="gvazio">(nenhum ainda)</div>');
-      const locked = kind === "sala" ? arr.length - lista.length : 0;
-      const lockNote =
-        locked > 0
-          ? ` <span class="msecn" title="Salas ainda não descobertas (aparecem ao serem usadas numa pista)">🔒 ${locked}</span>`
-          : "";
-      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span>${lockNote}</h2><div class="mgrid">${cards}</div></div>`;
+          .join("") || '<div class="gvazio">(nenhum ainda)</div>';
+      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span></h2><div class="mgrid">${cards}</div></div>`;
     })
     .join("");
 }
@@ -4285,6 +4274,53 @@ function setDirCat(c) {
   state.dirCat = c;
   renderDiretorio();
 }
+// Converte a URL pública de uma imagem do Supabase numa MINIATURA leve
+// (endpoint de transformação -> WebP, ~8KB em vez de ~120KB). O navegador
+// negocia WebP pelo header Accept. URLs que não são do Storage público
+// (data:, web) voltam sem alteração. Só reduz o que a página das salas exibe.
+function thumbSala(url, w) {
+  if (typeof url !== "string") return url || "";
+  var marca = "/storage/v1/object/public/";
+  var i = url.indexOf(marca);
+  if (i < 0) return url;
+  var lado = w || 240;
+  // IMPORTANTE: sem resize=contain o Supabase distorce (ex.: 200x512). Com
+  // width+height+contain a imagem fica proporcional (ex.: 240x240) e leve.
+  return (
+    url.slice(0, i) +
+    "/storage/v1/render/image/public/" +
+    url.slice(i + marca.length) +
+    "?width=" +
+    lado +
+    "&height=" +
+    lado +
+    "&resize=contain&quality=60"
+  );
+}
+// Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
+// que a aba Diretório apareça pronta. Leve (~7KB cada) e com concorrência
+// limitada para não dar pico de rede.
+var _thumbsSalasPre = false;
+function precarregarThumbsSalas() {
+  if (_thumbsSalasPre || typeof Image === "undefined") return;
+  _thumbsSalasPre = true;
+  var urls = (DADOS.salas || [])
+    .filter(function (s) {
+      return s && s.descoberta !== false && s.imagem;
+    })
+    .map(function (s) {
+      return thumbSala(s.imagem, 240);
+    });
+  var i = 0,
+    CONC = 6;
+  function proximo() {
+    if (i >= urls.length) return;
+    var im = new Image();
+    im.onload = im.onerror = proximo;
+    im.src = urls[i++];
+  }
+  for (var k = 0; k < CONC; k++) proximo();
+}
 function renderDiretorio() {
   const box = document.getElementById("diretorio");
   if (!box) return;
@@ -4326,8 +4362,14 @@ function renderDiretorio() {
     lista
       .map((s) => {
         if (s.descoberta !== false) {
+          // Miniatura leve (WebP ~8KB) via transformação do Supabase; se falhar
+          // (ex.: limite do plano), o onerror cai na imagem cheia; e se essa
+          // também falhar, a miniatura some.
+          const thumb = s.imagem
+            ? `<img loading="lazy" decoding="async" src="${esc(thumbSala(s.imagem, 200))}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(s.imagem)}'}">`
+            : "";
           return `<div class="dtile found" onclick="abrirEntidade('sala','${jsq(s.nome)}')" title="${esc(s.nome)}">
-        <div class="dthumb">${s.imagem ? `<img src="${esc(s.imagem)}" onerror="this.style.display='none'">` : ""}</div>
+        <div class="dthumb">${thumb}</div>
         <div class="dname">${esc(s.nome)}</div></div>`;
         }
         return `<div class="dtile locked" style="cursor:pointer" title="Clique para descobrir esta sala" onclick="confirmarDescobrir('${jsq(s.nome)}')">${s.num ? `<span class="dnum">${s.num}</span>` : `<span class="dlock">🔒</span>`}</div>`;

@@ -473,6 +473,33 @@ const entrou = () =>
     g('(function(){DADOS.salas.push({nome:"Zzz Sala",descoberta:true});excluirEnt("sala","Zzz Sala");return !!acharEnt(DADOS.salas,"Zzz Sala");})()'),
   );
 
+  /* Teste 14 — Aba Mundo NÃO mostra mais salas (só personagens e grupos) */
+  g('DADOS.personagens.push({nome:"Persona Mundo",imagem:"",descricao:"",fatos:[],notas:""});');
+  g('DADOS.salas.push({nome:"Sala No Mundo",descoberta:true,descricao:"x"});');
+  g('setView("mundo"); renderMundo();');
+  ok(
+    "mundo: NÃO renderiza seção/nome de sala",
+    g('(function(){var h=document.getElementById("mundo").innerHTML;return h.indexOf("Salas")<0 && h.indexOf("Sala No Mundo")<0;})()'),
+  );
+  ok(
+    "mundo: ainda mostra Personagens e Grupos",
+    g('(function(){var h=document.getElementById("mundo").innerHTML;return h.indexOf("Personagens")>0 && h.indexOf("Grupos")>0 && h.indexOf("Persona Mundo")>0;})()'),
+  );
+
+  /* Teste 15 — Miniatura das imagens de sala (transformação do Supabase) */
+  ok(
+    "thumb: vira render/image com resize=contain + width/height (proporcional, sem distorcer)",
+    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,240);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=240")>0 && t.indexOf("height=240")>0 && t.indexOf("resize=contain")>0 && t.indexOf("object/public")<0;})()'),
+  );
+  ok(
+    "thumb: URL que não é do Storage público fica intacta (data:/web)",
+    g('thumbSala("data:image/png;base64,AAA",240)==="data:image/png;base64,AAA" && thumbSala("https://site.com/x.png",240)==="https://site.com/x.png"'),
+  );
+  ok(
+    "preload: precarregarThumbsSalas roda sem erro (pré-carrega miniaturas)",
+    g('(function(){try{precarregarThumbsSalas();return true;}catch(e){return false;}})()'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
