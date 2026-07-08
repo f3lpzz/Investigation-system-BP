@@ -3996,8 +3996,9 @@ function excluirEntPainel() {
 function renderMundo() {
   const box = document.getElementById("mundo");
   if (!box) return;
+  // As SALAS não entram aqui: têm o Diretório próprio (dados do jogo, no Supabase).
+  // A aba Mundo mostra só Personagens e Grupos (dossiês pessoais).
   const secs = [
-    ["sala", "Salas", DADOS.salas],
     ["pessoa", "Personagens", DADOS.personagens],
     ["grupo", "Grupos", DADOS.grupos],
   ];
@@ -4007,11 +4008,7 @@ function renderMundo() {
         titulo = sec[1],
         arr = sec[2];
       const lista =
-        kind === "sala"
-          ? arr.filter((s) => s.descoberta !== false)
-          : kind === "pessoa"
-            ? arr.filter((e) => !ehAliasPessoa(e.nome))
-            : arr;
+        kind === "pessoa" ? arr.filter((e) => !ehAliasPessoa(e.nome)) : arr;
       const cards =
         [...lista]
           .sort((a, b) => (a.nome < b.nome ? -1 : 1))
@@ -4025,16 +4022,8 @@ function renderMundo() {
         <div class="meta"><span class="pill">🔗 ${n} pista(s)</span>${e.fatos && e.fatos.length ? `<span class="pill">📌 ${e.fatos.length} fato(s)</span>` : ""}</div>
       </div>`;
           })
-          .join("") ||
-        (kind === "sala"
-          ? '<div class="gvazio">Nenhuma sala descoberta ainda. Selecione a sala ao cadastrar uma pista para liberá-la.</div>'
-          : '<div class="gvazio">(nenhum ainda)</div>');
-      const locked = kind === "sala" ? arr.length - lista.length : 0;
-      const lockNote =
-        locked > 0
-          ? ` <span class="msecn" title="Salas ainda não descobertas (aparecem ao serem usadas numa pista)">🔒 ${locked}</span>`
-          : "";
-      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span>${lockNote}</h2><div class="mgrid">${cards}</div></div>`;
+          .join("") || '<div class="gvazio">(nenhum ainda)</div>';
+      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span></h2><div class="mgrid">${cards}</div></div>`;
     })
     .join("");
 }

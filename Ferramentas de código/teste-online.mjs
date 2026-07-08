@@ -473,6 +473,19 @@ const entrou = () =>
     g('(function(){DADOS.salas.push({nome:"Zzz Sala",descoberta:true});excluirEnt("sala","Zzz Sala");return !!acharEnt(DADOS.salas,"Zzz Sala");})()'),
   );
 
+  /* Teste 14 — Aba Mundo NÃO mostra mais salas (só personagens e grupos) */
+  g('DADOS.personagens.push({nome:"Persona Mundo",imagem:"",descricao:"",fatos:[],notas:""});');
+  g('DADOS.salas.push({nome:"Sala No Mundo",descoberta:true,descricao:"x"});');
+  g('setView("mundo"); renderMundo();');
+  ok(
+    "mundo: NÃO renderiza seção/nome de sala",
+    g('(function(){var h=document.getElementById("mundo").innerHTML;return h.indexOf("Salas")<0 && h.indexOf("Sala No Mundo")<0;})()'),
+  );
+  ok(
+    "mundo: ainda mostra Personagens e Grupos",
+    g('(function(){var h=document.getElementById("mundo").innerHTML;return h.indexOf("Personagens")>0 && h.indexOf("Grupos")>0 && h.indexOf("Persona Mundo")>0;})()'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
