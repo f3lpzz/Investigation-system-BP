@@ -235,6 +235,16 @@
     var diretorio = await carregarDiretorioSalas();
     if (diretorio) sobreporDiretorioSalas(dados, diretorio);
     aplicarDadosNoApp(dados);
+    // Pré-carrega as miniaturas das salas (em segundo plano) para o Diretório
+    // já aparecer pronto quando o usuário abrir a aba.
+    if (typeof precarregarThumbsSalas === "function") {
+      var _ric =
+        window.requestIdleCallback ||
+        function (f) {
+          return setTimeout(f, 300);
+        };
+      _ric(precarregarThumbsSalas);
+    }
   }
 
   /* ---- Salvar na nuvem (autosave com atraso ~1,5s) ---- */

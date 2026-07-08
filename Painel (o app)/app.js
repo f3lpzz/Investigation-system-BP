@@ -4283,14 +4283,43 @@ function thumbSala(url, w) {
   var marca = "/storage/v1/object/public/";
   var i = url.indexOf(marca);
   if (i < 0) return url;
+  var lado = w || 240;
+  // IMPORTANTE: sem resize=contain o Supabase distorce (ex.: 200x512). Com
+  // width+height+contain a imagem fica proporcional (ex.: 240x240) e leve.
   return (
     url.slice(0, i) +
     "/storage/v1/render/image/public/" +
     url.slice(i + marca.length) +
     "?width=" +
-    (w || 200) +
-    "&quality=60"
+    lado +
+    "&height=" +
+    lado +
+    "&resize=contain&quality=60"
   );
+}
+// Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
+// que a aba Diretório apareça pronta. Leve (~7KB cada) e com concorrência
+// limitada para não dar pico de rede.
+var _thumbsSalasPre = false;
+function precarregarThumbsSalas() {
+  if (_thumbsSalasPre || typeof Image === "undefined") return;
+  _thumbsSalasPre = true;
+  var urls = (DADOS.salas || [])
+    .filter(function (s) {
+      return s && s.descoberta !== false && s.imagem;
+    })
+    .map(function (s) {
+      return thumbSala(s.imagem, 240);
+    });
+  var i = 0,
+    CONC = 6;
+  function proximo() {
+    if (i >= urls.length) return;
+    var im = new Image();
+    im.onload = im.onerror = proximo;
+    im.src = urls[i++];
+  }
+  for (var k = 0; k < CONC; k++) proximo();
 }
 function renderDiretorio() {
   const box = document.getElementById("diretorio");

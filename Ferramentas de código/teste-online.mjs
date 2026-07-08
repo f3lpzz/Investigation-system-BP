@@ -488,12 +488,16 @@ const entrou = () =>
 
   /* Teste 15 — Miniatura das imagens de sala (transformação do Supabase) */
   ok(
-    "thumb: URL pública do Supabase vira miniatura (render/image + width)",
-    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,200);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=200")>0 && t.indexOf("object/public")<0;})()'),
+    "thumb: vira render/image com resize=contain + width/height (proporcional, sem distorcer)",
+    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,240);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=240")>0 && t.indexOf("height=240")>0 && t.indexOf("resize=contain")>0 && t.indexOf("object/public")<0;})()'),
   );
   ok(
     "thumb: URL que não é do Storage público fica intacta (data:/web)",
-    g('thumbSala("data:image/png;base64,AAA",200)==="data:image/png;base64,AAA" && thumbSala("https://site.com/x.png",200)==="https://site.com/x.png"'),
+    g('thumbSala("data:image/png;base64,AAA",240)==="data:image/png;base64,AAA" && thumbSala("https://site.com/x.png",240)==="https://site.com/x.png"'),
+  );
+  ok(
+    "preload: precarregarThumbsSalas roda sem erro (pré-carrega miniaturas)",
+    g('(function(){try{precarregarThumbsSalas();return true;}catch(e){return false;}})()'),
   );
 
   ok("zero erros de runtime", erros.length === 0);
