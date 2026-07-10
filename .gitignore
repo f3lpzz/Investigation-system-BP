@@ -3,7 +3,7 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
-# Ddependências e ferramentas
+# Dependências e ferramentas
 node_modules/
 
 # Segredos (precaução — não deve haver nenhum aqui)
