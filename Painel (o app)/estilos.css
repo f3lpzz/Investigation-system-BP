@@ -426,10 +426,18 @@ main {
   height: 100%;
   cursor: grab;
 }
-.legend {
+/* Canto inferior-esquerdo do mapa: menu "Como usar" empilhado ACIMA da legenda */
+.mapcorner {
   position: absolute;
   left: 16px;
   bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  max-width: 240px;
+}
+.legend {
   background: #0e1a33e6;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -440,6 +448,9 @@ main {
   flex-direction: column;
   gap: 5px;
 }
+.legend:empty {
+  display: none;
+}
 .legend .row {
   display: flex;
   align-items: center;
@@ -449,17 +460,56 @@ main {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex: none;
 }
-.hint {
-  position: absolute;
-  right: 16px;
-  top: 12px;
-  background: #0e1a33d9;
+.maphelp {
+  background: #0e1a33e6;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 6px 10px;
+  border-radius: 10px;
   font-size: 11px;
-  color: var(--hint);
+  color: var(--ink-soft);
+  overflow: hidden;
+}
+.maphelp:empty {
+  display: none;
+}
+.maphelp .mh-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  text-align: left;
+}
+.maphelp .mh-head:hover {
+  background: #16243f;
+}
+.maphelp .mh-arrow {
+  margin-left: auto;
+  opacity: 0.7;
+}
+.maphelp .mh-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 12px 10px;
+}
+.maphelp .mh-body .row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.maphelp .mh-ic {
+  width: 16px;
+  text-align: center;
+  flex: none;
 }
 /* PAINEL LATERAL */
 #drawer {

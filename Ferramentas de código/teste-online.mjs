@@ -500,6 +500,29 @@ const entrou = () =>
     g('(function(){try{precarregarThumbsSalas();return true;}catch(e){return false;}})()'),
   );
 
+  /* Teste 16 — Mapa: legenda atualizada + menu "Como usar" acima dela */
+  g("buildLegend()");
+  ok(
+    "legenda: sem itens do sistema antigo (Coleção / cor = tipo)",
+    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Coleção")<0 && h.indexOf("tipo")<0;})()'),
+  );
+  ok(
+    "legenda: tem Grupo e Pista (cor = grupo)",
+    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Grupo")>=0 && h.indexOf("Pista (cor = grupo)")>=0 && h.indexOf("Conexão manual")>=0 && h.indexOf("Ligação automática")>=0;})()'),
+  );
+  ok(
+    "como usar: menu existe acima da legenda (mesmo canto) e aberto por padrão",
+    g('(function(){var c=document.querySelector(".mapcorner");var mh=document.getElementById("maphelp");return !!c && !!mh && c.children[0]===mh && mh.innerHTML.indexOf("mh-body")>0 && mh.innerHTML.indexOf("Shift+1")>0;})()'),
+  );
+  ok(
+    "como usar: recolhe e expande (toggle com memória)",
+    g('(function(){toggleMapHelp();var fechou=document.getElementById("maphelp").innerHTML.indexOf("mh-body")<0;toggleMapHelp();var abriu=document.getElementById("maphelp").innerHTML.indexOf("mh-body")>0;return fechou && abriu;})()'),
+  );
+  ok(
+    "mapa: a barra antiga de dica (hint) sumiu do HTML",
+    g('document.querySelector("#mapa .hint") === null'),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 

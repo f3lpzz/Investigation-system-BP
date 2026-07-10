@@ -1521,13 +1521,49 @@ function wireMap(svg) {
 }
 
 function buildLegend() {
+  // Legenda fiel ao que o mapa desenha HOJE: pista (cor = grupo), sala,
+  // personagem, grupo (cor própria), linha sólida = conexão manual,
+  // tracejada = ligação automática. ("Coleção"/"tipo" eram do sistema antigo.)
   document.getElementById("legend").innerHTML = `
-    <div class="row"><span class="dot" style="background:var(--t-pessoa)"></span>Personagem</div>
-    <div class="row"><span class="dot" style="background:var(--t-sala)"></span>Sala</div>
-    <div class="row"><span class="dot" style="background:#ffb05c"></span>Coleção</div>
-    <div class="row"><span class="dot" style="background:var(--t-pista)"></span>Ficha (cor = tipo)</div>
-    <div class="row"><span style="width:18px;border-top:2px solid #a98bff"></span>Conexão manual</div>
-    <div class="row"><span style="width:18px;border-top:2px dashed #5ec8ff"></span>Ligação automática</div>`;
+    <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
+    <div class="row"><span class="dot" style="background:${COR_SALA}"></span>Sala</div>
+    <div class="row"><span class="dot" style="background:${COR_LIVRO}"></span>Grupo (cor do grupo)</div>
+    <div class="row"><span class="dot" style="background:#5b6b86"></span>Pista (cor = grupo)</div>
+    <div class="row"><span style="width:18px;border-top:2px solid ${COR_MANUAL}"></span>Conexão manual</div>
+    <div class="row"><span style="width:18px;border-top:2px dashed ${COR_SALA}"></span>Ligação automática</div>`;
+  buildMapHelp();
+}
+/* Menu "Como usar" do mapa (fica acima da legenda). Recolhível; a escolha
+   fica no navegador (localStorage), como as posições do mapa. */
+var _mapHelpAberto = null;
+function buildMapHelp() {
+  var box = document.getElementById("maphelp");
+  if (!box) return;
+  if (_mapHelpAberto === null) {
+    try {
+      _mapHelpAberto = localStorage.getItem("bp_maphelp") !== "0";
+    } catch (e) {
+      _mapHelpAberto = true;
+    }
+  }
+  box.innerHTML =
+    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">🧭 Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
+    (_mapHelpAberto
+      ? `<div class="mh-body">
+      <div class="row"><span class="mh-ic">🖱️</span>Arraste o fundo: navegar</div>
+      <div class="row"><span class="mh-ic">🎡</span>Roda do mouse: zoom</div>
+      <div class="row"><span class="mh-ic">✋</span>Arraste um ponto: reposicionar</div>
+      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+1</b>: enquadrar tudo</div>
+      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+0</b>: zoom 100%</div>
+    </div>`
+      : "");
+}
+function toggleMapHelp() {
+  _mapHelpAberto = !_mapHelpAberto;
+  try {
+    localStorage.setItem("bp_maphelp", _mapHelpAberto ? "1" : "0");
+  } catch (e) {}
+  buildMapHelp();
 }
 
 /* ---- PAINEL LATERAL ---- */
