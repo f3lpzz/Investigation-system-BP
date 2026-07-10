@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, "..");
 const SUPABASE_URL = "https://gppfzdlqauygzvpodbdh.supabase.co";
-const ARQ_JSON = join(RAIZ, "Painel (o app)", "diretorio-salas.json");
+const ARQ_JSON = join(RAIZ, "app", "diretorio-salas.json");
 const OUT_DIR = AQUI;
 const LOTE = 28; // linhas por arquivo .sql
 

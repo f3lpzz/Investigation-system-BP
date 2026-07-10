@@ -5,7 +5,7 @@ import vm from "vm";
 import path from "path";
 import { fileURLToPath } from "url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..", "Painel (o app)"); // o app fica na pasta ao lado
+const ROOT = path.resolve(HERE, "..", "app"); // o app fica na pasta ao lado
 const ler = (nome) => fs.readFileSync(path.join(ROOT, nome), "utf8");
 const mSV = ler("app.js").match(/SCHEMA_VERSION\s*=\s*(\d+)/); // SCHEMA_VERSION vive no app.js apos a separacao
 const SCHEMA_VERSION = mSV ? parseInt(mSV[1], 10) : null;

@@ -2,7 +2,7 @@
   "name": "blue-prince-painel",
   "version": "1.0.0",
   "private": true,
-  "description": "Ferramentas de verificacao do app Blue Prince (o app fica em ../Painel (o app)/).",
+  "description": "Ferramentas de verificacao do app Blue Prince (o app fica em ../app/).",
   "type": "module",
   "scripts": {
     "verificar": "node verificar-dados.mjs",
@@ -10,8 +10,8 @@
     "teste-online": "node teste-online.mjs",
     "checar": "node verificar-dados.mjs && node teste-carga.mjs",
     "checar-online": "node verificar-dados.mjs && node teste-carga.mjs && node teste-online.mjs",
-    "format": "prettier --write \"../Painel (o app)/painel.html\" \"../Painel (o app)/estilos.css\" \"../Painel (o app)/app.js\" *.mjs",
-    "lint": "eslint \"../Painel (o app)/app.js\""
+    "format": "prettier --write \"../app/painel.html\" \"../app/estilos.css\" \"../app/app.js\" *.mjs",
+    "lint": "eslint \"../app/app.js\""
   },
   "devDependencies": { "eslint": "^9.9.0", "globals": "^15.9.0", "jsdom": "^24.1.0", "prettier": "^3.3.3" }
 }

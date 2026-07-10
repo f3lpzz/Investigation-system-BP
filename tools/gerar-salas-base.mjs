@@ -1,4 +1,4 @@
-/* gerar-salas-base.mjs — regenera Painel (o app)/salas-base.js a partir do
+/* gerar-salas-base.mjs — regenera app/salas-base.js a partir do
    diretorio-salas.json, já com as IMAGENS do Supabase (nunca da wiki) e os
    campos EN/PT. salas-base.js é o FALLBACK/semente (o app sobrepõe o diretório
    ao vivo por cima; isto só vale se a busca do diretório falhar). */
@@ -9,8 +9,8 @@ import { fileURLToPath } from "node:url";
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, "..");
 const SUPABASE_URL = "https://gppfzdlqauygzvpodbdh.supabase.co";
-const ARQ_JSON = join(RAIZ, "Painel (o app)", "diretorio-salas.json");
-const SAIDA = join(RAIZ, "Painel (o app)", "salas-base.js");
+const ARQ_JSON = join(RAIZ, "app", "diretorio-salas.json");
+const SAIDA = join(RAIZ, "app", "salas-base.js");
 
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
 const salas = JSON.parse(readFileSync(ARQ_JSON, "utf8"));
@@ -41,7 +41,7 @@ const base = salas.map((s) => ({
 }));
 
 const cabecalho = `/* salas-base.js — lista-base das salas (dado do jogo, igual para todos).
-   GERADO por Ferramentas de código/gerar-salas-base.mjs a partir do
+   GERADO por tools/gerar-salas-base.mjs a partir do
    diretorio-salas.json. Imagens apontam para o Storage do Supabase (bucket
    público "salas"), nunca para a wiki. É a SEMENTE/fallback: o app sobrepõe o
    diretório ao vivo (tabela diretorio_salas) por cima na hora de carregar.
