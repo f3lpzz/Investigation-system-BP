@@ -2423,6 +2423,312 @@ function fecharQuick() {
   if (m) m.classList.remove("open");
   _quickFicha = null;
   _quickPreviews = [];
+  _quickLote = null;
+}
+
+/* ===========================================================
+   UPLOAD EM MASSA (arrastar e soltar N imagens)
+   - Arrastou imagens sobre o app -> véu "Solte as imagens aqui".
+   - Soltou -> sobem em fila (3 por vez) com progresso no véu.
+   - 1 imagem  -> cadastro rápido normal (igual ao Ctrl+V).
+   - N imagens -> escolha: enviar sem cadastrar OU cadastrar em abas.
+   =========================================================== */
+let _quickLote = null,
+  _quickIdx = 0;
+
+// Reserva `qtd` ids livres de ficha (f1, f2, ...) sem repetir.
+function _idsLivres(qtd) {
+  const usados = new Set(fichas.map((f) => f.id));
+  const out = [];
+  let n = 1;
+  while (out.length < qtd) {
+    const id = "f" + n++;
+    if (!usados.has(id)) {
+      usados.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+function _tituloImportado(i, total) {
+  return (
+    "Pista importada " +
+    new Date().toLocaleDateString() +
+    " — " +
+    (i + 1) +
+    "/" +
+    total
+  );
+}
+function _fichaDoLote(id, imagem) {
+  return {
+    id: id,
+    titulo: "",
+    sala: "",
+    grupos: [],
+    colecoes: [],
+    personagens: [],
+    conexoes: [],
+    notas: "",
+    pendente: true,
+    fav: false,
+    status: "",
+    paginas: [{ imagem: imagem, original: "", traducao: "", explica: "", rotulo: "" }],
+  };
+}
+
+/* ---- véu de arrastar / progresso ---- */
+function _dropveil(msg) {
+  let v = document.getElementById("dropveil");
+  if (!msg) {
+    if (v) v.remove();
+    return;
+  }
+  if (!v) {
+    v = document.createElement("div");
+    v.id = "dropveil";
+    document.body.appendChild(v);
+  }
+  v.innerHTML = `<div class="dv-box">🖼️ ${msg}</div>`;
+}
+function _appPronto() {
+  return (
+    !document.body.classList.contains("pre-login") &&
+    !document.body.classList.contains("app-carregando")
+  );
+}
+function _dragTemArquivo(e) {
+  const t = e.dataTransfer && e.dataTransfer.types;
+  return !!t && Array.prototype.indexOf.call(t, "Files") >= 0;
+}
+let _dragN = 0;
+document.addEventListener("dragenter", function (e) {
+  if (!_dragTemArquivo(e) || !_appPronto()) return;
+  e.preventDefault();
+  _dragN++;
+  _dropveil("Solte as imagens aqui");
+});
+document.addEventListener("dragover", function (e) {
+  if (_dragTemArquivo(e)) e.preventDefault();
+});
+document.addEventListener("dragleave", function (e) {
+  if (!_dragTemArquivo(e)) return;
+  _dragN = Math.max(0, _dragN - 1);
+  if (_dragN === 0) _dropveil(null);
+});
+document.addEventListener("drop", async function (e) {
+  if (!_dragTemArquivo(e)) return;
+  e.preventDefault();
+  _dragN = 0;
+  if (!_appPronto()) {
+    _dropveil(null);
+    return;
+  }
+  const files = Array.prototype.filter.call(
+    (e.dataTransfer && e.dataTransfer.files) || [],
+    (f) => f && f.type && f.type.indexOf("image") === 0,
+  );
+  if (!files.length) {
+    _dropveil(null);
+    return;
+  }
+  const itens = await _subirLote(files);
+  _dropveil(null);
+  if (itens.length === 1) abrirCadastroRapido(itens[0].imagem, itens[0].preview);
+  else escolhaLote(itens);
+});
+
+/* ---- fila de upload: 3 por vez, com progresso; nada se perde ---- */
+async function _subirLote(files) {
+  const itens = new Array(files.length);
+  let feito = 0,
+    prox = 0;
+  _dropveil("Enviando 0/" + files.length + "…");
+  async function um() {
+    while (prox < files.length) {
+      const i = prox++;
+      const file = files[i];
+      let imagem, preview;
+      try {
+        const path = await salvarImagemArquivo(file, "ficha");
+        if (path) {
+          imagem = path;
+          preview = URL.createObjectURL(file);
+        } else {
+          const url = await redimImagem(file);
+          imagem = url;
+          preview = url;
+        }
+      } catch (e2) {
+        const url = await redimImagem(file);
+        imagem = url;
+        preview = url;
+      }
+      itens[i] = { imagem: imagem, preview: preview };
+      feito++;
+      _dropveil("Enviando " + feito + "/" + files.length + "…");
+    }
+  }
+  await Promise.all([um(), um(), um()]);
+  return itens;
+}
+
+/* ---- escolha: sem cadastro x abas ---- */
+let _loteItens = null;
+function escolhaLote(itens) {
+  _loteItens = itens;
+  let m = document.getElementById("loteEscolha");
+  if (!m) {
+    m = document.createElement("div");
+    m.id = "loteEscolha";
+    m.className = "modal";
+    document.body.appendChild(m);
+  }
+  m.innerHTML = `<div class="modalbox" style="max-width:480px"><div class="modalhd"><h2>🖼️ ${itens.length} imagens recebidas</h2><button class="close" onclick="fecharEscolhaLote()">✕</button></div>
+    <div class="savehelp">
+      <p class="dica" style="text-align:center">Como você quer cadastrar?</p>
+      <div class="editbtns" style="flex-direction:column;align-items:stretch">
+        <button class="dbtn save" onclick="loteSemCadastro()">⚡ Enviar sem cadastrar (preencho depois)</button>
+        <button class="dbtn" onclick="loteComCadastro()">📋 Cadastrar agora (uma aba por imagem)</button>
+        <button class="dbtn" onclick="fecharEscolhaLote()">Cancelar</button>
+      </div>
+      <p class="dica">Nos dois casos as fichas ficam ⏳ pendentes — a IA ✨ pode preenchê-las depois.</p>
+    </div></div>`;
+  m.classList.add("open");
+}
+function fecharEscolhaLote() {
+  const m = document.getElementById("loteEscolha");
+  if (m) m.classList.remove("open");
+}
+function loteSemCadastro() {
+  const itens = _loteItens || [];
+  fecharEscolhaLote();
+  _loteItens = null;
+  if (!itens.length) return;
+  const ids = _idsLivres(itens.length);
+  itens.forEach(function (it, i) {
+    const f = _fichaDoLote(ids[i], it.imagem);
+    f.titulo = _tituloImportado(i, itens.length);
+    fichas.push(f);
+  });
+  marcarAlterado();
+  rebuildFilters();
+  render();
+  toast("✓ " + itens.length + " fichas criadas (pendentes ⏳)", 4000);
+}
+function loteComCadastro() {
+  const itens = _loteItens || [];
+  fecharEscolhaLote();
+  _loteItens = null;
+  if (itens.length) abrirCadastroLote(itens);
+}
+
+/* ---- cadastro rápido em ABAS (uma por imagem) ---- */
+function abrirCadastroLote(itens) {
+  const ids = _idsLivres(itens.length);
+  _quickLote = itens.map(function (it, i) {
+    return {
+      ficha: _fichaDoLote(ids[i], it.imagem),
+      previews: [it.preview || it.imagem],
+    };
+  });
+  _quickIdx = 0;
+  renderCadastroLote();
+}
+// guarda o que está digitado na aba atual (sala fica como texto cru;
+// só vira sala "descoberta" na hora de concluir)
+function _loteColhe() {
+  if (!_quickLote) return;
+  const it = _quickLote[_quickIdx];
+  const g = (k) => {
+    const el = document.getElementById("ed-" + k);
+    return el ? el.value : "";
+  };
+  it.ficha.sala = g("q-sala");
+  it.ficha.titulo = g("q-titulo");
+  it.ficha.notas = g("q-obs");
+}
+function loteTrocaAba(i) {
+  if (!_quickLote || i < 0 || i >= _quickLote.length || i === _quickIdx) return;
+  _loteColhe();
+  _quickIdx = i;
+  renderCadastroLote();
+}
+function loteAplicarSala() {
+  const el = document.getElementById("ed-q-sala");
+  if (!el || !_quickLote) return;
+  const v = el.value;
+  _quickLote.forEach(function (it) {
+    it.ficha.sala = v;
+  });
+  toast('Sala "' + v + '" aplicada às ' + _quickLote.length + " fichas ✓", 2500);
+}
+function renderCadastroLote() {
+  const L = _quickLote;
+  if (!L) return;
+  const it = L[_quickIdx];
+  // Ctrl+V com o modal aberto adiciona página à ABA ATUAL (reusa o fluxo de hoje)
+  _quickFicha = it.ficha;
+  _quickPreviews = it.previews;
+  let m = document.getElementById("quickAdd");
+  if (!m) {
+    m = document.createElement("div");
+    m.id = "quickAdd";
+    m.className = "modal";
+    document.body.appendChild(m);
+  }
+  const tabs = L.map(function (x, i) {
+    const done =
+      (x.ficha.titulo || x.ficha.sala || x.ficha.notas) && i !== _quickIdx
+        ? " done"
+        : "";
+    return `<button class="qtab-lote${i === _quickIdx ? " active" : ""}${done}" onclick="loteTrocaAba(${i})" title="Imagem ${i + 1}"><img src="${esc(x.previews[0])}" onerror="this.style.display='none'"><span>${i + 1}</span></button>`;
+  }).join("");
+  m.innerHTML = `<div class="modalbox" style="max-width:640px"><div class="modalhd"><h2>📋 Cadastro rápido — ${L.length} imagens</h2><button class="close" onclick="fecharQuick()">✕</button></div>
+    <div class="savehelp">
+      <div class="qtabs-wrap">${tabs}</div>
+      <div id="q-pgs"></div>
+      ${edCampoL("Sala onde encontrei", "q-sala", it.ficha.sala, "dl-salas-q")}
+      <datalist id="dl-salas-q">${nomesDe(DADOS.salas)
+        .map((s) => `<option value="${esc(s)}">`)
+        .join("")}</datalist>
+      <div class="field"><button type="button" class="dbtn" onclick="loteAplicarSala()">📌 Aplicar esta sala a todas</button></div>
+      ${edCampo("Título (opcional)", "q-titulo", it.ficha.titulo)}
+      ${edArea("Observação rápida (opcional)", "q-obs", it.ficha.notas)}
+      <div class="editbtns">
+        <button class="dbtn" ${_quickIdx === 0 ? "disabled" : ""} onclick="loteTrocaAba(${_quickIdx - 1})">← Anterior</button>
+        <button class="dbtn" ${_quickIdx === L.length - 1 ? "disabled" : ""} onclick="loteTrocaAba(${_quickIdx + 1})">Próxima →</button>
+        <button class="dbtn save" onclick="salvarLote()">✓ Concluir (salva as ${L.length})</button>
+        <button class="dbtn" onclick="fecharQuick()">Cancelar</button>
+      </div>
+      <p class="dica">Trocar de aba guarda o que você digitou. Abas vazias ganham título automático e ficam ⏳ pendentes. Ctrl+V adiciona outra página à aba atual.</p>
+    </div></div>`;
+  m.classList.add("open");
+  renderQuickPaginas();
+  setTimeout(() => {
+    const s = document.getElementById("ed-q-sala");
+    if (s) s.focus();
+  }, 60);
+}
+function salvarLote() {
+  if (!_quickLote) return;
+  _loteColhe();
+  const total = _quickLote.length;
+  _quickLote.forEach(function (it, i) {
+    const f = it.ficha;
+    f.sala = descobrirSala((f.sala || "").trim());
+    f.titulo = (f.titulo || "").trim() || _tituloImportado(i, total);
+    fichas.push(f);
+  });
+  _quickLote = null;
+  _quickFicha = null;
+  _quickPreviews = [];
+  const m = document.getElementById("quickAdd");
+  if (m) m.classList.remove("open");
+  marcarAlterado();
+  rebuildFilters();
+  render();
+  toast("✓ " + total + " fichas criadas (pendentes ⏳)", 4000);
 }
 
 let _editPaginas = [],
