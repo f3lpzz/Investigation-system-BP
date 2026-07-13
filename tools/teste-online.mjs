@@ -9,7 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..", "Painel (o app)");
+const ROOT = path.resolve(HERE, "..", "app");
 const ler = (n) => fs.readFileSync(path.join(ROOT, n), "utf8");
 
 const html = ler("painel.html");

@@ -11,7 +11,7 @@ import { dirname } from "node:path";
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, ".."); // pasta "Blue Prince/"
 const DIR_FOTOS = "C:/Users/T-GAMER/Desktop/Diretorio salas BP";
-const SAIDA = join(RAIZ, "Painel (o app)", "diretorio-salas.json");
+const SAIDA = join(RAIZ, "app", "diretorio-salas.json");
 
 // ---- tag simples: pega o conteúdo entre <tag>...</tag> (multi-linha) ----
 function tag(txt, nome) {
@@ -25,7 +25,7 @@ function bloco(txt, nome) {
 
 // ---- lê a categoria semântica (categorias[]) do salas-base.js por nome ----
 function carregarCategorias() {
-  const p = join(RAIZ, "Painel (o app)", "salas-base.js");
+  const p = join(RAIZ, "app", "salas-base.js");
   const js = readFileSync(p, "utf8");
   // executa só a atribuição window.SALAS_BASE num sandbox mínimo
   const window = {};

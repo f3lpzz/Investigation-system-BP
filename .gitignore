@@ -3,7 +3,7 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
-# Dependências e ferramentas (se forem adicionadas depois)
+# Dependências e ferramentas
 node_modules/
 
 # Segredos (precaução — não deve haver nenhum aqui)
@@ -11,29 +11,22 @@ node_modules/
 .env.*
 # Chave service_role do Supabase, usada só localmente para subir o diretório
 # de salas. NUNCA vai para o git nem para o site.
-Ferramentas de código/chave-service.local.txt
+tools/chave-service.local.txt
 # Artefato local do diretório de salas (regenerável; contém caminhos do PC)
-Painel (o app)/diretorio-salas.json
+app/diretorio-salas.json
 
-# Backups automáticos do app e backups soltos (o git já guarda o histórico do dados.js)
+# Backups automáticos do app e backups soltos
 backups/
 dados_backup_*.js
 
-# Versão ONLINE (branch online): o catálogo real e as imagens locais do dono
-# NÃO vão para o site publicado (privacidade). Ficam no disco para o teste
-# local e o import; a versão online usa dados-vazio.js + imagens na nuvem.
-Painel (o app)/dados.js
-Painel (o app)/imagens/
+# Versão ONLINE: o catálogo real e as imagens locais do dono NÃO vão para o site
+# publicado (privacidade). A versão online usa dados-vazio.js + imagens na nuvem.
+app/dados.js
+app/imagens/
 
-# Fora do repositório ONLINE (mantidos só no PC): MVP local, cópias e docs do MVP.
+# Fora do repositório: MVP local, cópias e artefatos de desenvolvimento.
 _arquivo/
-Documentação/CHECKLIST.md
-Documentação/GUIA - O que cada documento precisa ter.md
-Documentação/INSTRUCOES PARA A IA - Colocar o Sistema Online.md
-Documentação/INSTRUCOES PARA A IA - Estruturar o Projeto.md
-Documentação/LEIA-ME.txt
-Documentação/README.md
-.claude/settings.local.json
 
 # Config local do Claude Code em qualquer subpasta
+.claude/settings.local.json
 **/.claude/settings.local.json

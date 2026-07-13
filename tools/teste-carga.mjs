@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 import fs from "fs"; import vm from "vm"; import path from "path";
 import { fileURLToPath } from "url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..", "Painel (o app)");
+const ROOT = path.resolve(HERE, "..", "app");
 const ler = (n) => fs.readFileSync(path.join(ROOT, n), "utf8");
 const html = ler("painel.html"), dados = ler("dados.js"), app = ler("app.js");
 const erros=[]; let falhas=0;
