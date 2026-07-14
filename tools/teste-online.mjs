@@ -634,6 +634,55 @@ const entrou = () =>
     g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
   );
 
+  /* Teste 19 — IA: dossiês de personagens (elegibilidade + fila + escrita segura) */
+  g(`
+    DADOS.personagens.push({nome:"Dossie Persona",imagem:"",descricao:"manual antiga",fatos:["fato do usuário"],notas:"nota minha",aliases:["D.P."]});
+    DADOS.fichas.push(
+      {id:"fP1",titulo:"Carta do teste",sala:"",grupos:[],personagens:["Dossie Persona"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"Letter written by Dossie Persona about the mine.",traducao:"Carta escrita por Dossie Persona sobre a mina.",explica:"Uma carta dele.",rotulo:""}]},
+      {id:"fP2",titulo:"Jornal do teste",sala:"",grupos:[],personagens:["D.P."],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"Newspaper: Dossie Persona disappeared on May 3rd.",traducao:"Jornal: Dossie Persona desapareceu em 3 de maio.",explica:"Notícia do sumiço.",rotulo:""}]}
+    );
+  `);
+  ok(
+    "personas: elegível quando nunca processado (e resolve apelido D.P. -> mesmas fichas)",
+    g('(function(){var e=window.IA.personasElegiveis().find(x=>x.nome==="Dossie Persona");return !!e && e.fichas.length===2 && e.fichas.indexOf("fP1")>=0 && e.fichas.indexOf("fP2")>=0;})()'),
+  );
+  g(`
+    window.__chamarOrig2 = window.IA.chamar;
+    window.__payloadPersona = null;
+    window.IA.chamar = async function(payload){
+      window.__payloadPersona = payload;
+      return { resultado: { descricao: "Dossie Persona escreveu uma carta sobre a mina e, segundo o jornal, desapareceu em 3 de maio.", observacoes: "" }, uso:null, modelo:"mock" };
+    };
+    window.IA.personasProcessar(["Dossie Persona"]);
+  `);
+  ok(
+    "personas: confirmação em modal do sistema (nº + aviso de Descrição)",
+    g('(function(){var m=document.getElementById("ialoteconf");return !!m && m.classList.contains("open") && m.innerHTML.indexOf("1 personagem(ns)")>0 && m.innerHTML.indexOf("Descrição")>0;})()'),
+  );
+  await g("window.IA.personaIniciar()");
+  ok(
+    "personas: payload correto (modo personagem, 2 pistas com texto, apelidos)",
+    g('(function(){var p=window.__payloadPersona;return !!p && p.modo==="personagem" && p.personagem.nome==="Dossie Persona" && p.personagem.aliases[0]==="D.P." && p.pistas.length===2 && p.pistas[0].original.indexOf("Letter written")===0;})()'),
+  );
+  ok(
+    "personas: descrição escrita; fatos/notas do usuário INTACTOS; ia_desc registrado",
+    g('(function(){var p=DADOS.personagens.find(x=>x.nome==="Dossie Persona");return p.descricao.indexOf("desapareceu em 3 de maio")>0 && p.fatos[0]==="fato do usuário" && p.notas==="nota minha" && p.ia_desc && p.ia_desc.fichas.length===2;})()'),
+  );
+  ok(
+    "personas: depois de processado deixa de ser elegível…",
+    g('window.IA.personasElegiveis().every(x=>x.nome!=="Dossie Persona")'),
+  );
+  g('DADOS.fichas.push({id:"fP3",titulo:"Nova pista",sala:"",grupos:[],personagens:["Dossie Persona"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"New clue about Dossie Persona.",traducao:"Nova pista sobre Dossie Persona.",explica:"",rotulo:""}]});');
+  ok(
+    "personas: …e volta a ser elegível quando surge pista NOVA citando (regra 2)",
+    g('(function(){var e=window.IA.personasElegiveis().find(x=>x.nome==="Dossie Persona");return !!e && e.fichas.length===3;})()'),
+  );
+  ok(
+    "personas: personagem sem citações nunca é elegível",
+    g('(function(){DADOS.personagens.push({nome:"Sem Citacao",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]});return window.IA.personasElegiveis().every(x=>x.nome!=="Sem Citacao");})()'),
+  );
+  g("window.IA.chamar = window.__chamarOrig2;");
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 

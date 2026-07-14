@@ -4220,6 +4220,7 @@ function abrirEntidade(kind, nome) {
     (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">✏️ Editar dossiê</button>`) +
     `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">🎯 Focar no mapa</button>` +
     (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">📖 Folhear</button>` : "") +
+    (kind === "pessoa" && window.IA && window.IA.personasProcessar && pistasQueCitam("pessoa", nome).length ? `<button class="dbtn" onclick="window.IA.personasProcessar(['${jsq(nome)}'], true)" title="A IA (re)escreve a Descrição a partir de todas as pistas que citam este personagem">✨ Gerar descrição</button>` : "") +
     (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">🔒 Re-bloquear</button>` : "");
   // Sala: fatos e notas EDITÁVEIS direto no dossiê (sem tela de edição separada).
   const pessoalHtml = ehSala
@@ -4365,9 +4366,20 @@ function renderMundo() {
       </div>`;
           })
           .join("") || '<div class="gvazio">(nenhum ainda)</div>';
-      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span></h2><div class="mgrid">${cards}</div></div>`;
+      // IA: botão para descrever os personagens elegíveis (nunca descritos ou
+      // com pista nova citando desde a última descrição).
+      let btnIA = "";
+      if (kind === "pessoa" && window.IA && window.IA.personasElegiveis) {
+        const nEleg = window.IA.personasElegiveis().length;
+        if (nEleg > 0)
+          btnIA = ` <button class="topbtn" style="margin-left:10px;vertical-align:middle" onclick="iaPersonasTodos()" title="A IA escreve a descrição de cada personagem elegível a partir de TODAS as pistas que o citam (um por vez)">✨ Descrever personagens (${nEleg})</button>`;
+      }
+      return `<div class="msec"><h2 class="msech">${iconKind(kind)} ${titulo} <span class="msecn">${lista.length}</span>${btnIA}</h2><div class="mgrid">${cards}</div></div>`;
     })
     .join("");
+}
+function iaPersonasTodos() {
+  if (window.IA && window.IA.personasProcessar) window.IA.personasProcessar();
 }
 function buildMapToggles() {
   const box = document.getElementById("maptoggles");
