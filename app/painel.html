@@ -201,6 +201,13 @@
             </select>
           </div>
           <button class="topbtn" onclick="limparFiltros()">Limpar tudo</button>
+          <button
+            id="btnIaLote"
+            class="topbtn"
+            style="display: none"
+            onclick="iaLotePendentes()"
+            title="Processa com a IA todas as pistas ainda não processadas (⏳), uma por vez"
+          ></button>
         </div>
         <main>
           <div id="grade"></div>
