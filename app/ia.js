@@ -299,9 +299,12 @@
     };
   }
 
-  async function iaProcessarLote(ids) {
+  // Passo 1: valida e abre a CONFIRMAÇÃO (modal do sistema, não confirm nativo).
+  let _loteFilaPrep = null;
+  function iaProcessarLote(ids) {
     if (_lote && _lote.rodando) {
-      alert("Já existe um processamento em andamento (veja o painel no canto).");
+      if (typeof toast === "function")
+        toast("Já existe um processamento em andamento (painel no canto).", 4000);
       return;
     }
     const fila = (ids || []).filter((id) => {
@@ -309,23 +312,43 @@
       return f && f.pendente;
     });
     if (!fila.length) {
-      alert("Nenhuma pista pendente (⏳) para processar.");
+      if (typeof toast === "function")
+        toast("Nenhuma pista pendente (⏳) para processar.", 4000);
       return;
     }
+    _loteFilaPrep = fila;
     const min = Math.max(1, Math.round((fila.length * 12) / 60));
-    if (
-      !confirm(
-        "Processar " +
-          fila.length +
-          " pista(s) com a IA?\n\n" +
-          "Tempo estimado: ~" +
-          min +
-          " min (uma por vez, cada uma numa conversa própria).\n" +
-          "As fichas serão preenchidas automaticamente, sem revisão individual.\n" +
-          "Duplicatas e erros são pulados e listados no final.",
-      )
-    )
-      return;
+    let m = $("ialoteconf");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "ialoteconf";
+      m.className = "modal";
+      document.body.appendChild(m);
+    }
+    m.innerHTML = `<div class="modalbox" style="max-width:460px"><div class="modalhd"><h2>✨ Processar com a IA</h2><button class="close" onclick="window.IA.loteConfFechar()">✕</button></div>
+      <div class="savehelp">
+        <p class="dica" style="font-size:13px"><b>${fila.length} pista(s)</b> serão processadas, <b>uma por vez</b> — cada uma numa conversa própria da IA.</p>
+        <p class="dica">⏱ Tempo estimado: <b>~${min} min</b></p>
+        <p class="dica">As fichas serão preenchidas automaticamente, sem revisão individual (você revisa depois). Possíveis duplicatas e erros são <b>pulados</b> e listados no final.</p>
+        <div class="editbtns">
+          <button class="dbtn save" onclick="window.IA.loteIniciar()">✨ Processar ${fila.length} pista(s)</button>
+          <button class="dbtn" onclick="window.IA.loteConfFechar()">Cancelar</button>
+        </div>
+      </div></div>`;
+    m.classList.add("open");
+  }
+  function iaLoteConfFechar() {
+    const m = $("ialoteconf");
+    if (m) m.classList.remove("open");
+    _loteFilaPrep = null;
+  }
+  // Passo 2: o botão do modal inicia a fila de verdade.
+  async function iaLoteIniciar() {
+    const fila = _loteFilaPrep;
+    const m = $("ialoteconf");
+    if (m) m.classList.remove("open");
+    _loteFilaPrep = null;
+    if (!fila || !fila.length) return;
     _lote = {
       total: fila.length,
       feitas: 0,
@@ -444,6 +467,8 @@
     aplicar: iaAplicar,
     aplicarDoModal: iaAplicarDoModal,
     processarLote: iaProcessarLote,
+    loteIniciar: iaLoteIniciar,
+    loteConfFechar: iaLoteConfFechar,
     lotePausa: iaLotePausa,
     loteCancela: iaLoteCancela,
     loteEstado: function () {

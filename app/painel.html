@@ -113,37 +113,12 @@
               ⛃ Filtros
             </button>
             <button
-              id="btnInc"
-              class="topbtn ic"
-              onclick="toggleIncompletas()"
-              title="Só incompletas"
-            >
-              ⚠
-            </button>
-            <button
-              id="btnPend"
-              class="topbtn ic"
-              onclick="togglePendentes()"
-              title="Só pendentes"
-            >
-              ⏳
-            </button>
-            <button
-              id="btnOrfas"
-              class="topbtn ic"
-              onclick="toggleOrfas()"
-              title="Sem conexão"
-            >
-              🧩
-            </button>
-            <button
-              id="btnFav"
-              class="topbtn ic"
-              onclick="toggleFavoritas()"
-              title="Só favoritas"
-            >
-              ⭐
-            </button>
+              id="btnIaLote"
+              class="topbtn"
+              style="display: none"
+              onclick="iaLotePendentes()"
+              title="Processa com a IA todas as pistas ainda não processadas (⏳), uma por vez"
+            ></button>
             <button
               id="btnIdioma"
               class="topbtn"
@@ -200,14 +175,16 @@
               <option value="">Todos os grupos</option>
             </select>
           </div>
+          <div class="fgrp">
+            <label>Mostrar só</label>
+            <div class="fchips">
+              <button id="btnInc" class="topbtn" onclick="toggleIncompletas()" title="Só incompletas">⚠ Incompletas</button>
+              <button id="btnPend" class="topbtn" onclick="togglePendentes()" title="Só pendentes">⏳ Pendentes</button>
+              <button id="btnOrfas" class="topbtn" onclick="toggleOrfas()" title="Sem conexão">🧩 Sem conexão</button>
+              <button id="btnFav" class="topbtn" onclick="toggleFavoritas()" title="Só favoritas">⭐ Favoritas</button>
+            </div>
+          </div>
           <button class="topbtn" onclick="limparFiltros()">Limpar tudo</button>
-          <button
-            id="btnIaLote"
-            class="topbtn"
-            style="display: none"
-            onclick="iaLotePendentes()"
-            title="Processa com a IA todas as pistas ainda não processadas (⏳), uma por vez"
-          ></button>
         </div>
         <main>
           <div id="grade"></div>

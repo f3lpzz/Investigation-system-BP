@@ -1505,6 +1505,12 @@ header {
 .fgrp select:focus {
   border-color: var(--gold);
 }
+/* Atalhos "Mostrar só" dentro do painel de filtros (vieram da topbar) */
+.fchips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .badge-inc {
   display: inline-block;
   font-size: 10px;

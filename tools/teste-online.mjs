@@ -590,7 +590,16 @@ const entrou = () =>
       throw new Error("rede caiu (simulado)");
     };
   `);
-  await g('window.IA.processarLote(["fL1","fL2","fL3"])');
+  g('window.IA.processarLote(["fL1","fL2","fL3"])');
+  ok(
+    "lote IA: confirmação é modal do SISTEMA (não confirm nativo), com nº e tempo",
+    g('(function(){var m=document.getElementById("ialoteconf");return !!m && m.classList.contains("open") && m.innerHTML.indexOf("3 pista(s)")>0 && m.innerHTML.indexOf("Tempo estimado")>0 && m.innerHTML.indexOf("Cancelar")>0;})()'),
+  );
+  await g("window.IA.loteIniciar()");
+  ok(
+    "lote IA: iniciar fecha o modal de confirmação",
+    g('!document.getElementById("ialoteconf").classList.contains("open")'),
+  );
   ok(
     "lote IA: cada pista = 1 chamada própria (4 chamadas: 1 ok, 1 dup, 2 do retry)",
     g("window.__nCham === 4"),
@@ -616,6 +625,14 @@ const entrou = () =>
     g('(function(){atualizarBtnIaLote();var b=document.getElementById("btnIaLote");return !!b && b.style.display!=="none" && b.textContent.indexOf("Processar pendentes (")>=0;})()'),
   );
   g("window.IA.chamar = window.__chamarOrig;");
+  ok(
+    "topbar: botão ✨ está na topbar e os 4 filtros (⚠⏳🧩⭐) foram para o painel de filtros",
+    g('(function(){var top=document.querySelector(".topbar")||document.body;var ia=document.getElementById("btnIaLote");var painel=document.getElementById("filtrosPanel");return !!ia && !painel.contains(ia) && ["btnInc","btnPend","btnOrfas","btnFav"].every(id=>painel.contains(document.getElementById(id)));})()'),
+  );
+  ok(
+    "filtros movidos continuam funcionando (toggle pendentes marca .on)",
+    g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
+  );
 
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
