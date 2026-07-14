@@ -205,6 +205,10 @@
     if (m) m.classList.remove("open");
   }
 
+  // Quando a FILA em massa está rodando, o aplicar não abre o painel da
+  // ficha nem dispara toast individual (seria 1 por pista).
+  let _loteRodando = false;
+
   // Aplica um resultado (da IA ou editado) na ficha — testável sem tela.
   function iaAplicar(id, r) {
     const f = DADOS.fichas.find((x) => x.id === id);
@@ -263,9 +267,194 @@
     if (typeof marcarAlterado === "function") marcarAlterado();
     if (typeof rebuildFilters === "function") rebuildFilters();
     if (typeof render === "function") render();
-    if (typeof abrir === "function") abrir(id); // reabre o painel atualizado
-    if (typeof toast === "function") toast("✨ Ficha preenchida pela IA ✓", 3000);
+    if (!_loteRodando) {
+      if (typeof abrir === "function") abrir(id); // reabre o painel atualizado
+      if (typeof toast === "function") toast("✨ Ficha preenchida pela IA ✓", 3000);
+    }
     return true;
+  }
+
+  /* ===========================================================
+     FILA EM MASSA — processa N pistas, UMA POR VEZ.
+     Cada pista é 1 chamada independente à Edge Function (conversa
+     isolada: regras + contexto + a foto DAQUELA pista). Nada de
+     misturar pistas num mesmo chat.
+     - anti-duplicata determinístico ANTES de aplicar (bateu -> pula)
+     - erro: 1 nova tentativa; persistiu -> pula e a fila continua
+     - pausar/cancelar a qualquer momento; cada aplicação salva na
+       nuvem na hora (autosave), então retomar é só clicar de novo.
+     =========================================================== */
+  let _lote = null;
+
+  function iaPayloadDe(urls) {
+    return {
+      imagens: urls,
+      salas: DADOS.salas.map((s) => s.nome),
+      personagens: DADOS.personagens.map(
+        (p) =>
+          p.nome +
+          ((p.aliases || []).length ? " (apelidos: " + p.aliases.join(", ") + ")" : ""),
+      ),
+      grupos: DADOS.grupos.map((g) => g.nome),
+    };
+  }
+
+  // Passo 1: valida e abre a CONFIRMAÇÃO (modal do sistema, não confirm nativo).
+  let _loteFilaPrep = null;
+  function iaProcessarLote(ids) {
+    if (_lote && _lote.rodando) {
+      if (typeof toast === "function")
+        toast("Já existe um processamento em andamento (painel no canto).", 4000);
+      return;
+    }
+    const fila = (ids || []).filter((id) => {
+      const f = DADOS.fichas.find((x) => x.id === id);
+      return f && f.pendente;
+    });
+    if (!fila.length) {
+      if (typeof toast === "function")
+        toast("Nenhuma pista pendente (⏳) para processar.", 4000);
+      return;
+    }
+    _loteFilaPrep = fila;
+    const min = Math.max(1, Math.round((fila.length * 12) / 60));
+    let m = $("ialoteconf");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "ialoteconf";
+      m.className = "modal";
+      document.body.appendChild(m);
+    }
+    m.innerHTML = `<div class="modalbox" style="max-width:460px"><div class="modalhd"><h2>✨ Processar com a IA</h2><button class="close" onclick="window.IA.loteConfFechar()">✕</button></div>
+      <div class="savehelp">
+        <p class="dica" style="font-size:13px"><b>${fila.length} pista(s)</b> serão processadas, <b>uma por vez</b> — cada uma numa conversa própria da IA.</p>
+        <p class="dica">⏱ Tempo estimado: <b>~${min} min</b></p>
+        <p class="dica">As fichas serão preenchidas automaticamente, sem revisão individual (você revisa depois). Possíveis duplicatas e erros são <b>pulados</b> e listados no final.</p>
+        <div class="editbtns">
+          <button class="dbtn save" onclick="window.IA.loteIniciar()">✨ Processar ${fila.length} pista(s)</button>
+          <button class="dbtn" onclick="window.IA.loteConfFechar()">Cancelar</button>
+        </div>
+      </div></div>`;
+    m.classList.add("open");
+  }
+  function iaLoteConfFechar() {
+    const m = $("ialoteconf");
+    if (m) m.classList.remove("open");
+    _loteFilaPrep = null;
+  }
+  // Passo 2: o botão do modal inicia a fila de verdade.
+  async function iaLoteIniciar() {
+    const fila = _loteFilaPrep;
+    const m = $("ialoteconf");
+    if (m) m.classList.remove("open");
+    _loteFilaPrep = null;
+    if (!fila || !fila.length) return;
+    _lote = {
+      total: fila.length,
+      feitas: 0,
+      ok: 0,
+      puladas: [],
+      erros: [],
+      pausado: false,
+      cancelado: false,
+      rodando: true,
+    };
+    _loteRodando = true;
+    iaLotePainel();
+    for (const id of fila) {
+      if (_lote.cancelado) break;
+      while (_lote.pausado && !_lote.cancelado)
+        await new Promise((r) => setTimeout(r, 300));
+      if (_lote.cancelado) break;
+      await iaLoteUma(id);
+      _lote.feitas++;
+      iaLotePainel();
+    }
+    _lote.rodando = false;
+    _loteRodando = false;
+    iaLoteFim();
+  }
+
+  async function iaLoteUma(id) {
+    const f = DADOS.fichas.find((x) => x.id === id);
+    if (!f || !f.pendente) {
+      _lote.puladas.push({ id: id, motivo: "já processada" });
+      return;
+    }
+    try {
+      const { urls } = await window.IA.imagens(f);
+      if (!urls.length) {
+        _lote.puladas.push({ id: id, motivo: "sem imagem que a IA veja" });
+        return;
+      }
+      let res;
+      try {
+        res = await window.IA.chamar(iaPayloadDe(urls));
+      } catch (e1) {
+        // 1 nova tentativa (rede/instabilidade); persistiu -> cai no catch de fora
+        res = await window.IA.chamar(iaPayloadDe(urls));
+      }
+      const dup = window.IA.duplicata(res.resultado, id);
+      if (dup) {
+        _lote.puladas.push({ id: id, motivo: "possível duplicata de " + dup.id });
+        return;
+      }
+      window.IA.aplicar(id, res.resultado);
+      _lote.ok++;
+    } catch (e) {
+      _lote.erros.push({ id: id, motivo: (e && e.message) || String(e) });
+    }
+  }
+
+  /* ---- painel de progresso (canto inferior direito) ---- */
+  function iaLotePainel() {
+    let p = $("ialote");
+    if (!p) {
+      p = document.createElement("div");
+      p.id = "ialote";
+      document.body.appendChild(p);
+    }
+    const L = _lote;
+    const pct = L.total ? Math.round((L.feitas / L.total) * 100) : 0;
+    p.innerHTML = `
+      <div class="il-head">✨ Processando ${L.feitas}/${L.total}</div>
+      <div class="il-stats">✓ ${L.ok} aplicadas · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
+      <div class="il-bar"><span style="width:${pct}%"></span></div>
+      <div class="il-btns">
+        <button class="dbtn" onclick="window.IA.lotePausa()">${L.pausado ? "▶ Continuar" : "⏸ Pausar"}</button>
+        <button class="dbtn" onclick="window.IA.loteCancela()">✕ Cancelar</button>
+      </div>`;
+  }
+  function iaLoteFim() {
+    const p = $("ialote");
+    if (!p || !_lote) return;
+    const L = _lote;
+    const item = (x, ic) =>
+      `<div class="il-item" onclick="abrir('${esc(x.id)}')">${ic} <b>${esc(x.id)}</b> — ${esc(x.motivo)}</div>`;
+    const lista =
+      L.puladas.map((x) => item(x, "⏭")).join("") +
+      L.erros.map((x) => item(x, "⚠")).join("");
+    p.innerHTML = `
+      <div class="il-head">${L.cancelado ? "✕ Processamento cancelado" : "✨ Processamento concluído"}</div>
+      <div class="il-stats">✓ ${L.ok} aplicadas · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
+      ${lista ? `<div class="il-lista">${lista}</div>` : ""}
+      <div class="il-btns"><button class="dbtn" onclick="document.getElementById('ialote').remove()">Fechar</button></div>`;
+    if (typeof toast === "function")
+      toast(
+        (L.cancelado ? "Lote cancelado — " : "Lote concluído — ") +
+          "✓ " + L.ok + " · ⏭ " + L.puladas.length + " · ⚠ " + L.erros.length,
+        5000,
+      );
+  }
+  function iaLotePausa() {
+    if (!_lote || !_lote.rodando) return;
+    _lote.pausado = !_lote.pausado;
+    iaLotePainel();
+  }
+  function iaLoteCancela() {
+    if (!_lote || !_lote.rodando) return;
+    _lote.cancelado = true;
+    _lote.pausado = false;
   }
 
   // API pública (o botão usa; os testes mockam window.IA.chamar).
@@ -277,6 +466,14 @@
     normaliza: iaNormaliza,
     aplicar: iaAplicar,
     aplicarDoModal: iaAplicarDoModal,
+    processarLote: iaProcessarLote,
+    loteIniciar: iaLoteIniciar,
+    loteConfFechar: iaLoteConfFechar,
+    lotePausa: iaLotePausa,
+    loteCancela: iaLoteCancela,
+    loteEstado: function () {
+      return _lote;
+    },
   };
   window.iaProcessarPista = iaProcessarPista;
 })();

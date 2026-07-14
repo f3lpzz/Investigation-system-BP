@@ -4439,7 +4439,26 @@ function excluirSelecionadas() {
   rebuildFilters();
   render();
 }
+// IA em massa: botões (só fazem algo quando a camada de IA está carregada)
+function iaLotePendentes() {
+  if (!window.IA || !window.IA.processarLote) return;
+  window.IA.processarLote(fichas.filter((f) => f.pendente).map((f) => f.id));
+}
+function iaLoteSelecionadas() {
+  if (!window.IA || !window.IA.processarLote) return;
+  window.IA.processarLote([...state.sel]);
+}
+// Mostra/esconde o botão "✨ Processar pendentes (N)" da topbar.
+function atualizarBtnIaLote() {
+  const b = document.getElementById("btnIaLote");
+  if (!b) return;
+  const n = fichas.filter((f) => f.pendente).length;
+  const mostrar = !!(window.IA && window.IA.processarLote && n > 0);
+  b.style.display = mostrar ? "" : "none";
+  if (mostrar) b.textContent = "✨ Processar pendentes (" + n + ")";
+}
 function atualizarSelBar() {
+  atualizarBtnIaLote();
   const bar = document.getElementById("selbar");
   if (!bar) return;
   const ativo = state.selMode && state.view === "grade";
@@ -4453,9 +4472,14 @@ function atualizarSelBar() {
   bar.classList.add("on");
   const n = state.sel.size,
     vis = fichas.filter(passa).length;
+  const btnIA =
+    window.IA && window.IA.processarLote && n > 0
+      ? `<button class="topbtn" onclick="iaLoteSelecionadas()">✨ Processar selecionadas</button>`
+      : "";
   bar.innerHTML = `<span class="cnt">${n} selecionada(s)</span>
     <button class="topbtn" onclick="selecionarVisiveis()">Selecionar visíveis (${vis})</button>
     <span class="grow"></span>
+    ${btnIA}
     <button class="seldel" onclick="excluirSelecionadas()">🗑 Excluir selecionadas</button>
     <button class="topbtn" onclick="toggleSelMode()">Cancelar</button>`;
 }

@@ -426,6 +426,65 @@ main {
   height: 100%;
   cursor: grab;
 }
+/* ===== IA em massa: painel de progresso (canto inferior direito) ===== */
+#ialote {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 99998;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  background: #0e1a33f2;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(3, 8, 22, 0.6);
+  font-size: 12.5px;
+}
+#ialote .il-head {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+#ialote .il-stats {
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+#ialote .il-bar {
+  height: 6px;
+  border-radius: 4px;
+  background: #0a1220;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+#ialote .il-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.25s;
+}
+#ialote .il-lista {
+  max-height: 140px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  margin-bottom: 8px;
+  padding-top: 6px;
+}
+#ialote .il-item {
+  padding: 3px 2px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+#ialote .il-item:hover {
+  background: #16243f;
+}
+#ialote .il-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ===== Upload em massa ===== */
 /* Véu de arrastar/progresso: cobre a tela ao arrastar imagens */
 #dropveil {
@@ -1445,6 +1504,12 @@ header {
 }
 .fgrp select:focus {
   border-color: var(--gold);
+}
+/* Atalhos "Mostrar só" dentro do painel de filtros (vieram da topbar) */
+.fchips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .badge-inc {
   display: inline-block;

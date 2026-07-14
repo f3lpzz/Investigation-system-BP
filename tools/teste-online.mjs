@@ -99,6 +99,7 @@ const mockSb = {
 const dom = new JSDOM(html, { pretendToBeVisual: true, url: "http://localhost/" });
 const w = dom.window;
 w.alert = () => {};
+w.confirm = () => true; // confirmações aceitas nos testes (ex.: lote da IA)
 w.onerror = (m) => erros.push(String(m));
 w.supabase = { createClient: () => mockSb };
 w.SUPABASE_URL = "http://localhost";
@@ -568,6 +569,69 @@ const entrou = () =>
   ok(
     "lote: ids das fichas novas são únicos no catálogo",
     g("(function(){var ids=DADOS.fichas.map(f=>f.id);return new Set(ids).size===ids.length;})()"),
+  );
+
+  /* Teste 18 — IA em massa: fila 1-a-1, duplicata pulada, erro não trava */
+  g(`
+    DADOS.fichas.push(
+      {id:"fL1",titulo:"",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"data:image/png;base64,AAA",original:"",traducao:"",explica:"",rotulo:""}]},
+      {id:"fL2",titulo:"",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"data:image/png;base64,BBB",original:"",traducao:"",explica:"",rotulo:""}]},
+      {id:"fL3",titulo:"",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"data:image/png;base64,CCC",original:"",traducao:"",explica:"",rotulo:""}]}
+    );
+    window.__chamarOrig = window.IA.chamar;
+    window.__nCham = 0;
+    // 1ª chamada: ok (com personagem/grupo NOVOS p/ testar criação em massa)
+    // 2ª: transcrição igual à da ficha fIA (duplicata) -> deve ser pulada
+    // 3ª e 4ª (retry): erro de rede -> vai para erros e a fila continua
+    window.IA.chamar = async function(payload){
+      window.__nCham++;
+      if (window.__nCham === 1) return { resultado: { titulo:"Lote OK 1", paginas:[{transcricao:"Unique text for batch test number one alpha.", traducao:"Texto único do teste de lote número um alfa."}], resumo:"Resumo do lote.", personagens_existentes:[], personagens_novos:["Persona do Lote"], grupo:"", grupo_sugerido:"Grupo do Lote", observacoes:"" }, uso:null, modelo:"mock" };
+      if (window.__nCham === 2) return { resultado: { titulo:"Dup", paginas:[{transcricao:"Dear staff, the west wing is closed.", traducao:"x"}], resumo:"", personagens_existentes:[], personagens_novos:[], grupo:"", grupo_sugerido:"", observacoes:"" }, uso:null, modelo:"mock" };
+      throw new Error("rede caiu (simulado)");
+    };
+  `);
+  g('window.IA.processarLote(["fL1","fL2","fL3"])');
+  ok(
+    "lote IA: confirmação é modal do SISTEMA (não confirm nativo), com nº e tempo",
+    g('(function(){var m=document.getElementById("ialoteconf");return !!m && m.classList.contains("open") && m.innerHTML.indexOf("3 pista(s)")>0 && m.innerHTML.indexOf("Tempo estimado")>0 && m.innerHTML.indexOf("Cancelar")>0;})()'),
+  );
+  await g("window.IA.loteIniciar()");
+  ok(
+    "lote IA: iniciar fecha o modal de confirmação",
+    g('!document.getElementById("ialoteconf").classList.contains("open")'),
+  );
+  ok(
+    "lote IA: cada pista = 1 chamada própria (4 chamadas: 1 ok, 1 dup, 2 do retry)",
+    g("window.__nCham === 4"),
+  );
+  ok(
+    "lote IA: aplicada preenche a ficha e tira o ⏳ (e as outras continuam pendentes)",
+    g('(function(){var a=DADOS.fichas.find(f=>f.id==="fL1"),b=DADOS.fichas.find(f=>f.id==="fL2"),c=DADOS.fichas.find(f=>f.id==="fL3");return a.pendente===false && a.titulo==="Lote OK 1" && a.paginas[0].original.indexOf("Unique text")===0 && b.pendente===true && c.pendente===true;})()'),
+  );
+  ok(
+    "lote IA: cria personagem e grupo novos automaticamente (aprovado p/ massa)",
+    g('DADOS.personagens.some(p=>p.nome==="Persona do Lote") && DADOS.grupos.some(x=>x.nome==="Grupo do Lote") && DADOS.fichas.find(f=>f.id==="fL1").grupos[0]==="Grupo do Lote"'),
+  );
+  ok(
+    "lote IA: duplicata é PULADA (não aplica) e erro vai para a lista sem travar a fila",
+    g('(function(){var L=window.IA.loteEstado();return L.feitas===3 && L.ok===1 && L.puladas.length===1 && L.puladas[0].id==="fL2" && L.erros.length===1 && L.erros[0].id==="fL3";})()'),
+  );
+  ok(
+    "lote IA: painel final mostra o resumo e a lista de puladas/erros",
+    g('(function(){var p=document.getElementById("ialote");return !!p && p.innerHTML.indexOf("concluído")>0 && p.innerHTML.indexOf("fL2")>0 && p.innerHTML.indexOf("fL3")>0;})()'),
+  );
+  ok(
+    "lote IA: botão da topbar aparece com a contagem de pendentes",
+    g('(function(){atualizarBtnIaLote();var b=document.getElementById("btnIaLote");return !!b && b.style.display!=="none" && b.textContent.indexOf("Processar pendentes (")>=0;})()'),
+  );
+  g("window.IA.chamar = window.__chamarOrig;");
+  ok(
+    "topbar: botão ✨ está na topbar e os 4 filtros (⚠⏳🧩⭐) foram para o painel de filtros",
+    g('(function(){var top=document.querySelector(".topbar")||document.body;var ia=document.getElementById("btnIaLote");var painel=document.getElementById("filtrosPanel");return !!ia && !painel.contains(ia) && ["btnInc","btnPend","btnOrfas","btnFav"].every(id=>painel.contains(document.getElementById(id)));})()'),
+  );
+  ok(
+    "filtros movidos continuam funcionando (toggle pendentes marca .on)",
+    g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
   );
 
   ok("zero erros de runtime", erros.length === 0);
