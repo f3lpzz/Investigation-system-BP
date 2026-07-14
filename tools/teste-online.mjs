@@ -523,6 +523,53 @@ const entrou = () =>
     g('document.querySelector("#mapa .hint") === null'),
   );
 
+  /* Teste 17 — Upload em massa: abas, aplicar-a-todas, salvar lote, sem-cadastro */
+  const antesLote = g("DADOS.fichas.length");
+  g('abrirCadastroLote([{imagem:"nuvem:u/a.jpg",preview:"pa"},{imagem:"nuvem:u/b.jpg",preview:"pb"},{imagem:"nuvem:u/c.jpg",preview:"pc"}])');
+  ok(
+    "lote: modal abre com 1 aba por imagem (3)",
+    g('document.querySelectorAll("#quickAdd .qtab-lote").length === 3'),
+  );
+  g('document.getElementById("ed-q-titulo").value = "Titulo da 1a";');
+  g("loteTrocaAba(1)");
+  ok(
+    "lote: trocar de aba mostra o formulário vazio da aba 2",
+    g('document.getElementById("ed-q-titulo").value === ""'),
+  );
+  g("loteTrocaAba(0)");
+  ok(
+    "lote: voltar para a aba 1 preserva o que foi digitado",
+    g('document.getElementById("ed-q-titulo").value === "Titulo da 1a"'),
+  );
+  g('document.getElementById("ed-q-sala").value = "Sala UI Teste"; loteAplicarSala();');
+  ok(
+    "lote: 'aplicar a todas' espalha a sala pelas 3 fichas",
+    g('_quickLote.every(it => it.ficha.sala === "Sala UI Teste")'),
+  );
+  g("salvarLote()");
+  ok(
+    "lote: concluir salva as 3 (pendentes, sala resolvida, título automático nas vazias)",
+    g(
+      `(function(){var novas=DADOS.fichas.slice(${antesLote});if(novas.length!==3)return false;return novas.every(f=>f.pendente===true && f.sala==="Sala UI Teste") && novas[0].titulo==="Titulo da 1a" && novas[1].titulo.indexOf("Pista importada")===0 && novas.every(f=>f.paginas.length===1 && f.paginas[0].imagem.indexOf("nuvem:")===0);})()`,
+    ),
+  );
+  ok(
+    "lote: modal fechou e estado zerou após concluir",
+    g('_quickLote === null && !document.getElementById("quickAdd").classList.contains("open")'),
+  );
+  const antesSkip = g("DADOS.fichas.length");
+  g('_loteItens=[{imagem:"nuvem:u/d.jpg",preview:"pd"},{imagem:"nuvem:u/e.jpg",preview:"pe"}]; loteSemCadastro();');
+  ok(
+    "lote: 'enviar sem cadastrar' cria N fichas pendentes com título automático",
+    g(
+      `(function(){var novas=DADOS.fichas.slice(${antesSkip});return novas.length===2 && novas.every(f=>f.pendente===true && f.titulo.indexOf("Pista importada")===0 && f.sala==="");})()`,
+    ),
+  );
+  ok(
+    "lote: ids das fichas novas são únicos no catálogo",
+    g("(function(){var ids=DADOS.fichas.map(f=>f.id);return new Set(ids).size===ids.length;})()"),
+  );
+
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));
 
