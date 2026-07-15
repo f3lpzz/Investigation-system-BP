@@ -37,6 +37,30 @@ REGRAS INEGOCIÁVEIS:
 7. RESUMO: 1-3 frases neutras sobre o que o texto diz. Sem especulação.
 8. "observacoes": avisos práticos (ex.: imagem cortada, texto parcialmente ilegível). Senão, "".`;
 
+// ---- Receita 2: dossiê de PERSONAGEM (modo: "personagem") ----
+// Texto-somente (sem imagens): recebe os trechos das pistas que citam o
+// personagem e escreve a descrição organizada. Interpretação é PEDIDA aqui
+// (diferente da receita de pista), mas SEMPRE limitada às fontes fornecidas.
+const REGRAS_PERSONA = `Você escreve o dossiê de UM personagem do jogo Blue Prince para um catálogo pessoal fan-made, a partir de trechos de pistas fornecidos. Responda SEMPRE no JSON pedido.
+
+REGRAS INEGOCIÁVEIS:
+1. FONTES: use APENAS os trechos fornecidos. Não use conhecimento externo sobre o jogo e não invente nada que nenhuma pista sustente.
+2. INTERPRETAÇÃO PEDIDA: organize e cruze as citações. Ex.: se o personagem aparece só como autor de um livro, diga que ele ESCREVEU o livro X (não conte a história do livro, a menos que ela seja sobre ele). Se um jornal noticia o desaparecimento dele em certa data, relate o desaparecimento com a data, o último lugar em que foi visto e o motivo, se citados.
+3. O QUE INCLUIR (quando as pistas derem base): papel/cargo e para quem trabalha; relações familiares e sociais; eventos com datas, em ordem cronológica; lugares e endereços associados; objetos/posses; cartas que escreveu ou recebeu (para quem / de quem e sobre o quê); apelidos ou pseudônimos usados.
+4. FATO x RUMOR: distinga ("segundo o jornal…", "uma carta sugere…"). Se as pistas se contradizem, aponte a divergência em vez de escolher um lado.
+5. FORMA: português do Brasil; 1 a 4 parágrafos corridos, tom neutro de dossiê; sem listas; não cite os ids das pistas.
+6. "observacoes": avisos práticos (ex.: menções ambíguas, pouco material sobre o personagem). Senão, "".`;
+
+const ESQUEMA_PERSONA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    descricao: { type: "string" },
+    observacoes: { type: "string" },
+  },
+  required: ["descricao", "observacoes"],
+};
+
 const ESQUEMA = {
   type: "object",
   additionalProperties: false,
@@ -107,38 +131,84 @@ Deno.serve(async (req) => {
 
     // ---- 3) Entrada (com limites para conter custo) ----
     const body = await req.json();
-    const imagens: string[] = (body.imagens || []).slice(0, 3);
-    if (!imagens.length) return json({ error: "nenhuma imagem enviada" }, 400);
-    for (const url of imagens) {
-      if (
-        typeof url !== "string" ||
-        !(url.startsWith("https://") || url.startsWith("data:image/"))
-      ) {
-        return json({ error: "imagem inválida (use https ou data:image)" }, 400);
-      }
-    }
+    const modo = body.modo === "personagem" ? "personagem" : "pista";
     const lista = (arr: unknown, max: number) =>
       (Array.isArray(arr) ? arr : [])
         .filter((x) => typeof x === "string")
         .slice(0, max);
-    const salas = lista(body.salas, 200);
-    const personagens = lista(body.personagens, 200);
-    const grupos = lista(body.grupos, 60);
+    const txt = (v: unknown, max: number) =>
+      typeof v === "string" ? v.slice(0, max) : "";
 
-    // ---- 4) Chamada à OpenAI (visão + JSON garantido) ----
+    let sysPrompt: string;
+    let userContent: unknown;
+    let schemaName: string;
+    let schemaObj: unknown;
+
+    if (modo === "personagem") {
+      // ---- Receita 2: dossiê de personagem (texto-somente) ----
+      const p = body.personagem || {};
+      const nome = txt(p.nome, 120);
+      if (!nome) return json({ error: "personagem sem nome" }, 400);
+      const aliases = lista(p.aliases, 12).map((a) => a.slice(0, 80));
+      const pistas = (Array.isArray(body.pistas) ? body.pistas : []).slice(0, 60);
+      if (!pistas.length)
+        return json({ error: "nenhuma pista citando o personagem" }, 400);
+      const blocos = pistas.map((f: Record<string, unknown>, i: number) => {
+        const cab = `[${txt(f.id, 20) || "?"}] ${txt(f.titulo, 200) || "(sem título)"}` +
+          (txt(f.sala, 80) ? ` — sala: ${txt(f.sala, 80)}` : "") +
+          (txt(f.grupo, 80) ? ` — grupo: ${txt(f.grupo, 80)}` : "");
+        const en = txt(f.original, 6000);
+        const pt = txt(f.traducao, 6000);
+        const rs = txt(f.resumo, 1000);
+        return (
+          `--- PISTA ${i + 1} ---\n${cab}\n` +
+          (en ? `EN: ${en}\n` : "") +
+          (pt ? `PT: ${pt}\n` : "") +
+          (rs ? `Resumo: ${rs}\n` : "")
+        );
+      });
+      sysPrompt = REGRAS_PERSONA;
+      userContent =
+        `PERSONAGEM: ${nome}` +
+        (aliases.length ? ` (apelidos: ${aliases.join(", ")})` : "") +
+        `\n\nPISTAS QUE O CITAM (${pistas.length}):\n\n` +
+        blocos.join("\n") +
+        `\nEscreva o dossiê deste personagem.`;
+      schemaName = "dossie_personagem";
+      schemaObj = ESQUEMA_PERSONA;
+    } else {
+      // ---- Receita 1: processar pista (visão) ----
+      const imagens: string[] = (body.imagens || []).slice(0, 3);
+      if (!imagens.length) return json({ error: "nenhuma imagem enviada" }, 400);
+      for (const url of imagens) {
+        if (
+          typeof url !== "string" ||
+          !(url.startsWith("https://") || url.startsWith("data:image/"))
+        ) {
+          return json({ error: "imagem inválida (use https ou data:image)" }, 400);
+        }
+      }
+      const salas = lista(body.salas, 200);
+      const personagens = lista(body.personagens, 200);
+      const grupos = lista(body.grupos, 60);
+      sysPrompt = REGRAS;
+      userContent = [
+        {
+          type: "text",
+          text:
+            `LISTA DE PERSONAGENS EXISTENTES:\n${personagens.join("; ") || "(vazia)"}\n\n` +
+            `LISTA DE GRUPOS EXISTENTES:\n${grupos.join("; ") || "(vazia)"}\n\n` +
+            `LISTA DE SALAS (apenas referência de nomes; NÃO escolha sala):\n${salas.join("; ") || "(vazia)"}\n\n` +
+            `Processe a(s) ${imagens.length} imagem(ns) desta pista, na ordem enviada (1 item de "paginas" por imagem).`,
+        },
+        ...imagens.map((url) => ({ type: "image_url", image_url: { url } })),
+      ];
+      schemaName = "ficha_pista";
+      schemaObj = ESQUEMA;
+    }
+
+    // ---- 4) Chamada à OpenAI (JSON garantido) ----
     const modelo = Deno.env.get("OPENAI_MODEL") || "gpt-5-nano";
-    const conteudoUsuario: unknown[] = [
-      {
-        type: "text",
-        text:
-          `LISTA DE PERSONAGENS EXISTENTES:\n${personagens.join("; ") || "(vazia)"}\n\n` +
-          `LISTA DE GRUPOS EXISTENTES:\n${grupos.join("; ") || "(vazia)"}\n\n` +
-          `LISTA DE SALAS (apenas referência de nomes; NÃO escolha sala):\n${salas.join("; ") || "(vazia)"}\n\n` +
-          `Processe a(s) ${imagens.length} imagem(ns) desta pista, na ordem enviada (1 item de "paginas" por imagem).`,
-      },
-      ...imagens.map((url) => ({ type: "image_url", image_url: { url } })),
-    ];
-
     const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -152,12 +222,12 @@ Deno.serve(async (req) => {
         max_completion_tokens: 16000,
         reasoning_effort: "low",
         messages: [
-          { role: "system", content: REGRAS },
-          { role: "user", content: conteudoUsuario },
+          { role: "system", content: sysPrompt },
+          { role: "user", content: userContent },
         ],
         response_format: {
           type: "json_schema",
-          json_schema: { name: "ficha_pista", strict: true, schema: ESQUEMA },
+          json_schema: { name: schemaName, strict: true, schema: schemaObj },
         },
       }),
     });

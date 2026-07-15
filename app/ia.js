@@ -350,6 +350,7 @@
     _loteFilaPrep = null;
     if (!fila || !fila.length) return;
     _lote = {
+      tipo: "pista",
       total: fila.length,
       feitas: 0,
       ok: 0,
@@ -416,9 +417,11 @@
     }
     const L = _lote;
     const pct = L.total ? Math.round((L.feitas / L.total) * 100) : 0;
+    const verbo = L.tipo === "persona" ? "Descrevendo" : "Processando";
+    const lab = L.tipo === "persona" ? "descritos" : "aplicadas";
     p.innerHTML = `
-      <div class="il-head">✨ Processando ${L.feitas}/${L.total}</div>
-      <div class="il-stats">✓ ${L.ok} aplicadas · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
+      <div class="il-head">✨ ${verbo} ${L.feitas}/${L.total}</div>
+      <div class="il-stats">✓ ${L.ok} ${lab} · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
       <div class="il-bar"><span style="width:${pct}%"></span></div>
       <div class="il-btns">
         <button class="dbtn" onclick="window.IA.lotePausa()">${L.pausado ? "▶ Continuar" : "⏸ Pausar"}</button>
@@ -429,14 +432,17 @@
     const p = $("ialote");
     if (!p || !_lote) return;
     const L = _lote;
+    const lab = L.tipo === "persona" ? "descritos" : "aplicadas";
     const item = (x, ic) =>
-      `<div class="il-item" onclick="abrir('${esc(x.id)}')">${ic} <b>${esc(x.id)}</b> — ${esc(x.motivo)}</div>`;
+      L.tipo === "persona"
+        ? `<div class="il-item" onclick="abrirEntidade('pessoa','${typeof jsq === "function" ? jsq(x.id) : esc(x.id)}')">${ic} <b>${esc(x.id)}</b> — ${esc(x.motivo)}</div>`
+        : `<div class="il-item" onclick="abrir('${esc(x.id)}')">${ic} <b>${esc(x.id)}</b> — ${esc(x.motivo)}</div>`;
     const lista =
       L.puladas.map((x) => item(x, "⏭")).join("") +
       L.erros.map((x) => item(x, "⚠")).join("");
     p.innerHTML = `
       <div class="il-head">${L.cancelado ? "✕ Processamento cancelado" : "✨ Processamento concluído"}</div>
-      <div class="il-stats">✓ ${L.ok} aplicadas · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
+      <div class="il-stats">✓ ${L.ok} ${lab} · ⏭ ${L.puladas.length} puladas · ⚠ ${L.erros.length} erros</div>
       ${lista ? `<div class="il-lista">${lista}</div>` : ""}
       <div class="il-btns"><button class="dbtn" onclick="document.getElementById('ialote').remove()">Fechar</button></div>`;
     if (typeof toast === "function")
@@ -457,6 +463,171 @@
     _lote.pausado = false;
   }
 
+  /* ===========================================================
+     RECEITA 2 — DOSSIÊS DE PERSONAGENS
+     Para cada personagem elegível, UMA chamada com TODAS as pistas
+     que o citam (dossiê completo); personagens processados um por
+     vez na mesma fila/painel. Elegível se: nunca processado, OU o
+     conjunto de pistas que o citam mudou desde a última vez
+     (guardado no campo aditivo personagem.ia_desc).
+     =========================================================== */
+  function iaPersonaCitacoes(nome) {
+    return DADOS.fichas
+      .filter((f) =>
+        (f.personagens || []).some((pp) => nomeCanon(pp) === nomeCanon(nome)),
+      )
+      .map((f) => f.id)
+      .sort();
+  }
+  function iaPersonasElegiveis() {
+    return (DADOS.personagens || [])
+      .filter((p) => p && p.nome)
+      .map((p) => ({ nome: p.nome, fichas: iaPersonaCitacoes(p.nome) }))
+      .filter((it) => {
+        if (!it.fichas.length) return false; // nada citando -> nada a contar
+        const p = DADOS.personagens.find((x) => x.nome === it.nome);
+        const feito =
+          p.ia_desc && Array.isArray(p.ia_desc.fichas)
+            ? [...p.ia_desc.fichas].sort()
+            : null;
+        return !feito || JSON.stringify(feito) !== JSON.stringify(it.fichas);
+      });
+  }
+  let _personaPrep = null;
+  // nomes: opcional (restringe); force: ignora o "já processado" (regerar 1)
+  function iaPersonasProcessar(nomes, force) {
+    if (_lote && _lote.rodando) {
+      if (typeof toast === "function")
+        toast("Já existe um processamento em andamento (painel no canto).", 4000);
+      return;
+    }
+    let alvo;
+    if (force && nomes && nomes.length) {
+      alvo = nomes
+        .map((n) => ({ nome: nomeCanon(n), fichas: iaPersonaCitacoes(n) }))
+        .filter((it) => it.fichas.length);
+    } else {
+      alvo = iaPersonasElegiveis();
+      if (nomes && nomes.length) {
+        const canon = nomes.map((n) => nomeCanon(n));
+        alvo = alvo.filter((it) => canon.includes(it.nome));
+      }
+    }
+    if (!alvo.length) {
+      if (typeof toast === "function")
+        toast(
+          "Nenhum personagem elegível (precisa ser citado em pistas e ter novidade desde a última descrição).",
+          5000,
+        );
+      return;
+    }
+    _personaPrep = alvo;
+    const min = Math.max(1, Math.round((alvo.length * 10) / 60));
+    let m = $("ialoteconf");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "ialoteconf";
+      m.className = "modal";
+      document.body.appendChild(m);
+    }
+    m.innerHTML = `<div class="modalbox" style="max-width:460px"><div class="modalhd"><h2>✨ Descrever personagens</h2><button class="close" onclick="window.IA.loteConfFechar()">✕</button></div>
+      <div class="savehelp">
+        <p class="dica" style="font-size:13px"><b>${alvo.length} personagem(ns)</b> serão descritos, <b>um por vez</b> — cada um numa conversa própria da IA, lendo TODAS as pistas que o citam.</p>
+        <p class="dica">⏱ Tempo estimado: <b>~${min} min</b></p>
+        <p class="dica">A IA escreve o campo <b>Descrição</b> (substitui o atual nos elegíveis). Seus <b>fatos</b> e <b>notas</b> pessoais não são tocados.</p>
+        <div class="editbtns">
+          <button class="dbtn save" onclick="window.IA.personaIniciar()">✨ Descrever ${alvo.length} personagem(ns)</button>
+          <button class="dbtn" onclick="window.IA.loteConfFechar()">Cancelar</button>
+        </div>
+      </div></div>`;
+    m.classList.add("open");
+  }
+  async function iaPersonaIniciar() {
+    const fila = _personaPrep;
+    const m = $("ialoteconf");
+    if (m) m.classList.remove("open");
+    _personaPrep = null;
+    if (!fila || !fila.length) return;
+    _lote = {
+      tipo: "persona",
+      total: fila.length,
+      feitas: 0,
+      ok: 0,
+      puladas: [],
+      erros: [],
+      pausado: false,
+      cancelado: false,
+      rodando: true,
+    };
+    _loteRodando = true;
+    iaLotePainel();
+    for (const it of fila) {
+      if (_lote.cancelado) break;
+      while (_lote.pausado && !_lote.cancelado)
+        await new Promise((r) => setTimeout(r, 300));
+      if (_lote.cancelado) break;
+      await iaPersonaUma(it);
+      _lote.feitas++;
+      iaLotePainel();
+    }
+    _lote.rodando = false;
+    _loteRodando = false;
+    iaLoteFim();
+  }
+  async function iaPersonaUma(it) {
+    const p = DADOS.personagens.find((x) => x.nome === it.nome);
+    if (!p) {
+      _lote.puladas.push({ id: it.nome, motivo: "personagem não encontrado" });
+      return;
+    }
+    try {
+      const pistas = it.fichas
+        .map((id) => {
+          const f = DADOS.fichas.find((x) => x.id === id);
+          if (!f) return null;
+          const pgs = f.paginas || [];
+          return {
+            id: f.id,
+            titulo: f.titulo || "",
+            sala: f.sala || "",
+            grupo: (f.grupos || [])[0] || "",
+            original: pgs.map((x) => x.original || "").filter(Boolean).join("\n"),
+            traducao: pgs.map((x) => x.traducao || "").filter(Boolean).join("\n"),
+            resumo: (pgs[0] && pgs[0].explica) || "",
+          };
+        })
+        .filter(Boolean);
+      if (!pistas.length) {
+        _lote.puladas.push({ id: it.nome, motivo: "pistas não encontradas" });
+        return;
+      }
+      const payload = {
+        modo: "personagem",
+        personagem: { nome: p.nome, aliases: p.aliases || [] },
+        pistas: pistas,
+      };
+      let res;
+      try {
+        res = await window.IA.chamar(payload);
+      } catch (e1) {
+        res = await window.IA.chamar(payload); // 1 nova tentativa
+      }
+      const d = res && res.resultado && res.resultado.descricao;
+      if (!d) {
+        _lote.erros.push({ id: it.nome, motivo: "resposta sem descrição" });
+        return;
+      }
+      p.descricao = d;
+      p.ia_desc = { fichas: it.fichas, em: new Date().toISOString() };
+      if (typeof marcarAlterado === "function") marcarAlterado();
+      if (typeof rebuildFilters === "function") rebuildFilters();
+      if (typeof render === "function") render();
+      _lote.ok++;
+    } catch (e) {
+      _lote.erros.push({ id: it.nome, motivo: (e && e.message) || String(e) });
+    }
+  }
+
   // API pública (o botão usa; os testes mockam window.IA.chamar).
   window.IA = {
     processar: iaProcessarPista,
@@ -469,6 +640,9 @@
     processarLote: iaProcessarLote,
     loteIniciar: iaLoteIniciar,
     loteConfFechar: iaLoteConfFechar,
+    personasElegiveis: iaPersonasElegiveis,
+    personasProcessar: iaPersonasProcessar,
+    personaIniciar: iaPersonaIniciar,
     lotePausa: iaLotePausa,
     loteCancela: iaLoteCancela,
     loteEstado: function () {
