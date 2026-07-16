@@ -1,4 +1,4 @@
-# CLAUDE.md — contexto do projeto Blue Prince / Magnify
+# CLAUDE.md — contexto do projeto Blue Prince
 
 > Carregado automaticamente pelo Claude Code. O dono (Felipe) **não programa** —
 > fale em português simples, explique termos técnicos e **pare para pedir a ele**
@@ -6,10 +6,12 @@
 
 ## O que é
 
-**Magnify — Sistema de investigação** (nome antigo: "Blue Prince — Painel de
-Pistas"): app web estático (HTML/CSS/JS puro) para catalogar, transcrever e
-traduzir (EN→PT) pistas, salas e personagens do jogo Blue Prince, com mapa de
-conexões e quadros de cortiça. **Fan-made (não oficial). Online e em produção.**
+**Blue Prince — Painel de Pistas**: app web estático (HTML/CSS/JS puro) para
+catalogar, transcrever e traduzir (EN→PT) pistas, salas e personagens do jogo
+Blue Prince, com mapa de conexões e quadros. **Fan-made (não oficial). Online
+e em produção**, com o **tema azul original** — o redesign "Magnify" (tema
+noir/marrom do Claude Design) foi testado e **revertido em 16/07/2026**; se
+voltar, a fonte é o zip citado em "Lições pagas".
 
 **Stack:** app estático + **Supabase** (Auth, Postgres, Storage, RLS, Edge
 Functions) + **Cloudflare Pages** + **GitHub**.
