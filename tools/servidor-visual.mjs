@@ -1,0 +1,93 @@
+/* Servidor do app para captura visual (usado pela skill "verificar-visual"):
+   serve a pasta app/ em http://localhost:4599 e, com ?seed=<vista>, injeta
+   dados de teste (os mesmos do modelo de design) e entra no app sem login.
+   Vistas: grade · detalhe · teorias · mapa · conta · arquivo-salas ·
+   arquivo-pessoas · dossie-sala · grade-filtros · <vista>-diag (mede
+   vazamento de largura e escreve o resultado no <title>). */
+import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
+import { join, extname, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "app");
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".woff2": "font/woff2",
+  ".png": "image/png",
+  ".json": "application/json",
+};
+const SEED = (vista) => `
+<script>
+(function(){
+  // sem nuvem: o app roda em modo local para a captura
+  window.MODO_ONLINE = false; window.IA_ATIVA = true;
+  function entra(){
+    document.body.classList.remove("pre-login","app-carregando");
+    var a = document.getElementById("authScreen"); if (a) a.style.display="none";
+    var D = (typeof DADOS !== "undefined") ? DADOS : null; if (!D || typeof setView !== "function") return setTimeout(entra, 60);
+    if (D.fichas.length) return; // já semeado
+    D.fichas.push(
+      {id:"f1",titulo:"Bilhete rasgado no salão",sala:"Entrance Hall",grupos:["Cartas Vermelhas"],personagens:["Simon"],conexoes:["f5"],notas:"Procurar a outra metade atrás dos móveis do salão.",pendente:false,fav:true,status:"",paginas:[{imagem:"",original:"I found half a note behind the grandfather clock.",traducao:"Encontrei metade de um bilhete atrás do relógio de pé. A caligrafia parece a mesma das cartas vermelhas. A outra metade deve estar em algum lugar do salão.",explica:"Liga o salão de entrada à série de cartas vermelhas.",rotulo:""}]},
+      {id:"f3",titulo:"Nota do despenseiro",sala:"Pantry",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"Lista de compras com um item circulado três vezes. Falta transcrever a foto.",explica:"",rotulo:""}]},
+      {id:"f4",titulo:"Mapa antigo da propriedade",sala:"Study",grupos:[],personagens:["Herbert"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"Old map pinned inside the desk drawer. Someone marked the east wing…",traducao:"",explica:"",rotulo:""}]},
+      {id:"f5",titulo:"Carta com selo partido",sala:"Library",grupos:["Cartas Vermelhas"],personagens:["Simon","Mary"],conexoes:["f1"],notas:"",pendente:false,fav:true,status:"resolvida",paginas:[{imagem:"",original:"The third letter of the series.",traducao:"A terceira carta da série. O selo combina com o anel do retrato do corredor.",explica:"",rotulo:""}]},
+      {id:"f2",titulo:"Retrato da fundadora",sala:"Drawing Room",grupos:[],personagens:["Mary"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"A placa tem data ilegível. Alguém raspou o último algarismo.",explica:"",rotulo:""}]},
+      {id:"f6",titulo:"Chave sem fechadura",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"Uma chave pequena de latão, sem indicação de onde usar.",explica:"",rotulo:""}]}
+    );
+    D.personagens.push({nome:"Simon",imagem:"",descricao:"Correspondente frequente.",fatos:["Escrevia de dentro da casa."],notas:"",aliases:[]},{nome:"Mary",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]},{nome:"Herbert",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]});
+    D.grupos.push({nome:"Cartas Vermelhas",cor:"#8d3030",imagem:"",descricao:"",fatos:[],notas:""});
+    D.salas.length = 0;
+    D.salas.push(
+      {nome:"Entrance Hall",descoberta:true,num:1,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:["O relógio marca 8:07 desde o primeiro dia.","A porta oeste às vezes aparece trancada."],notas:"",descricao:"Saguão escuro e espalhafatoso."},
+      {nome:"Parlor",descoberta:true,num:2,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Spare Room",descoberta:false,num:3,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Drawing Room",descoberta:true,num:4,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Rotunda",descoberta:false,num:5,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Billiard Room",descoberta:false,num:6,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Study",descoberta:true,num:7,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Pantry",descoberta:true,num:8,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""},
+      {nome:"Library",descoberta:true,num:9,diretorio:"Rooms 001-012",categorias:["Blueprint"],imagem:"",fatos:[],notas:"",descricao:""}
+    );
+    if (typeof rebuildFilters === "function") rebuildFilters();
+    var v = ${JSON.stringify(vista)};
+    if (v === "detalhe") { setView("grade"); render(); abrir("f1"); }
+    else if (v === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("diretorio"); abrirEntidade("sala","Entrance Hall"); }
+    else if (v === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("diretorio"); }
+    else if (v === "arquivo-pessoas") { setArqTab("personagens"); }
+    else if (v === "conta") { setView("grade"); render(); abrirConta(); }
+    else if (v === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
+    else { setView(v.replace("-diag",""), render()); render(); }
+    if (v.indexOf("-diag") > 0) { setTimeout(function(){ __diag(); }, 400); }
+  }
+  function __diag(){
+    var vw = document.documentElement.clientWidth, pior = [];
+    document.querySelectorAll("*").forEach(function(el){
+      var r = el.getBoundingClientRect();
+      if (r.right > vw + 1 && r.width > 0) pior.push([Math.round(r.right), Math.round(r.width), el.tagName + "." + (el.className && el.className.baseVal === undefined ? String(el.className).split(" ").join(".") : "")]);
+    });
+    pior.sort(function(a,b){ return b[0]-a[0]; });
+    document.title = "VW=" + vw + " SCROLLW=" + document.documentElement.scrollWidth + " || " + pior.slice(0,6).map(function(p){ return p[2] + " right=" + p[0] + " w=" + p[1]; }).join(" | ");
+  }
+  if (document.readyState === "complete") setTimeout(entra, 120);
+  else window.addEventListener("load", function(){ setTimeout(entra, 120); });
+})();
+</script>`;
+createServer((req, res) => {
+  try {
+    const [path, qs] = req.url.split("?");
+    let p = decodeURIComponent(path);
+    if (p === "/" || p === "/painel") p = "/painel.html";
+    const file = join(DIR, p);
+    let body = readFileSync(file);
+    const seed = new URLSearchParams(qs || "").get("seed");
+    if (seed && p === "/painel.html") {
+      body = Buffer.from(body.toString("utf8").replace("</body>", SEED(seed) + "</body>"), "utf8");
+    }
+    res.writeHead(200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
+    res.end(body);
+  } catch (e) {
+    res.writeHead(404);
+    res.end("404");
+  }
+}).listen(4599, () => console.log("app em http://localhost:4599/painel.html?seed=grade"));
