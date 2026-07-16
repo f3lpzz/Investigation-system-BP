@@ -1,12 +1,10 @@
 function getCss(v) {
   return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 }
-// Cores funcionais do tema Magnify (mapa/legenda): sala azul-dessaturado,
-// personagem salmão, grupo dourado, conexão manual = barbante vermelho.
-const COR_SALA = "#6fa8c0",
-  COR_PESSOA = "#cf7f70",
-  COR_LIVRO = "#c9a35c",
-  COR_MANUAL = "#b8452e";
+const COR_SALA = "#5ec8ff",
+  COR_PESSOA = "#ff7e9a",
+  COR_LIVRO = "#ffb05c",
+  COR_MANUAL = "#a98bff";
 const mapLayers = {
   pessoa: true,
   sala: true,
@@ -354,7 +352,7 @@ function corGrupo(f) {
     var g = grupoObj(gs[i]);
     if (g && g.cor) return g.cor;
   }
-  return "#5c5142";
+  return "#5b6b86";
 }
 function migrarGruposDeTipos(d) {
   if (!Array.isArray(d.grupos)) d.grupos = [];
@@ -654,7 +652,7 @@ function renderGrade() {
           var g = grupoObj(gn);
           return (
             '<span class="grouptag" style="background:' +
-            corContraste((g && g.cor) || "#5c5142") +
+            corContraste((g && g.cor) || "#5b6b86") +
             '">📦 ' +
             esc(gn) +
             "</span>"
@@ -1530,7 +1528,7 @@ function buildLegend() {
     <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
     <div class="row"><span class="dot" style="background:${COR_SALA}"></span>Sala</div>
     <div class="row"><span class="dot" style="background:${COR_LIVRO}"></span>Grupo (cor do grupo)</div>
-    <div class="row"><span class="dot" style="background:#5c5142"></span>Pista (cor = grupo)</div>
+    <div class="row"><span class="dot" style="background:#5b6b86"></span>Pista (cor = grupo)</div>
     <div class="row"><span style="width:18px;border-top:2px solid ${COR_MANUAL}"></span>Conexão manual</div>
     <div class="row"><span style="width:18px;border-top:2px dashed ${COR_SALA}"></span>Ligação automática</div>`;
   buildMapHelp();
@@ -1710,7 +1708,7 @@ function abrir(id) {
                     var g = grupoObj(gn);
                     return (
                       '<span class="t" style="background:' +
-                      corContraste((g && g.cor) || "#5c5142") +
+                      corContraste((g && g.cor) || "#5b6b86") +
                       ';color:#fff;cursor:pointer" onclick="filtraGrupo(\'' +
                       jsq(gn) +
                       "')\">📦 " +
@@ -1994,7 +1992,7 @@ function cfRender(cf) {
     .map(function (v, i) {
       var col =
         pool === "grupo"
-          ? corContraste((grupoObj(v) || {}).cor || "#5c5142")
+          ? corContraste((grupoObj(v) || {}).cor || "#5b6b86")
           : null;
       return (
         '<span class="chip-el"' +
@@ -4063,7 +4061,7 @@ function autosFichaHTML(f) {
         gn,
         f.id,
         "",
-        corContraste((g && g.cor) || "#5c5142"),
+        corContraste((g && g.cor) || "#5b6b86"),
       ),
     );
   });

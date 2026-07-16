@@ -32,8 +32,8 @@ body.app-carregando #authLoading {
   z-index: 10000;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(1200px 600px at 50% -10%, #2b2317 0%, #14100b 55%, #100c07 100%);
-  color: #e0d4b4;
+  background: radial-gradient(1200px 600px at 50% -10%, #16314a 0%, #0c1622 55%, #0a121c 100%);
+  color: #cfe3f5;
   font-family: "IBM Plex Sans", system-ui, sans-serif;
 }
 .auth-load-box {
@@ -44,8 +44,8 @@ body.app-carregando #authLoading {
   width: 38px;
   height: 38px;
   margin: 0 auto 12px;
-  border: 4px solid #372c1f;
-  border-top-color: #6fa8c0;
+  border: 4px solid #25415a;
+  border-top-color: #5ec8ff;
   border-radius: 50%;
   animation: auth-gira 0.8s linear infinite;
 }
@@ -62,16 +62,16 @@ body.app-carregando #authLoading {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(1200px 600px at 50% -10%, #2b2317 0%, #14100b 55%, #100c07 100%);
+  background: radial-gradient(1200px 600px at 50% -10%, #16314a 0%, #0c1622 55%, #0a121c 100%);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
-  color: #ede4d3;
+  color: #e9f2fb;
 }
 
 .auth-card {
   width: 100%;
   max-width: 380px;
-  background: #1d1710;
-  border: 1px solid #372c1f;
+  background: #0f1d2b;
+  border: 1px solid #1f3b54;
   border-radius: 16px;
   padding: 28px 26px 22px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -86,8 +86,8 @@ body.app-carregando #authLoading {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: linear-gradient(160deg, #6fa8c0, #8a6f3d);
-  color: #0d0a06;
+  background: linear-gradient(160deg, #5ec8ff, #2b7fb8);
+  color: #06131f;
   font-family: "IBM Plex Mono", monospace;
   font-weight: 600;
   font-size: 22px;
@@ -98,12 +98,12 @@ body.app-carregando #authLoading {
   font-weight: 600;
   font-size: 26px;
   margin: 0 0 2px;
-  color: #ede4d3;
+  color: #f4f9ff;
 }
 
 .auth-sub {
   font-size: 13.5px;
-  color: #b3a68e;
+  color: #9fb6cc;
   margin-bottom: 18px;
 }
 
@@ -119,22 +119,22 @@ body.app-carregando #authLoading {
   flex-direction: column;
   gap: 5px;
   font-size: 12.5px;
-  color: #b3a68e;
+  color: #9fb6cc;
 }
 
 .auth-form input {
   padding: 11px 12px;
   border-radius: 9px;
-  border: 1px solid #372c1f;
-  background: #17110a;
-  color: #ede4d3;
+  border: 1px solid #294257;
+  background: #0a1622;
+  color: #eaf3fb;
   font-size: 15px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .auth-form input:focus {
-  border-color: #6fa8c0;
-  box-shadow: 0 0 0 3px rgba(201, 163, 92, 0.22);
+  border-color: #5ec8ff;
+  box-shadow: 0 0 0 3px rgba(94, 200, 255, 0.18);
 }
 
 .auth-btn {
@@ -153,8 +153,8 @@ body.app-carregando #authLoading {
   cursor: progress;
 }
 .auth-btn.primary {
-  background: linear-gradient(160deg, #6fa8c0, #8a6f3d);
-  color: #0d0a06;
+  background: linear-gradient(160deg, #5ec8ff, #3592cf);
+  color: #06131f;
 }
 .auth-btn.primary:hover:not(:disabled) {
   filter: brightness(1.07);
@@ -162,9 +162,9 @@ body.app-carregando #authLoading {
 .auth-btn.google {
   margin-top: 12px;
   width: 100%;
-  background: #2b2317;
-  border-color: #372c1f;
-  color: #ede4d3;
+  background: #16273a;
+  border-color: #294257;
+  color: #eaf3fb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -181,7 +181,7 @@ body.app-carregando #authLoading {
   font-size: 13px;
 }
 .auth-links a {
-  color: #e0be7a;
+  color: #7fc4ef;
   text-decoration: none;
   cursor: pointer;
 }
@@ -207,25 +207,25 @@ body.app-carregando #authLoading {
   padding: 10px 12px;
 }
 .auth-msg.erro {
-  background: #34160e;
-  border: 1px solid #7d2f1e;
-  color: #e8c0b3;
+  background: #3a1620;
+  border: 1px solid #7d2740;
+  color: #ffb9c8;
 }
 .auth-msg.ok {
   background: #10301f;
   border: 1px solid #1f6b43;
-  color: #bfd8b4;
+  color: #aef0c8;
 }
 .auth-msg.info {
-  background: #241c12;
-  border: 1px solid #4a3a22;
-  color: #cfdde3;
+  background: #122a3e;
+  border: 1px solid #295a7e;
+  color: #b8dcf5;
 }
 
 .auth-foot {
   margin-top: 18px;
   font-size: 11px;
-  color: #8a7c5e;
+  color: #6f879c;
   line-height: 1.5;
 }
 
@@ -249,7 +249,7 @@ body.app-carregando #authLoading {
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #e0d4b4;
+  color: #cfe3f5;
   opacity: 0.7;
   display: flex;
   align-items: center;
@@ -263,11 +263,11 @@ body.app-carregando #authLoading {
 
 /* Botão perigoso (apagar conta) no menu Gerenciar. */
 .btn-apagar-conta {
-  border-color: #7d2f1e !important;
-  background: #34160e !important;
-  color: #e8c0b3 !important;
+  border-color: #7d2740 !important;
+  background: #3a1620 !important;
+  color: #ffb9c8 !important;
 }
 .btn-apagar-conta:hover {
-  background: #4a231a !important;
+  background: #50202e !important;
   filter: brightness(1.05);
 }

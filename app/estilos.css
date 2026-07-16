@@ -1,52 +1,45 @@
-/* ============================================================
-   TEMA "MAGNIFY" (Arquivo do Detetive) — paleta noir do redesign:
-   papel envelhecido, carimbos, cortiça e barbante vermelho.
-   Fontes self-host em fonts.css (Newsreader, IBM Plex, Special Elite).
-   ============================================================ */
 :root {
-  --canvas: #14100b;
-  --s1: #1d1710;
-  --s2: #241c12;
-  --s3: #2b2317;
-  --field: #17110a;
-  --line: #372c1f;
-  --line-em: #4a3a22;
-  --ink: #ede4d3;
-  --ink-soft: #b3a68e;
-  --hint: #8a7c5e;
-  --gold: #c9a35c;
-  --gold-2: #e0be7a;
-  --info: #6fa8c0;
-  --ok: #7a9c6e;
-  --warn: #cf8c3b;
-  --danger: #b8452e;
-  --sala: #6fa8c0;
-  --pessoa: #cf7f70;
-  --manual: #b8452e; /* fio manual = barbante vermelho */
-  --stamp: #b8452e; /* carimbos (PENDENTE / RESOLVIDA usa --ok) */
+  --canvas: #0a1428;
+  --s1: #0e1a33;
+  --s2: #13213f;
+  --s3: #182a4d;
+  --field: #0c1730;
+  --line: #21345c;
+  --line-em: #2c4a82;
+  --ink: #eaf0fb;
+  --ink-soft: #9fb0d0;
+  --hint: #6b7ea1;
+  --gold: #d8b15a;
+  --gold-2: #e3c074;
+  --info: #5ea0ff;
+  --ok: #4fbf8b;
+  --warn: #e0a13a;
+  --danger: #e2645f;
+  --sala: #5ec8ff;
+  --pessoa: #ff7e9a;
+  --manual: #a98bff;
   /* compat: nomes antigos remapeados pros novos tokens */
-  --bg: #14100b;
-  --bg2: #1d1710;
-  --grid: rgba(201, 163, 92, 0.04);
-  --panel: #1d1710;
-  --card: #241c12;
-  --card-edge: #372c1f;
-  --t-sala: #6fa8c0;
-  --t-pista: #c9a35c;
-  --t-carta: #b8452e;
-  --t-pessoa: #cf7f70;
-  --t-mecanica: #7a9c6e;
+  --bg: #0a1428;
+  --bg2: #0e1a33;
+  --grid: rgba(120, 170, 255, 0.05);
+  --panel: #0e1a33;
+  --card: #13213f;
+  --card-edge: #21345c;
+  --t-sala: #5ec8ff;
+  --t-pista: #d8b15a;
+  --t-carta: #a98bff;
+  --t-pessoa: #ff7e9a;
+  --t-mecanica: #4fbf8b;
   --r-sm: 7px;
   --r: 8px;
   --r-md: 10px;
   --r-lg: 14px;
   --r-xl: 16px;
-  --sh-pop: 0 12px 36px rgba(8, 5, 2, 0.55);
-  --sh-drawer: 0 24px 70px rgba(8, 5, 2, 0.65);
+  --sh-pop: 0 12px 36px rgba(3, 8, 22, 0.5);
+  --sh-drawer: 0 24px 70px rgba(3, 8, 22, 0.6);
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --font-stamp: "Special Elite", "Courier New", monospace;
 }
 * {
   box-sizing: border-box;
@@ -60,12 +53,10 @@ body {
   font-family: var(--font-ui);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
-  /* mesa do detetive: leve grão de papel + luz quente vinda de cima */
   background:
     linear-gradient(var(--grid) 1px, transparent 1px) 0 0/30px 30px,
     linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/30px 30px,
-    radial-gradient(1100px 520px at 78% -8%, #c9a35c14, transparent),
-    radial-gradient(1400px 900px at 50% 120%, #00000066, transparent),
+    radial-gradient(1100px 520px at 78% -8%, #16336a33, transparent),
     var(--canvas);
   display: flex;
   flex-direction: column;
@@ -85,8 +76,8 @@ h4 {
 }
 header {
   padding: 14px 20px 10px;
-  border-bottom: 1px solid var(--line-em);
-  background: linear-gradient(180deg, #241c1280, #1d171000);
+  border-bottom: 1px solid #21407a;
+  background: linear-gradient(180deg, #0d214480, #0c1a3300);
   backdrop-filter: blur(3px);
 }
 .title {
@@ -118,8 +109,8 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #241c12;
-  border: 1px solid #55432a;
+  background: #0c1f40;
+  border: 1px solid #284b8c;
   border-radius: 9px;
   padding: 8px 12px;
 }
@@ -132,9 +123,9 @@ header {
   font-size: 14px;
 }
 select {
-  background: #241c12;
+  background: #0c1f40;
   color: var(--ink);
-  border: 1px solid #55432a;
+  border: 1px solid #284b8c;
   border-radius: 9px;
   padding: 8px 10px;
   font-size: 13px;
@@ -142,11 +133,11 @@ select {
   cursor: pointer;
 }
 select option {
-  background: #1d1710;
+  background: #0e1a33;
   color: var(--ink);
 }
 select option:checked {
-  background: #3a2d1a;
+  background: #16356b;
   color: #fff;
 }
 .topbtn:disabled {
@@ -230,8 +221,8 @@ select option:checked {
   flex-wrap: wrap;
 }
 .chip {
-  border: 1px solid #4a3a22;
-  background: #2b2317;
+  border: 1px solid #2c5198;
+  background: #102a55;
   color: var(--ink-soft);
   padding: 6px 11px;
   border-radius: 20px;
@@ -249,7 +240,7 @@ select option:checked {
   border-radius: 50%;
 }
 .chip.active {
-  color: #100c07;
+  color: #06122a;
   font-weight: 600;
 }
 .chip[data-tipo="sala"].active {
@@ -274,12 +265,12 @@ select option:checked {
 }
 .viewtoggle {
   display: flex;
-  border: 1px solid #4a3a22;
+  border: 1px solid #2c5198;
   border-radius: 9px;
   overflow: hidden;
 }
 .viewtoggle button {
-  background: #241c12;
+  background: #0c1f40;
   color: var(--ink-soft);
   border: 0;
   padding: 8px 14px;
@@ -288,7 +279,7 @@ select option:checked {
 }
 .viewtoggle button.active {
   background: var(--line);
-  color: #100c07;
+  color: #06122a;
   font-weight: 600;
 }
 main {
@@ -361,10 +352,10 @@ main {
   overflow: hidden;
   background: repeating-linear-gradient(
     45deg,
-    #221a10,
-    #221a10 8px,
-    #241c12 8px,
-    #241c12 16px
+    #0c1d3c,
+    #0c1d3c 8px,
+    #0e2044 8px,
+    #0e2044 16px
   );
   border: 1px solid var(--line);
   display: flex;
@@ -443,7 +434,7 @@ main {
   z-index: 99998;
   width: 300px;
   max-width: calc(100vw - 32px);
-  background: #1d1710f2;
+  background: #0e1a33f2;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px 14px;
@@ -462,7 +453,7 @@ main {
 #ialote .il-bar {
   height: 6px;
   border-radius: 4px;
-  background: #14100b;
+  background: #0a1220;
   border: 1px solid var(--line);
   overflow: hidden;
   margin-bottom: 10px;
@@ -486,7 +477,7 @@ main {
   border-radius: 6px;
 }
 #ialote .il-item:hover {
-  background: #2b2317;
+  background: #16243f;
 }
 #ialote .il-btns {
   display: flex;
@@ -512,7 +503,7 @@ main {
   padding: 28px 44px;
   font-size: 18px;
   color: var(--ink);
-  background: #1d1710ee;
+  background: #0e1a33ee;
 }
 /* Abas do cadastro em lote (uma miniatura por imagem) */
 .qtabs-wrap {
@@ -528,7 +519,7 @@ main {
   height: 52px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: #14100b;
+  background: #0a1220;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
@@ -580,7 +571,7 @@ main {
   max-width: 240px;
 }
 .legend {
-  background: #1d1710e6;
+  background: #0e1a33e6;
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
@@ -605,7 +596,7 @@ main {
   flex: none;
 }
 .maphelp {
-  background: #1d1710e6;
+  background: #0e1a33e6;
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 11px;
@@ -631,7 +622,7 @@ main {
   text-align: left;
 }
 .maphelp .mh-head:hover {
-  background: #2b2317;
+  background: #16243f;
 }
 .maphelp .mh-arrow {
   margin-left: auto;
@@ -715,7 +706,7 @@ main {
 .db img {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid #4a3a22;
+  border: 1px solid #2b5095;
 }
 .field .lab {
   font-size: 11px;
@@ -774,7 +765,7 @@ main {
   color: var(--ink);
 }
 .trad {
-  background: #1d1710;
+  background: #0f2138;
   border: 1px solid var(--line-em);
   border-radius: 8px;
   padding: 11px;
@@ -798,11 +789,11 @@ main {
 }
 .t.pessoa {
   border-color: #5a3a48;
-  color: #e8c0b3;
+  color: #ffb9c8;
 }
 .t.sala {
-  border-color: #55432a;
-  color: #cfdde3;
+  border-color: #2c5a7a;
+  color: #bfe8ff;
 }
 .t.simb {
   border-color: var(--line);
@@ -819,9 +810,9 @@ main {
 }
 /* --- edicao / botoes / toast --- */
 .topbtn {
-  background: #241c12;
+  background: #0c1f40;
   color: var(--ink);
-  border: 1px solid #4a3a22;
+  border: 1px solid #2c5198;
   border-radius: 9px;
   padding: 8px 12px;
   cursor: pointer;
@@ -832,7 +823,7 @@ main {
 }
 .topbtn.save.dirty {
   background: var(--t-mecanica);
-  color: #100c07;
+  color: #06122a;
   border-color: var(--t-mecanica);
   font-weight: 600;
 }
@@ -862,8 +853,8 @@ main {
   color: var(--ink);
 }
 .dbtn.del {
-  border-color: #4a231a;
-  color: #e8c0b3;
+  border-color: #5a2a35;
+  color: #ffb9c8;
   background: transparent;
 }
 .dbtn.del:hover {
@@ -909,7 +900,7 @@ main {
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%) translateY(20px);
-  background: #2b2317;
+  background: #11264d;
   border: 1px solid var(--line);
   color: var(--ink);
   padding: 12px 18px;
@@ -930,7 +921,7 @@ main {
   position: absolute;
   right: 16px;
   top: 44px;
-  background: #1d1710e6;
+  background: #0e1a33e6;
   border: 1px solid var(--line);
   color: var(--ink-soft);
   border-radius: 8px;
@@ -1061,15 +1052,15 @@ main {
 }
 .gdel {
   background: transparent;
-  border: 1px solid #4a231a;
-  color: #e8c0b3;
+  border: 1px solid #5a2a35;
+  color: #ffb9c8;
   border-radius: 8px;
   cursor: pointer;
   padding: 5px 8px;
   flex: none;
 }
 .gdel:hover {
-  background: #34160e;
+  background: #3a1622;
 }
 .gadd {
   display: flex;
@@ -1176,7 +1167,7 @@ main {
 .qmark:hover {
   color: var(--ink);
   border-color: var(--info);
-  background: #3a2d1a;
+  background: #16356b;
 }
 .gsec.card .grow {
   padding: 3px;
@@ -1227,7 +1218,7 @@ main {
 }
 .mescla-btns button:hover {
   border-color: var(--gold);
-  background: #372c1f;
+  background: #243b66;
 }
 .mescla-dica {
   font-size: 11px;
@@ -1313,8 +1304,8 @@ main {
 }
 .gdos {
   background: transparent;
-  border: 1px solid #55432a;
-  color: #cfdde3;
+  border: 1px solid #2c5a7a;
+  color: #bfe8ff;
   border-radius: 8px;
   cursor: pointer;
   padding: 5px 8px;
@@ -1337,7 +1328,7 @@ main {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  background: #1d1710e6;
+  background: #0e1a33e6;
   border: 1px solid var(--line);
   color: var(--ink-soft);
   padding: 5px 11px;
@@ -1372,8 +1363,8 @@ main {
 /* ---- topo reorganizado (Fase 1 UX) ---- */
 header {
   padding: 10px 16px 12px;
-  border-bottom: 1px solid #4a3a22;
-  background: linear-gradient(180deg, #241c1280, #1d171000);
+  border-bottom: 1px solid #21407a;
+  background: linear-gradient(180deg, #0d214480, #0c1a3300);
   backdrop-filter: blur(3px);
 }
 .appbar {
@@ -1443,7 +1434,7 @@ header {
 .topbtn.hasfilters {
   border-color: var(--line);
   color: #fff;
-  background: #3a2d1a;
+  background: #16356b;
 }
 .filtros-pills {
   display: none;
@@ -1479,8 +1470,8 @@ header {
   display: none;
   margin-top: 10px;
   padding: 12px 14px;
-  background: #241c12;
-  border: 1px solid #55432a;
+  background: #0c1f40;
+  border: 1px solid #284b8c;
   border-radius: 10px;
   gap: 16px;
   flex-wrap: wrap;
@@ -1544,9 +1535,9 @@ header {
   white-space: nowrap;
 }
 .ordsel {
-  background: #241c12;
+  background: #0c1f40;
   color: var(--ink);
-  border: 1px solid #55432a;
+  border: 1px solid #284b8c;
   border-radius: 8px;
   padding: 6px 8px;
   font-size: 12px;
@@ -1559,20 +1550,20 @@ header {
 }
 html {
   scrollbar-width: thin;
-  scrollbar-color: #55432a transparent;
+  scrollbar-color: #27508f transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #55432a;
+  background: #27508f;
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #8a6f3d;
+  background: #3a6bc0;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
@@ -1701,14 +1692,14 @@ select:focus {
 .seldel {
   background: #2a1018;
   border: 1px solid #7a2a3a;
-  color: #e8c0b3;
+  color: #ffb9c8;
   border-radius: 8px;
   padding: 7px 12px;
   cursor: pointer;
   font-size: 13px;
 }
 .seldel:hover {
-  background: #34160e;
+  background: #3a1622;
 }
 .savehelp {
   padding: 16px 18px;
@@ -1726,15 +1717,15 @@ select:focus {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  background: #1d1710;
-  border: 1px solid #4a3a22;
+  background: #0a1c3a;
+  border: 1px solid #2c5198;
   border-radius: 8px;
   padding: 8px 10px;
 }
 .pathbox code {
   flex: 1;
   min-width: 0;
-  color: #cfdde3;
+  color: #bfe8ff;
   font-size: 13px;
   word-break: break-all;
 }
@@ -1808,11 +1799,11 @@ select:focus {
   transition: 0.12s;
 }
 .dirbtn:hover {
-  background: #2b2317;
+  background: #16243f;
   color: var(--ink);
 }
 .dirbtn.active {
-  background: #2b2317;
+  background: #16243f;
   color: var(--ink);
   box-shadow: inset 2px 0 0 var(--gold);
   font-weight: 600;
@@ -1843,7 +1834,7 @@ select:focus {
   aspect-ratio: 1/1;
   border-radius: var(--r);
   border: 1px solid var(--line);
-  background: #0d0a06;
+  background: #070b14;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1854,7 +1845,7 @@ select:focus {
 .dtile.locked .dnum {
   font-size: 22px;
   font-weight: 700;
-  color: #4a3f30;
+  color: #2f3a52;
 }
 .dtile.locked .dlock {
   font-size: 20px;
@@ -1944,7 +1935,7 @@ select:focus {
   display: inline-block;
   font-size: 10px;
   color: var(--info);
-  background: #1d1710;
+  background: #0f2138;
   border: 1px solid var(--line-em);
   border-radius: 8px;
   padding: 1px 7px;
@@ -1970,13 +1961,13 @@ select:focus {
 }
 .linkrow:hover {
   border-color: var(--line-em);
-  background: #1d1710;
+  background: #0f2138;
 }
 .t.conx b {
   color: #ff9aac;
 }
 .t.auto b {
-  color: #d97b5f;
+  color: #e2645f;
   font-weight: 700;
   cursor: pointer;
 }
@@ -1990,8 +1981,8 @@ select:focus {
   pointer-events: none;
   max-width: 340px;
   background: rgba(10, 20, 40, 0.97);
-  color: #ede4d3;
-  border: 1px solid #4a3a22;
+  color: #eaf0fb;
+  border: 1px solid #2c4a82;
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
@@ -2011,7 +2002,7 @@ select:focus {
 }
 .mescla-arrow {
   font-size: 11px;
-  color: var(--hint, #8a7c5e);
+  color: var(--hint, #6b7ea1);
   white-space: nowrap;
 }
 .mescla-btns {
@@ -2020,7 +2011,7 @@ select:focus {
 }
 .mescla-dica {
   font-size: 11px;
-  color: var(--hint, #8a7c5e);
+  color: var(--hint, #6b7ea1);
   margin-top: 2px;
 }
 .dashboard {
@@ -2031,8 +2022,8 @@ select:focus {
   margin-bottom: 6px;
 }
 .dashit {
-  background: linear-gradient(180deg, #4a3a22, #2b2317);
-  border: 1px solid #4a3a22;
+  background: linear-gradient(180deg, #163a72, #102950);
+  border: 1px solid #2c5198;
   border-radius: 10px;
   padding: 8px 14px;
   display: flex;
@@ -2058,7 +2049,7 @@ select:focus {
   top: 10px;
   right: 10px;
   font-size: 16px;
-  color: #5c5142;
+  color: #43507a;
   cursor: pointer;
   z-index: 3;
   line-height: 1;
@@ -2101,8 +2092,8 @@ select:focus {
   margin: 0;
 }
 .teocard {
-  background: #2b2317;
-  border: 1px solid #4a3a22;
+  background: #0e2244;
+  border: 1px solid #2c5198;
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 12px;
@@ -2124,13 +2115,13 @@ select:focus {
 }
 .teotxt[contenteditable]:empty:before {
   content: attr(data-ph);
-  color: #8a7c5e;
+  color: #5e79ad;
 }
 .ment {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  background: #2b2317;
+  background: #1a2b4d;
   border: 1px solid var(--line-em);
   color: var(--ink);
   border-radius: 6px;
@@ -2142,7 +2133,7 @@ select:focus {
   user-select: none;
 }
 .ment:hover {
-  background: #55432a;
+  background: #1d4a8f;
   border-color: var(--line);
 }
 .mentmenu {
@@ -2170,7 +2161,7 @@ select:focus {
   font-size: 10px;
 }
 .mentit:hover {
-  background: #2b2317;
+  background: #16243f;
 }
 #teorias {
   height: 100%;
@@ -2401,7 +2392,7 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #2b2317;
+  background: #16243f;
   color: var(--hint);
   padding: 4px 22px 4px 9px;
   cursor: grab;
@@ -2505,8 +2496,8 @@ select:focus {
 .pgtab.pgdel {
   border-radius: 8px;
   background: transparent;
-  border: 1px solid #4a231a;
-  color: #e8c0b3;
+  border: 1px solid #5a2a35;
+  color: #ffb9c8;
 }
 .pgcount {
   position: absolute;
@@ -2535,10 +2526,10 @@ select:focus {
   overflow: hidden;
   background: repeating-linear-gradient(
     45deg,
-    #221a10,
-    #221a10 6px,
-    #241c12 6px,
-    #241c12 12px
+    #0c1d3c,
+    #0c1d3c 6px,
+    #0e2044 6px,
+    #0e2044 12px
   );
 }
 .qpg img {
@@ -2716,12 +2707,12 @@ select:focus {
   flex: 1;
 }
 .navit:hover {
-  background: #2b2317;
+  background: #16243f;
   color: var(--ink);
 }
 .navit.active,
 .navit.on {
-  background: #2b2317;
+  background: #16243f;
   color: var(--ink);
   box-shadow: inset 2px 0 0 var(--gold);
 }
@@ -2830,7 +2821,7 @@ select:focus {
 }
 .topbtn.on,
 .topbtn.hasfilters {
-  background: #2b2317;
+  background: #16243f;
   border-color: var(--line-em);
   color: var(--ink);
 }
@@ -3001,5 +2992,5 @@ select:focus {
   color: var(--ink);
 }
 .chip-sugit:hover {
-  background: #2b2317;
+  background: #16243f;
 }
