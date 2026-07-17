@@ -15,6 +15,7 @@ const MIME = {
   ".js": "text/javascript; charset=utf-8",
   ".woff2": "font/woff2",
   ".png": "image/png",
+  ".svg": "image/svg+xml",
   ".json": "application/json",
 };
 const SEED = (vista) => `
