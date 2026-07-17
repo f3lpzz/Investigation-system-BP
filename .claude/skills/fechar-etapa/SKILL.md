@@ -53,29 +53,38 @@ git push -u origin <branch-atual>
 
 ## 5. Abrir o Pull Request (o botão de produção é do Felipe)
 
-Crie o PR pelo **conector do GitHub** (ferramenta `create_pull_request`):
-`owner: f3lpzz` · `repo: Investigation-system-BP` · `base: online` ·
-`head: <branch>` · título curto em português.
+Crie o PR pelo **GitHub CLI** (`gh`, já autenticado como f3lpzz) — no
+PowerShell com PATH recarregado, ou Git Bash com o caminho completo
+(`"/c/Program Files/GitHub CLI/gh.exe"`):
+
+```bash
+gh pr create --base online --title "Título curto em português" --body-file corpo.md
+```
 
 - **Corpo: siga o modelo oficial `.github/PULL_REQUEST_TEMPLATE.md`**
-  (o site do GitHub o preenche sozinho; via conector/CLI, copie a
+  (o site do GitHub o preenche sozinho; via gh/conector, copie a
   estrutura dele e preencha — inclusive marcando o checklist com a
-  verdade: só marque o que foi realmente feito).
+  verdade: só marque o que foi realmente feito). Escreva o corpo num
+  arquivo temporário (scratchpad) e passe com `--body-file`.
 - Termine o corpo com:
   `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+- **Plano B (gh indisponível/desautenticado):** conector do GitHub no
+  Claude — ferramenta `create_pull_request`, `owner: f3lpzz`,
+  `repo: Investigation-system-BP`, `base: online`.
 
-- **Sem o conector?** Plano B: GitHub CLI (instalado; requer `gh auth login`
-  feito 1x pelo Felipe) — no PowerShell com PATH recarregado:
-  `gh pr create --base online --title "..." --body-file corpo.md`.
-  Plano C: mande o Felipe abrir
+- **Plano C (nem gh nem conector):** mande o Felipe abrir
   `https://github.com/f3lpzz/Investigation-system-BP/pull/new/<branch>`
   e cole a descrição pronta para ele.
 - ⛔ **A IA NÃO mergeia.** Quem clica em **Merge** no PR é o Felipe,
   depois de conferir o preview. Merge na `online` = produção.
 - **Empurrou commit novo numa branch com PR aberto? Atualize a
-  DESCRIÇÃO do PR junto** (`update_pull_request`) — a descrição deve
-  sempre refletir o conteúdo total; ninguém aprova o que não leu.
-- Depois do merge dele: apagar a branch de feature (local e remota).
+  DESCRIÇÃO do PR junto** (`gh pr edit <nº> --body-file corpo.md`) —
+  a descrição deve refletir o conteúdo total; ninguém aprova o que
+  não leu.
+- Depois do merge dele: a branch remota o GitHub apaga sozinho
+  (`delete_branch_on_merge` ativo). A cópia LOCAL é limpa no início da
+  tarefa seguinte (regra 5 do CLAUDE.md): `git checkout online && git
+  pull && git fetch --prune && git branch -d <mescladas>`.
 
 ## 6. Relatar
 
