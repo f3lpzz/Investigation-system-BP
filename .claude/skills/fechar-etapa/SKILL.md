@@ -76,7 +76,10 @@ Testes: teste-online (~95 checagens) e checar — verdes.
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-- **Sem o conector?** Plano B: mande o Felipe abrir
+- **Sem o conector?** Plano B: GitHub CLI (instalado; requer `gh auth login`
+  feito 1x pelo Felipe) — no PowerShell com PATH recarregado:
+  `gh pr create --base online --title "..." --body-file corpo.md`.
+  Plano C: mande o Felipe abrir
   `https://github.com/f3lpzz/Investigation-system-BP/pull/new/<branch>`
   e cole a descrição pronta para ele.
 - ⛔ **A IA NÃO mergeia.** Quem clica em **Merge** no PR é o Felipe,
