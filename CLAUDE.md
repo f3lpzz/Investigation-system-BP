@@ -61,8 +61,12 @@ tokens. O passo a passo e as pegadinhas estão nelas — não duplique aqui.
 5. **Fluxo de mudança:** branch `feature/…` (nome curto, ≤ ~20 letras — limite
    de 28 do endereço de preview do Cloudflare) → skill `fechar-etapa` (termina
    abrindo **Pull Request** para a `online`) → Felipe confere o **preview** e
-   clica ele mesmo em **Merge** no PR → apagar a branch.
+   clica ele mesmo em **Merge** no PR (o GitHub apaga a branch remota sozinho).
    ⛔ A IA nunca mergeia na `online` — o botão de produção é do Felipe.
+   **Ao INICIAR qualquer tarefa, faça a faxina pós-merge:** `git checkout
+   online && git pull && git fetch --prune` e apague branches locais já
+   mescladas (`git branch -d …`) — o merge é do Felipe e acontece entre
+   sessões; quem chega depois é que limpa.
 6. **Mudança visual só está pronta depois da skill `verificar-visual`** — teste
    verde e HTTP 200 não provam que a tela está certa.
 

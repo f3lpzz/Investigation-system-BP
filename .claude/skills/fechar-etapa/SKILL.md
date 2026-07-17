@@ -81,7 +81,10 @@ gh pr create --base online --title "Título curto em português" --body-file cor
   DESCRIÇÃO do PR junto** (`gh pr edit <nº> --body-file corpo.md`) —
   a descrição deve refletir o conteúdo total; ninguém aprova o que
   não leu.
-- Depois do merge dele: apagar a branch de feature (local e remota).
+- Depois do merge dele: a branch remota o GitHub apaga sozinho
+  (`delete_branch_on_merge` ativo). A cópia LOCAL é limpa no início da
+  tarefa seguinte (regra 5 do CLAUDE.md): `git checkout online && git
+  pull && git fetch --prune && git branch -d <mescladas>`.
 
 ## 6. Relatar
 
