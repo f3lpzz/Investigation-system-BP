@@ -72,6 +72,9 @@ Crie o PR pelo **conector do GitHub** (ferramenta `create_pull_request`):
   e cole a descrição pronta para ele.
 - ⛔ **A IA NÃO mergeia.** Quem clica em **Merge** no PR é o Felipe,
   depois de conferir o preview. Merge na `online` = produção.
+- **Empurrou commit novo numa branch com PR aberto? Atualize a
+  DESCRIÇÃO do PR junto** (`update_pull_request`) — a descrição deve
+  sempre refletir o conteúdo total; ninguém aprova o que não leu.
 - Depois do merge dele: apagar a branch de feature (local e remota).
 
 ## 6. Relatar
