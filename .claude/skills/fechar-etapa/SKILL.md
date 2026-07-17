@@ -34,12 +34,10 @@ git diff --cached -U0 | grep -inE "service_role|eyJ[A-Za-z0-9_-]{30,}|sk-[A-Za-z
 
 ## 3. Commit (pequeno, em português, no padrão do repo)
 
-- 1 etapa = 1 commit. Título curto dizendo O QUE mudou para o usuário;
-  corpo em lista dizendo o PORQUÊ quando não for óbvio.
-- Rodapé sempre:
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
-- Termine o corpo com a linha de testes, ex.:
-  `Testes: teste-online (95 checagens) e checar — verdes.`
+- **Modelo oficial: `.gitmessage` na raiz** (já ativado via
+  `git config commit.template`). Siga-o: título imperativo ≤72 chars
+  dizendo O QUE mudou p/ quem usa; corpo com o PORQUÊ; linha de testes;
+  rodapé `Co-Authored-By: Claude <noreply@anthropic.com>`.
 - Mensagem multilinha no Git Bash: `git commit -q -F - <<'EOF' … EOF`.
 
 ## 4. Push na branch de feature (nunca na online)
@@ -57,24 +55,14 @@ git push -u origin <branch-atual>
 
 Crie o PR pelo **conector do GitHub** (ferramenta `create_pull_request`):
 `owner: f3lpzz` · `repo: Investigation-system-BP` · `base: online` ·
-`head: <branch>` · título curto em português · corpo com este esqueleto:
+`head: <branch>` · título curto em português.
 
-```
-## O que muda
-(2–5 linhas em português simples, sem jargão)
-
-## Por quê
-(1–2 linhas)
-
-## Como conferir
-Preview: https://<branch>.investigation-system-bp.pages.dev
-(o Cloudflare também comenta o link aqui no PR)
-- passo a passo do que clicar/olhar
-
-Testes: teste-online (~95 checagens) e checar — verdes.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-```
+- **Corpo: siga o modelo oficial `.github/PULL_REQUEST_TEMPLATE.md`**
+  (o site do GitHub o preenche sozinho; via conector/CLI, copie a
+  estrutura dele e preencha — inclusive marcando o checklist com a
+  verdade: só marque o que foi realmente feito).
+- Termine o corpo com:
+  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
 
 - **Sem o conector?** Plano B: GitHub CLI (instalado; requer `gh auth login`
   feito 1x pelo Felipe) — no PowerShell com PATH recarregado:

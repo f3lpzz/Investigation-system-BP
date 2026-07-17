@@ -1,0 +1,18 @@
+# ── Modelo de commit do projeto (linhas com # são ignoradas) ──────────
+# TÍTULO (linha de cima): o QUE mudou, para quem usa o painel.
+#   · em português, modo imperativo ("Corrige…", "Adiciona…", "Remove…")
+#   · até ~72 caracteres; sem ponto final
+#   · 1 etapa = 1 commit (não misture assuntos)
+
+# CORPO (depois de uma linha em branco): o PORQUÊ.
+#   · qual problema/pedido motivou; o "como" só se não for óbvio
+#   · mudanças múltiplas? use lista com "-"
+#   · termine com a linha de testes, ex.:
+#     Testes: teste-online (~95 checagens) e checar — verdes.
+
+# RODAPÉ (commit feito com IA? inclua a linha de coautoria):
+#     Co-Authored-By: Claude <noreply@anthropic.com>
+
+# ANTES DE COMMITAR, confira:
+#   [ ] varredura de segredos no diff (service_role JAMAIS; anon pode)
+#   [ ] nada de arquivo solto da raiz indo junto (ex.: Tarefas.txt)
