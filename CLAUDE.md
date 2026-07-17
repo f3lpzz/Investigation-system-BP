@@ -59,9 +59,10 @@ tokens. O passo a passo e as pegadinhas estão nelas — não duplique aqui.
    o frontend nem para o git — só a `anon` (pública). Quem protege é o **RLS**.
    Segredos são manuseados pelo Felipe; o Claude não precisa vê-los.
 5. **Fluxo de mudança:** branch `feature/…` (nome curto, ≤ ~20 letras — limite
-   de 28 do endereço de preview do Cloudflare) → skill `fechar-etapa` → Felipe
-   confere no **preview** → só então **merge na `online`** → apagar a branch.
-   ⛔ Merge na `online` = produção; só com aprovação explícita.
+   de 28 do endereço de preview do Cloudflare) → skill `fechar-etapa` (termina
+   abrindo **Pull Request** para a `online`) → Felipe confere o **preview** e
+   clica ele mesmo em **Merge** no PR → apagar a branch.
+   ⛔ A IA nunca mergeia na `online` — o botão de produção é do Felipe.
 6. **Mudança visual só está pronta depois da skill `verificar-visual`** — teste
    verde e HTTP 200 não provam que a tela está certa.
 

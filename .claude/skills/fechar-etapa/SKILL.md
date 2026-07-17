@@ -1,9 +1,9 @@
 ---
 name: fechar-etapa
-description: Fecha uma etapa de trabalho no Blue Prince/Magnify — roda os dois testes, varre segredos, faz commit pequeno em português e push na branch de feature. Use ao terminar qualquer mudança de código, antes de mostrar resultado ao Felipe. NUNCA faz merge na online (só o Felipe autoriza).
+description: Fecha uma etapa de trabalho no Blue Prince — roda os dois testes, varre segredos, faz commit pequeno em português, push na branch de feature e abre o Pull Request. Use ao terminar qualquer mudança de código, antes de mostrar resultado ao Felipe. NUNCA faz merge na online (quem clica em Merge no PR é o Felipe).
 ---
 
-# Fechar etapa: testar → varrer segredos → commitar → publicar preview
+# Fechar etapa: testar → varrer segredos → commitar → push → abrir PR
 
 Ordem obrigatória. Se qualquer passo falhar, PARE, conserte e recomece do 1.
 
@@ -34,30 +34,51 @@ git diff --cached -U0 | grep -inE "service_role|eyJ[A-Za-z0-9_-]{30,}|sk-[A-Za-z
 
 ## 3. Commit (pequeno, em português, no padrão do repo)
 
-- 1 etapa = 1 commit. Título curto dizendo O QUE mudou para o usuário;
-  corpo em lista dizendo o PORQUÊ quando não for óbvio.
-- Rodapé sempre:
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
-- Termine o corpo com a linha de testes, ex.:
-  `Testes: teste-online (95 checagens) e checar — verdes.`
+- **Modelo oficial: `.gitmessage` na raiz** (já ativado via
+  `git config commit.template`). Siga-o: título imperativo ≤72 chars
+  dizendo O QUE mudou p/ quem usa; corpo com o PORQUÊ; linha de testes;
+  rodapé `Co-Authored-By: Claude <noreply@anthropic.com>`.
 - Mensagem multilinha no Git Bash: `git commit -q -F - <<'EOF' … EOF`.
 
 ## 4. Push na branch de feature (nunca na online)
 
 ```bash
-git push -q origin <branch-atual>
+git push -u origin <branch-atual>
 ```
 
 - Branch de trabalho: `feature/<nome-curto>` com **≤ ~20 letras** (o alias
   de preview do Cloudflare limita 28 caracteres — `feature-<nome>` inteiro).
 - Preview: `https://<branch-com-hifens>.investigation-system-bp.pages.dev`
-  (ex.: `feature/design` → `feature-design.…`). Informe o link ao Felipe.
-- ⛔ **Merge na `online` = produção.** Só com aprovação explícita do
-  Felipe, depois que ele conferir o preview. Após o merge aprovado,
-  apagar a branch de feature.
+  (ex.: `feature/design` → `feature-design.…`).
 
-## 5. Relatar
+## 5. Abrir o Pull Request (o botão de produção é do Felipe)
 
-- Dizer o que mudou em português simples, com o link do preview e o
-  resultado real dos testes. Se algo ficou de fora ou falhou, dizer
-  claramente — nunca arredondar para "tudo pronto".
+Crie o PR pelo **conector do GitHub** (ferramenta `create_pull_request`):
+`owner: f3lpzz` · `repo: Investigation-system-BP` · `base: online` ·
+`head: <branch>` · título curto em português.
+
+- **Corpo: siga o modelo oficial `.github/PULL_REQUEST_TEMPLATE.md`**
+  (o site do GitHub o preenche sozinho; via conector/CLI, copie a
+  estrutura dele e preencha — inclusive marcando o checklist com a
+  verdade: só marque o que foi realmente feito).
+- Termine o corpo com:
+  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
+
+- **Sem o conector?** Plano B: GitHub CLI (instalado; requer `gh auth login`
+  feito 1x pelo Felipe) — no PowerShell com PATH recarregado:
+  `gh pr create --base online --title "..." --body-file corpo.md`.
+  Plano C: mande o Felipe abrir
+  `https://github.com/f3lpzz/Investigation-system-BP/pull/new/<branch>`
+  e cole a descrição pronta para ele.
+- ⛔ **A IA NÃO mergeia.** Quem clica em **Merge** no PR é o Felipe,
+  depois de conferir o preview. Merge na `online` = produção.
+- **Empurrou commit novo numa branch com PR aberto? Atualize a
+  DESCRIÇÃO do PR junto** (`update_pull_request`) — a descrição deve
+  sempre refletir o conteúdo total; ninguém aprova o que não leu.
+- Depois do merge dele: apagar a branch de feature (local e remota).
+
+## 6. Relatar
+
+- Dizer o que mudou em português simples, com o link do **PR** e o do
+  preview, e o resultado real dos testes. Se algo ficou de fora ou
+  falhou, dizer claramente — nunca arredondar para "tudo pronto".
