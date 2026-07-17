@@ -1,9 +1,9 @@
 ---
 name: fechar-etapa
-description: Fecha uma etapa de trabalho no Blue Prince/Magnify — roda os dois testes, varre segredos, faz commit pequeno em português e push na branch de feature. Use ao terminar qualquer mudança de código, antes de mostrar resultado ao Felipe. NUNCA faz merge na online (só o Felipe autoriza).
+description: Fecha uma etapa de trabalho no Blue Prince — roda os dois testes, varre segredos, faz commit pequeno em português, push na branch de feature e abre o Pull Request. Use ao terminar qualquer mudança de código, antes de mostrar resultado ao Felipe. NUNCA faz merge na online (quem clica em Merge no PR é o Felipe).
 ---
 
-# Fechar etapa: testar → varrer segredos → commitar → publicar preview
+# Fechar etapa: testar → varrer segredos → commitar → push → abrir PR
 
 Ordem obrigatória. Se qualquer passo falhar, PARE, conserte e recomece do 1.
 
@@ -45,19 +45,46 @@ git diff --cached -U0 | grep -inE "service_role|eyJ[A-Za-z0-9_-]{30,}|sk-[A-Za-z
 ## 4. Push na branch de feature (nunca na online)
 
 ```bash
-git push -q origin <branch-atual>
+git push -u origin <branch-atual>
 ```
 
 - Branch de trabalho: `feature/<nome-curto>` com **≤ ~20 letras** (o alias
   de preview do Cloudflare limita 28 caracteres — `feature-<nome>` inteiro).
 - Preview: `https://<branch-com-hifens>.investigation-system-bp.pages.dev`
-  (ex.: `feature/design` → `feature-design.…`). Informe o link ao Felipe.
-- ⛔ **Merge na `online` = produção.** Só com aprovação explícita do
-  Felipe, depois que ele conferir o preview. Após o merge aprovado,
-  apagar a branch de feature.
+  (ex.: `feature/design` → `feature-design.…`).
 
-## 5. Relatar
+## 5. Abrir o Pull Request (o botão de produção é do Felipe)
 
-- Dizer o que mudou em português simples, com o link do preview e o
-  resultado real dos testes. Se algo ficou de fora ou falhou, dizer
-  claramente — nunca arredondar para "tudo pronto".
+Crie o PR pelo **conector do GitHub** (ferramenta `create_pull_request`):
+`owner: f3lpzz` · `repo: Investigation-system-BP` · `base: online` ·
+`head: <branch>` · título curto em português · corpo com este esqueleto:
+
+```
+## O que muda
+(2–5 linhas em português simples, sem jargão)
+
+## Por quê
+(1–2 linhas)
+
+## Como conferir
+Preview: https://<branch>.investigation-system-bp.pages.dev
+(o Cloudflare também comenta o link aqui no PR)
+- passo a passo do que clicar/olhar
+
+Testes: teste-online (~95 checagens) e checar — verdes.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```
+
+- **Sem o conector?** Plano B: mande o Felipe abrir
+  `https://github.com/f3lpzz/Investigation-system-BP/pull/new/<branch>`
+  e cole a descrição pronta para ele.
+- ⛔ **A IA NÃO mergeia.** Quem clica em **Merge** no PR é o Felipe,
+  depois de conferir o preview. Merge na `online` = produção.
+- Depois do merge dele: apagar a branch de feature (local e remota).
+
+## 6. Relatar
+
+- Dizer o que mudou em português simples, com o link do **PR** e o do
+  preview, e o resultado real dos testes. Se algo ficou de fora ou
+  falhou, dizer claramente — nunca arredondar para "tudo pronto".
