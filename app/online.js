@@ -110,13 +110,14 @@
     var ic = $("saveIc"),
       lb = $("saveLb"),
       b = $("btnSalvar");
+    // O ícone virou bolinha colorida (CSS via st-*); só o rótulo muda.
     var M = {
-      saving: ["☁", "Salvando…", "info"],
-      saved: ["☁ ✓", "Salvo na nuvem", "ok"],
-      erro: ["⚠", "Falha — tentando de novo", "warn"],
+      saving: ["", "Salvando…", "info"],
+      saved: ["", "Tudo salvo na nuvem", "ok"],
+      erro: ["", "Falha — tentando de novo", "warn"],
     };
     var m = M[st] || M.saved;
-    if (ic) ic.textContent = m[0];
+    if (ic) ic.textContent = "";
     if (lb) lb.textContent = m[1];
     if (b) {
       b.classList.remove("st-ok", "st-info", "st-warn");
@@ -637,6 +638,12 @@
       // do catálogo real na nuvem (perda de dados).
       usuarioAtual = user;
       window.USUARIO = user;
+      // Iniciais do e-mail no avatar da Conta (trilho e cabeçalho mobile)
+      try {
+        var av = document.getElementById("contaAvatar");
+        if (av && user && user.email)
+          av.textContent = user.email.slice(0, 2).toUpperCase();
+      } catch (e) {}
       document.body.classList.remove("app-carregando");
       document.body.classList.remove("pre-login");
       msg("");
@@ -674,7 +681,7 @@
     if (emailWrap) emailWrap.style.display = m === "nova-senha" ? "none" : "";
     msg("");
     if (m === "login") {
-      if (primary) primary.textContent = "Entrar";
+      if (primary) primary.textContent = "Abrir o arquivo";
       if (p2) p2.style.display = "none";
       if (sub) sub.textContent = "Entre na sua conta";
       if (linkSignup) linkSignup.textContent = "Criar conta";

@@ -1,10 +1,10 @@
 function getCss(v) {
   return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 }
-const COR_SALA = "#5ec8ff",
-  COR_PESSOA = "#ff7e9a",
-  COR_LIVRO = "#ffb05c",
-  COR_MANUAL = "#a98bff";
+const COR_SALA = "#6fa8c0",
+  COR_PESSOA = "#cf7f70",
+  COR_LIVRO = "#b07a2e",
+  COR_MANUAL = "#b8452e";
 const mapLayers = {
   pessoa: true,
   sala: true,
@@ -21,11 +21,11 @@ const SALAS_OFICIAIS = {
   },
 };
 const TIPOS_PADRAO = [
-  { id: "sala", nome: "Sala", cor: "#5ec8ff" },
-  { id: "pista", nome: "Pista", cor: "#ffd35e" },
-  { id: "carta", nome: "Carta/Doc", cor: "#a98bff" },
-  { id: "pessoa", nome: "Pessoa", cor: "#ff7e9a" },
-  { id: "mecanica", nome: "Mecânica", cor: "#5effc0" },
+  { id: "sala", nome: "Sala", cor: "#6fa8c0" },
+  { id: "pista", nome: "Pista", cor: "#c9a35c" },
+  { id: "carta", nome: "Carta/Doc", cor: "#b07a2e" },
+  { id: "pessoa", nome: "Pessoa", cor: "#cf7f70" },
+  { id: "mecanica", nome: "Mecânica", cor: "#7a9c6e" },
 ];
 var SCHEMA_VERSION = 6,
   DADOS_BROKEN = false;
@@ -525,19 +525,44 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.getElementById("vGrade").onclick = () => setView("grade");
-document.getElementById("vTeorias").onclick = () => setView("teorias");
-document.getElementById("vMapa").onclick = () => setView("mapa");
-document.getElementById("vMundo").onclick = () => setView("mundo");
-document.getElementById("vDir").onclick = () => setView("diretorio");
+[
+  ["vGrade", "grade"],
+  ["vMapa", "mapa"],
+  ["vTeorias", "teorias"],
+  ["vArquivo", "arquivo"],
+  ["vConta", "conta"],
+].forEach(([id, v]) => {
+  const b = document.getElementById(id);
+  if (b) b.onclick = () => setView(v);
+});
 function setView(v) {
   state.view = v;
-  document.getElementById("vGrade").classList.toggle("active", v === "grade");
-  document.getElementById("vMapa").classList.toggle("active", v === "mapa");
-  document.getElementById("vMundo").classList.toggle("active", v === "mundo");
-  document.getElementById("vDir").classList.toggle("active", v === "diretorio");
-  const vt = document.getElementById("vTeorias");
-  if (vt) vt.classList.toggle("active", v === "teorias");
+  // Trilho: item ativo (mundo/diretorio são legado dos testes — acendem Arquivo)
+  const ativo = {
+    grade: "vGrade",
+    mapa: "vMapa",
+    teorias: "vTeorias",
+    arquivo: "vArquivo",
+    mundo: "vArquivo",
+    diretorio: "vArquivo",
+    conta: "vConta",
+  }[v];
+  ["vGrade", "vMapa", "vTeorias", "vArquivo", "vConta"].forEach((id) => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle("active", id === ativo);
+  });
+  // Barra inferior (mobile)
+  document.querySelectorAll("#tabbar .tbit").forEach((b) => {
+    b.classList.toggle(
+      "active",
+      b.dataset.view === v ||
+        (b.dataset.view === "arquivo" && (v === "mundo" || v === "diretorio")),
+    );
+  });
+  document.body.className = document.body.className
+    .replace(/\bview-[a-z]+\b/g, "")
+    .trim();
+  document.body.classList.add("view-" + v);
   document.getElementById("grade").style.display =
     v === "grade" ? "grid" : "none";
   document.getElementById("mapa").style.display =
@@ -548,8 +573,27 @@ function setView(v) {
     v === "diretorio" ? "block" : "none";
   const td = document.getElementById("teorias");
   if (td) td.style.display = v === "teorias" ? "flex" : "none";
+  const ar = document.getElementById("arquivo");
+  if (ar) ar.style.display = v === "arquivo" ? "flex" : "none";
+  const ct = document.getElementById("conta");
+  if (ct) ct.style.display = v === "conta" ? "block" : "none";
   render();
 }
+/* Menu ··· (ações raras: idioma, seleção, ordenar, desfazer/refazer) */
+function toggleMore(force) {
+  const m = document.getElementById("moreMenu");
+  if (!m) return;
+  const abrir = typeof force === "boolean" ? force : !m.classList.contains("open");
+  m.classList.toggle("open", abrir);
+}
+document.addEventListener("click", function (e) {
+  const m = document.getElementById("moreMenu");
+  if (!m || !m.classList.contains("open")) return;
+  if (m.contains(e.target)) return;
+  const b = document.getElementById("btnMore");
+  if (b && b.contains(e.target)) return;
+  m.classList.remove("open");
+});
 
 /* ---- filtro ---- */
 function fichaIncompleta(f) {
@@ -619,52 +663,78 @@ function renderGrade() {
   const vis = ordenarFichas(fichas.filter(passa));
   if (!vis.length) {
     const temFiltro =
-      state.busca ||
       state.sala ||
       state.pessoa ||
       state.grupo ||
-      state.incompletas;
-    box.innerHTML = temFiltro
-      ? `<div class="empty"><div class="emoji">🔍</div><div>Nenhuma ficha corresponde aos filtros atuais.</div><button class="topbtn" onclick="limparFiltros()">Limpar filtros</button></div>`
-      : `<div class="empty"><div class="emoji">🧩</div><div>Ainda não há fichas.<br>Clique em <b>➕ Nova</b> ou me envie uma foto no chat.</div></div>`;
+      state.incompletas ||
+      state.pendentes ||
+      state.orfas ||
+      state.favoritas;
+    const lupa = `<svg width="56" height="56" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="#7d715c" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="#7d715c" stroke-width="1.8" stroke-linecap="round"></line></svg>`;
+    if (state.busca) {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nada encontrado</div><div class="etxt">Nenhuma ficha, sala ou pessoa para <b>“${esc(state.busca)}”</b>.</div><button class="topbtn ghost" onclick="limparBusca()">Limpar busca</button></div>`;
+    } else if (temFiltro) {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nada encontrado</div><div class="etxt">Nenhuma ficha corresponde aos filtros atuais.</div><button class="topbtn ghost" onclick="limparFiltros()">Limpar filtros</button></div>`;
+    } else {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nenhuma ficha ainda</div><div class="etxt">Comece registrando a primeira evidência da sua investigação.</div><button class="topbtn primary" onclick="novaFicha()">＋ Nova ficha</button></div>`;
+    }
     return;
   }
-  box.insertAdjacentHTML("beforeend", dashboardHTML());
   vis.forEach((f) => {
     const c = document.createElement("div");
     c.className = "card";
-    c.style.borderLeftColor = corGrupo(f);
     if (state.sel.has(f.id)) c.classList.add("selected");
+    const falta = fichaIncompleta(f);
+    const soTrad = falta.length === 1 && falta[0] === "tradução";
+    const img = pg0(f).imagem;
+    const resumo = esc(
+      state.idioma === "original"
+        ? pg0(f).original || pg0(f).traducao || pg0(f).explica || ""
+        : pg0(f).traducao || pg0(f).explica || pg0(f).original || "",
+    );
+    // Rodapé: grupo (bolinha na cor) · personagens; sem nada = "sem conexões ainda"
+    const rGrupos = (f.grupos || [])
+      .map((gn) => {
+        var g = grupoObj(gn);
+        return `<span class="cgrupo" onclick="event.stopPropagation();filtraGrupo('${jsq(gn)}')"><span class="gdot" style="background:${(g && g.cor) || "#8d3030"}"></span>${esc(gn)}</span>`;
+      })
+      .join("");
+    const rPess = (f.personagens || []).length
+      ? `<span class="cpess">${(f.grupos || []).length ? "· " : ""}${esc(f.personagens.join(", "))}</span>`
+      : "";
+    let rodape = rGrupos + rPess;
+    if (soTrad)
+      rodape =
+        `<span class="cfalta" title="Falta tradução">falta tradução</span>` +
+        (rPess ? " " + rPess : "");
+    else if (falta.length && !rodape)
+      rodape = `<span class="cfalta" title="Falta: ${falta.join(", ")}">falta ${falta.join(", ")}</span>`;
+    if (!rodape) rodape = `<span class="cvazio">sem conexões ainda</span>`;
+    // Carimbos datilografados no lugar de badges
+    let stamp = "";
+    if (f.status === "resolvida")
+      stamp = `<span class="stamp res">RESOLVIDA</span>`;
+    else if (f.pendente)
+      stamp = `<span class="stamp pend" title="Ainda não processada">PENDENTE</span>`;
+    else if (f.status === "importante")
+      stamp = `<span class="stamp imp">IMPORTANTE</span>`;
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
-      <div class="starbtn${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</div>
-      <div class="tag">${f.sala ? `🚪 ${f.sala}` : "—"}</div>
-      ${(() => {
-        const m = fichaIncompleta(f);
-        return m.length
-          ? `<div class="badge-inc" title="Falta: ${m.join(", ")}">⚠ falta ${m.join(", ")}</div>`
-          : "";
-      })()}
-      ${f.pendente ? `<div class="badge-pend" title="Adicionada por você; ainda não processada pela skill">⏳ não processada</div>` : ""}
-      ${f.status ? `<div class="badge-st st-${f.status}">${f.status === "resolvida" ? "✔ resolvida" : "★ importante"}</div>` : ""}
-      ${(f.grupos || [])
-        .map((gn) => {
-          var g = grupoObj(gn);
-          return (
-            '<span class="grouptag" style="background:' +
-            corContraste((g && g.cor) || "#5b6b86") +
-            '">📦 ' +
-            esc(gn) +
-            "</span>"
-          );
-        })
-        .join("")}
-      <h3><span class="idref">${esc(f.id)}</span> ${esc(f.titulo)}</h3>
-      <div class="thumbwrap"><span class="ph"><b>🖼</b>sem imagem</span>${pg0(f).imagem ? `<img class="thumb" src="${esc(pg0(f).imagem)}" onerror="this.remove()">` : ""}${pgs(f).length > 1 ? `<span class="pgcount">📄 ${pgs(f).length}</span>` : ""}</div>
-      <div class="excerpt">${esc(state.idioma === "original" ? pg0(f).original || pg0(f).traducao || pg0(f).explica || "" : pg0(f).traducao || pg0(f).explica || pg0(f).original || "")}</div>
-      <div class="meta">
-        ${(f.personagens || []).map((p) => `<span class="pill">👤 ${esc(p)}</span>`).join("")}
-      </div>`;
+      <span class="pin${f.fav ? " fav" : ""}"></span>
+      <div class="chead">
+        <span class="cid">${esc(f.id)}</span>
+        <span class="csala">${f.sala ? esc(f.sala) : "—"}</span>
+        <span class="cstar${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</span>
+      </div>
+      <h3 class="ctit">${esc(f.titulo)}</h3>
+      <div class="cthumb">${
+        img
+          ? `<img class="thumb" loading="lazy" src="${esc(img)}" onerror="this.remove()">`
+          : `<span class="cph">foto da ficha</span>`
+      }${pgs(f).length > 1 ? `<span class="pgcount">${pgs(f).length} págs.</span>` : ""}</div>
+      <div class="cexc">${resumo}</div>
+      ${stamp}
+      <div class="cfoot">${rodape}</div>`;
     c.onclick = () => {
       if (state.selMode) {
         toggleSel(f.id);
@@ -1196,16 +1266,10 @@ function draw(svg) {
       const a = nmap(l.s),
         b = nmap(l.t);
       if (!a || !b) return "";
-      const col =
-        l.kind === "manual"
-          ? "#a98bff"
-          : l.kind === "pessoa"
-            ? "#ff7e9a"
-            : l.kind === "colecao" || l.kind === "grupo"
-              ? "#ffb05c"
-              : "#5ec8ff";
-      const dash = l.kind === "manual" ? "" : "4 4";
-      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-opacity="${_focus && l.s !== _focus && l.t !== _focus ? 0.06 : 0.5}" stroke-width="${l.kind === "manual" ? 2 : 1.3}" stroke-dasharray="${dash}"/>`;
+      // Fio manual = barbante vermelho sólido; ligações automáticas = tracejadas
+      const col = l.kind === "manual" ? COR_MANUAL : "#6f6046";
+      const dash = l.kind === "manual" ? "" : "5 5";
+      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-opacity="${_focus && l.s !== _focus && l.t !== _focus ? 0.06 : l.kind === "manual" ? 0.95 : 0.8}" stroke-width="${l.kind === "manual" ? 2.4 : 1.4}" stroke-dasharray="${dash}"/>`;
     })
     .join("");
   const _q = (state.busca || "").toLowerCase();
@@ -1242,16 +1306,16 @@ function draw(svg) {
           })());
       const seld = _selMap && _selMap.has(n.id);
       return `<g class="gn" data-id="${n.id}" data-kind="${n.kind}" data-full="${esc(n.label)}" data-trunc="${wl.trunc ? 1 : 0}" style="cursor:pointer;opacity:${dim ? 0.18 : 1}">
-      ${seld ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none" stroke="#e3c074" stroke-width="1.6" stroke-dasharray="3 3"/>` : ""}<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.cor}" stroke="${seld ? "#e3c074" : hl ? "#ffd35e" : "#0b1c3a"}" stroke-width="${seld || hl ? 4 : 2}"/>
-      <text font-size="11" text-anchor="middle" paint-order="stroke" stroke="#0a1428" stroke-width="2.6" stroke-linejoin="round" fill="#eaf0fb">${tsp}</text>
+      ${seld ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none" stroke="#c9a35c" stroke-width="1.6" stroke-dasharray="3 3"/>` : ""}<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.cor}" stroke="${seld || hl ? "#c9a35c" : "#14100b"}" stroke-width="${seld || hl ? 2.5 : 3}"/>
+      <text font-size="11" text-anchor="middle" paint-order="stroke" stroke="#14100b" stroke-width="3" stroke-linejoin="round" fill="#ede4d3">${tsp}</text>
     </g>`;
     })
     .join("");
   nodes.forEach((n) => {
     posCache[n.id] = { x: n.x, y: n.y };
   });
-  const grid =
-    '<defs><pattern id="mgrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(120,170,255,.05)" stroke-width="1"/></pattern></defs><rect id="mgridRect" x="-6000" y="-6000" width="12000" height="12000" fill="url(#mgrid)"/>';
+  // O design do mapa é limpo (fundo radial noir), sem grade azulada
+  const grid = '<rect id="mgridRect" x="-6000" y="-6000" width="12000" height="12000" fill="none"/>';
   svg.innerHTML = `<g id="mapworld" transform="translate(${cam.x},${cam.y}) scale(${cam.s})">${grid}${lh + nh}</g>`;
   aplicaCamMapa();
   drawMini();
@@ -1328,7 +1392,7 @@ function drawMini() {
     .join("");
   const tl = s2w(0, 0),
     br = s2w(_viewW, _viewH);
-  const rect = `<rect id="miniview" x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="#5b8def22" stroke="#9fc0ff" stroke-width="1.2"/>`;
+  const rect = `<rect id="miniview" x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="rgba(201,163,92,.08)" stroke="#c9a35c" stroke-width="1"/>`;
   mini.innerHTML = dots + rect;
 }
 // Atualiza só o retângulo de viewport do minimapa (barato; roda a cada pan/zoom).
@@ -1525,12 +1589,12 @@ function buildLegend() {
   // personagem, grupo (cor própria), linha sólida = conexão manual,
   // tracejada = ligação automática. ("Coleção"/"tipo" eram do sistema antigo.)
   document.getElementById("legend").innerHTML = `
-    <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
+    <div class="ltit">LEGENDA</div>
     <div class="row"><span class="dot" style="background:${COR_SALA}"></span>Sala</div>
-    <div class="row"><span class="dot" style="background:${COR_LIVRO}"></span>Grupo (cor do grupo)</div>
-    <div class="row"><span class="dot" style="background:#5b6b86"></span>Pista (cor = grupo)</div>
-    <div class="row"><span style="width:18px;border-top:2px solid ${COR_MANUAL}"></span>Conexão manual</div>
-    <div class="row"><span style="width:18px;border-top:2px dashed ${COR_SALA}"></span>Ligação automática</div>`;
+    <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
+    <div class="row"><span class="dot" style="background:#8d3030"></span>Ficha (cor do grupo)</div>
+    <div class="row"><span style="width:16px;border-top:2px solid ${COR_MANUAL}"></span>Fio manual</div>
+    <div class="row"><span style="width:16px;border-top:2px dashed #8a7c5e"></span>Ligação automática</div>`;
   buildMapHelp();
 }
 /* Menu "Como usar" do mapa (fica acima da legenda). Recolhível; a escolha
@@ -1547,14 +1611,14 @@ function buildMapHelp() {
     }
   }
   box.innerHTML =
-    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">🧭 Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
+    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
     (_mapHelpAberto
       ? `<div class="mh-body">
-      <div class="row"><span class="mh-ic">🖱️</span>Arraste o fundo: navegar</div>
-      <div class="row"><span class="mh-ic">🎡</span>Roda do mouse: zoom</div>
-      <div class="row"><span class="mh-ic">✋</span>Arraste um ponto: reposicionar</div>
-      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+1</b>: enquadrar tudo</div>
-      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+0</b>: zoom 100%</div>
+      <div class="row">Arraste o fundo: navegar</div>
+      <div class="row">Roda do mouse: zoom</div>
+      <div class="row">Arraste um ponto: reposicionar</div>
+      <div class="row"><b>Shift+1</b>&nbsp;: enquadrar tudo</div>
+      <div class="row"><b>Shift+0</b>&nbsp;: zoom 100%</div>
     </div>`
       : "");
 }
@@ -1672,10 +1736,14 @@ function renderPaginaDetalhe() {
   const panel = document.getElementById("pgpanel");
   if (!panel) return;
   const _orig = state.idioma === "original";
-  panel.innerHTML = `${p.imagem ? `<img class="dimg" src="${esc(p.imagem)}" onerror="this.style.display='none'" onclick="abrirLightbox(this.src)" title="Clique para ampliar">` : ""}
-    ${p.explica ? field("O que explica", esc(p.explica)) : ""}
-    <div class="field"><div class="lab transc-head"><span>Transcrição</span><span class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></span></div>
-      <div class="transc">${esc((_orig ? p.original || p.traducao : p.traducao || p.original) || "—")}</div></div>
+  panel.innerHTML = `${
+    p.imagem
+      ? `<img class="dimg" src="${esc(p.imagem)}" onerror="this.style.display='none'" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`
+      : `<div class="dph">foto da ficha</div>`
+  }
+    <div class="transc-head"><span class="plab">TRANSCRIÇÃO</span><span class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></span></div>
+    <div class="transc">${esc((_orig ? p.original || p.traducao : p.traducao || p.original) || "—")}</div>
+    ${p.explica ? `<div class="dexpl"><span class="plab">O QUE EXPLICA</span><div class="dexpl-tx">${esc(p.explica)}</div></div>` : ""}
     `;
 }
 function setPagDetalhe(i) {
@@ -1688,65 +1756,97 @@ function abrir(id) {
   _fichaAberta = id;
   _pgIdx = 0;
   const d = document.getElementById("drawer");
+  // ETIQUETAS: sala (azul), personagens (rosa), grupos (cor sólida)
+  const etiquetas =
+    (f.sala
+      ? `<span class="et sala" onclick="filtraSala('${esc(f.sala)}')">${esc(f.sala)}</span>`
+      : "") +
+    (f.personagens || [])
+      .map(
+        (p) =>
+          `<span class="et pessoa" onclick="filtraPessoa('${esc(p)}')">${esc(p)}</span>`,
+      )
+      .join("") +
+    (f.grupos || [])
+      .map((gn) => {
+        var g = grupoObj(gn);
+        return `<span class="et grupo" style="background:${corContraste((g && g.cor) || "#8d3030")}" onclick="filtraGrupo('${jsq(gn)}')">${esc(gn)}</span>`;
+      })
+      .join("");
+  // FIOS: manuais (linha vermelha sólida, removível) + automáticas (tracejada)
+  const fiosManuais = (f.conexoes || [])
+    .map((c) => {
+      const o = fichas.find((z) => z.id === c);
+      return o
+        ? `<div class="fio"><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="abrir('${c}')">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><span class="fio-x" onclick="desligarFicha('${f.id}','${c}')" title="Remover fio">✕</span></div>`
+        : "";
+    })
+    .join("");
+  const autosTxt = [
+    f.sala ? esc(f.sala) : "",
+    ...(f.personagens || []).map(esc),
+    ...(f.grupos || []).map(esc),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const fioAuto = autosTxt
+    ? `<div class="fio"><span class="fio-l auto"></span><div class="fio-tx"><div class="fio-t">${autosTxt}</div><div class="fio-s">automáticas · citadas na ficha</div></div></div>`
+    : "";
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="fechar()">✕</button>
-      <h2><span class="idref idref-lg">${esc(f.id)}</span> ${esc(f.titulo)}</h2>
-      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">✏️ Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">🎯 Focar no mapa</button>${window.IA_ATIVA && f.pendente ? `<button class="dbtn" onclick="iaProcessarPista('${f.id}')" title="A IA transcreve, traduz e preenche a ficha — você revisa antes de aplicar">✨ Processar com IA</button>` : ""}<button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button></div>
+      <div class="dh-top">
+        <span class="did">${esc(f.id)}</span>
+        <span class="dsala">${f.sala ? esc(f.sala) : "—"}</span>
+        <div class="dgrow"></div>
+        <span class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar">★</span>
+        <button class="close" onclick="fechar()" title="Fechar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(f.titulo)}</h2>
+      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">Ver no mapa</button><button class="dbtn" onclick="addAoQuadro('${f.id}')">Add ao quadro</button>${window.IA_ATIVA && f.pendente ? `<button class="dbtn" onclick="iaProcessarPista('${f.id}')" title="A IA transcreve, traduz e preenche a ficha — você revisa antes de aplicar">Processar com IA</button>` : ""}<button class="dbtn del" onclick="excluirFicha('${f.id}')">Excluir</button></div>
     </div>
     <div class="db">
       <div id="pgtabs" class="pgtabs"></div>
-      <div id="pgpanel"></div>
-      ${f.sala ? field("Sala de origem", `<span class="taglist"><span class="t sala" onclick="filtraSala('${esc(f.sala)}')">🚪 ${esc(f.sala)}</span></span>`) : ""}
-      ${
-        (f.grupos || []).length
-          ? field(
-              "Grupos",
-              `<span class="taglist">` +
-                (f.grupos || [])
-                  .map((gn) => {
-                    var g = grupoObj(gn);
-                    return (
-                      '<span class="t" style="background:' +
-                      corContraste((g && g.cor) || "#5b6b86") +
-                      ';color:#fff;cursor:pointer" onclick="filtraGrupo(\'' +
-                      jsq(gn) +
-                      "')\">📦 " +
-                      esc(gn) +
-                      "</span>"
-                    );
-                  })
-                  .join("") +
-                `</span>`,
-            )
-          : ""
-      }
-      ${
-        (f.personagens || []).length
-          ? field(
-              "Personagens citados",
-              `<span class="taglist">${f.personagens.map((p) => `<span class="t pessoa" onclick="filtraPessoa('${esc(p)}')">👤 ${esc(p)}</span>`).join("")}</span>`,
-            )
-          : ""
-      }
-      ${field("Conexões automáticas (" + autoCount(f) + ")", autosFichaHTML(f))}
-      ${field(
-        "Conexões manuais (" + (f.conexoes || []).length + ")",
-        `<span class="taglist">${
-          (f.conexoes || [])
-            .map((c) => {
-              const o = fichas.find((z) => z.id === c);
-              return o
-                ? `<span class="t conx">🔗 <span style="cursor:pointer" onclick="abrir('${c}')">${esc(o.titulo)}</span> <b style="cursor:pointer" onclick="desligarFicha('${f.id}','${c}')">✕</b></span>`
-                : "";
-            })
-            .join("") || "<span class='gvazio'>(nenhuma)</span>"
-        } <button class="dbtn" style="padding:3px 9px" onclick="ligarFichaUI('${f.id}')">＋ Ligar</button></span>`,
-      )}
-      ${f.notas ? field("Notas", esc(f.notas)) : ""}
+      <div id="pgpanel" class="paper"></div>
+      <div class="dsec">
+        <span class="dlab">ETIQUETAS</span>
+        <div class="taglist">${etiquetas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      </div>
+      <div class="dsec">
+        <div class="dlab-row"><span class="dlab">FIOS DA INVESTIGAÇÃO</span><span class="dlab-sub">conexões</span><button class="dlink" onclick="ligarFichaUI('${f.id}')">＋ ligar ficha</button></div>
+        ${fiosManuais}${fioAuto}
+        ${!fiosManuais && !fioAuto ? "<span class='gvazio'>sem conexões ainda</span>" : ""}
+      </div>
+      ${f.notas ? `<div class="dsec"><span class="dlab">NOTAS DO DETETIVE</span><div class="postit">${esc(f.notas)}</div></div>` : ""}
+    </div>
+    <div class="dfoot">
+      <button class="dbtn" onclick="editarFicha('${f.id}')">Editar</button>
+      <button class="dbtn primary" onclick="focarMapa('${f.id}')">Ver no mapa</button>
     </div>`;
   d.classList.add("open");
+  document.body.classList.add("drawer-aberta");
   renderPaginaDetalhe();
+}
+/* Adiciona a ficha ao quadro atual (sem sair da tela) */
+function addAoQuadro(id) {
+  if (!DADOS.quadros || !DADOS.quadros.length)
+    DADOS.quadros = [
+      { nome: "Quadro 1", cam: { x: 40, y: 40, s: 1 }, nodes: [], setas: [] },
+    ];
+  const q = DADOS.quadros[_qIdx] || DADOS.quadros[0];
+  if ((q.nodes || []).some((n) => n.tipo === "ref" && n.ref === id)) {
+    toast("Esta ficha já está no quadro " + q.nome);
+    return;
+  }
+  q.nodes.push({
+    id: "n" + Date.now() + Math.floor(Math.random() * 999),
+    tipo: "ref",
+    kind: "pista",
+    ref: id,
+    x: 120 + Math.random() * 160,
+    y: 120 + Math.random() * 120,
+  });
+  marcarAlterado();
+  toast("Ficha adicionada ao " + q.nome);
 }
 function field(lab, val) {
   return `<div class="field"><div class="lab">${lab}</div><div class="val">${val}</div></div>`;
@@ -1894,14 +1994,15 @@ function updateSaveStatus(st) {
     b = document.getElementById("btnSalvar");
   // No modo online o salvamento é na nuvem (não há "pasta"/fileHandle); a camada online cuida do status.
   if (!window.MODO_ONLINE && !fileHandle && !DADOS_BROKEN) st = "nohandle";
+  // O ícone virou uma bolinha colorida (CSS via st-*); só o rótulo muda.
   var M = {
-    saving: ["☁", "Salvando…", "info"],
-    pending: ["☁", "Salvando…", "info"],
-    saved: ["☁ ✓", "Tudo salvo", "ok"],
-    nohandle: ["⚠", "Sem pasta", "warn"],
+    saving: ["", "Salvando…", "info"],
+    pending: ["", "Salvando…", "info"],
+    saved: ["", "Tudo salvo", "ok"],
+    nohandle: ["", "Sem pasta", "warn"],
   };
   var m = M[st] || M.saved;
-  if (ic) ic.textContent = m[0];
+  if (ic) ic.textContent = "";
   if (lb) lb.textContent = m[1];
   if (b) {
     b.classList.remove("st-ok", "st-info", "st-warn");
@@ -2747,9 +2848,12 @@ function editarFicha(id) {
   const d = document.getElementById("drawer");
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="abrir('${f.id}')">✕</button>
-      <div class="tipo">✏️ Editando ficha</div>
-      <h2>${esc(f.titulo)}</h2>
+      <div class="dh-top">
+        <span class="plab">EDITANDO FICHA</span>
+        <div class="dgrow"></div>
+        <button class="close" onclick="abrir('${f.id}')" title="Voltar sem salvar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(f.titulo)}</h2>
     </div>
     <div class="db">
       ${edCampo("Título", "titulo", f.titulo)}
@@ -2762,9 +2866,10 @@ function editarFicha(id) {
       <div id="pgedtabs" class="pgtabs"></div>
       <div id="pgedpanel"></div>
       <div class="editbtns">
-        <button class="dbtn save" onclick="salvarFichaEdit('${f.id}')">✓ Aplicar</button>
-        <button class="dbtn" onclick="abrir('${f.id}')">Cancelar</button>
-        <button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button>
+        <button class="dbtn cancel" onclick="abrir('${f.id}')">Cancelar</button>
+        <span class="dgrow"></span>
+        <button class="dbtn del" onclick="excluirFicha('${f.id}')">Excluir</button>
+        <button class="dbtn save" onclick="salvarFichaEdit('${f.id}')">Salvar ficha</button>
       </div>
       <datalist id="dl-salas">${nomesDe(DADOS.salas)
         .map((s) => `<option value="${esc(s)}">`)
@@ -2774,6 +2879,7 @@ function editarFicha(id) {
         .join("")}</datalist>
     </div>`;
   d.classList.add("open");
+  document.body.classList.add("drawer-aberta");
   renderPagEdit();
   initChipFields();
 }
@@ -4047,17 +4153,15 @@ function autoCount(f) {
 }
 function autoChip(kind, ic, nome, fid, cls, cor) {
   const style = cor ? ` style="background:${cor};color:#fff"` : "";
-  return `<span class="t auto ${cls || ""}"${style}>${ic} <span style="cursor:pointer" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</span> <b title="Remover vínculo" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</b></span>`;
+  return `<span class="t auto ${cls || ""}"${style}>${ic}<span style="cursor:pointer" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</span> <b title="Remover vínculo" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</b></span>`;
 }
 function autosFichaHTML(f) {
   const chips = [];
-  if (f.sala) chips.push(autoChip("sala", "🚪", f.sala, f.id, "sala"));
+  if (f.sala) chips.push(autoChip("sala","",f.sala,f.id,"sala"));
   (f.grupos || []).forEach(function (gn) {
     var g = grupoObj(gn);
     chips.push(
-      autoChip(
-        "grupo",
-        "📦",
+      autoChip("grupo","",
         gn,
         f.id,
         "",
@@ -4066,7 +4170,7 @@ function autosFichaHTML(f) {
     );
   });
   (f.personagens || []).forEach(function (pp) {
-    chips.push(autoChip("pessoa", "👤", pp, f.id, "pessoa"));
+    chips.push(autoChip("pessoa","",pp,f.id,"pessoa"));
   });
   return chips.length
     ? '<span class="taglist">' + chips.join("") + "</span>"
@@ -4106,7 +4210,7 @@ function tagPistasAuto(arr, kind, nome) {
         arr
           .map(function (f) {
             return (
-              '<span class="t conx auto">🔗 <span style="cursor:pointer" onclick="abrir(\'' +
+              '<span class="t conx auto"><span style="cursor:pointer" onclick="abrir(\'' +
               f.id +
               "')\">" +
               esc(f.titulo) +
@@ -4153,7 +4257,7 @@ function desautoEnt(fid, kind, nomeEnt) {
 }
 function tagPistas(arr) {
   return arr.length
-    ? `<span class="taglist">${arr.map((f) => `<span class="t conx" onclick="abrir('${f.id}')">🔗 ${esc(f.titulo)}${f.sala && f.sala !== "" ? ` <small style="opacity:.6">· ${esc(f.sala)}</small>` : ""}</span>`).join("")}</span>`
+    ? `<span class="taglist">${arr.map((f) => `<span class="t conx" onclick="abrir('${f.id}')">${esc(f.titulo)}${f.sala && f.sala !== "" ? ` <small style="opacity:.6">· ${esc(f.sala)}</small>` : ""}</span>`).join("")}</span>`
     : "<span class='gvazio'>(nenhuma)</span>";
 }
 // Dossiê de uma SALA: mostra os dados do JOGO (compartilhados), com EN e PT.
@@ -4217,11 +4321,11 @@ function abrirEntidade(kind, nome) {
   // Salas do diretório: sem "Editar dossiê" nem "Excluir" (não se apaga sala).
   const ehSala = kind === "sala";
   const acoesHtml =
-    (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">✏️ Editar dossiê</button>`) +
-    `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">🎯 Focar no mapa</button>` +
-    (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">📖 Folhear</button>` : "") +
-    (kind === "pessoa" && window.IA && window.IA.personasProcessar && pistasQueCitam("pessoa", nome).length ? `<button class="dbtn" onclick="window.IA.personasProcessar(['${jsq(nome)}'], true)" title="A IA (re)escreve a Descrição a partir de todas as pistas que citam este personagem">✨ Gerar descrição</button>` : "") +
-    (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">🔒 Re-bloquear</button>` : "");
+    (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">Editar dossiê</button>`) +
+    `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">Ver no mapa</button>` +
+    (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">Folhear</button>` : "") +
+    (kind === "pessoa" && window.IA && window.IA.personasProcessar && pistasQueCitam("pessoa", nome).length ? `<button class="dbtn" onclick="window.IA.personasProcessar(['${jsq(nome)}'], true)" title="A IA (re)escreve a Descrição a partir de todas as pistas que citam este personagem">Gerar descrição (IA)</button>` : "") +
+    (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">Re-bloquear</button>` : "");
   // Sala: fatos e notas EDITÁVEIS direto no dossiê (sem tela de edição separada).
   const pessoalHtml = ehSala
     ? `<div class="field"><div class="lab">Fatos conhecidos <small style="opacity:.55">(um por linha)</small></div><textarea id="sala-fatos" class="edinput edarea" placeholder="Anote fatos desta sala…" onchange="salaEditInline()">${esc((e.fatos || []).join("\n"))}</textarea></div>
@@ -4230,9 +4334,12 @@ function abrirEntidade(kind, nome) {
       (e.notas ? field("Notas", esc(e.notas)) : "");
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="fechar()">✕</button>
-      <div class="tipo" style="color:${corKind(kind)}">${iconKind(kind)} ${rotKind(kind)} (dossiê)</div>
-      <h2>${esc(nome)}</h2>
+      <div class="dh-top">
+        <span class="doskicker" style="color:${corKind(kind)}">DOSSIÊ · ${rotKind(kind).toUpperCase()}</span>
+        <div class="dgrow"></div>
+        <button class="close" onclick="fechar()" title="Fechar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(nome)}</h2>
       <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
@@ -4244,6 +4351,7 @@ function abrirEntidade(kind, nome) {
       ${field("Mencionam em outro lugar (" + mencoes.length + ")", tagPistas(mencoes))}
     </div>`;
   d.classList.add("open");
+  document.body.classList.add("drawer-aberta");
 }
 function reabrirEnt() {
   if (_entAtual) abrirEntidade(_entAtual.kind, _entAtual.nome);
@@ -4277,6 +4385,7 @@ function editarEntidade() {
       </div>
     </div>`;
   d.classList.add("open");
+  document.body.classList.add("drawer-aberta");
   initChipFields();
 }
 function salvarEntidade() {
@@ -4386,9 +4495,9 @@ function buildMapToggles() {
   if (!box) return;
   const defs = [
     ["pessoa", "Personagens", COR_PESSOA],
-    ["sala", "Salas", COR_SALA],
-    ["grupo", "Grupos", COR_LIVRO],
-    ["manual", "Conexões", COR_MANUAL],
+    ["sala", "Salas", "#6fa8c0"],
+    ["grupo", "Grupos", "#c9a35c"],
+    ["manual", "Fios manuais", COR_MANUAL],
   ];
   box.innerHTML = "";
   defs.forEach(function (dd) {
@@ -4398,7 +4507,12 @@ function buildMapToggles() {
     const c = document.createElement("div");
     c.className = "mtog" + (mapLayers[k] ? " on" : "");
     c.title = "Mostrar/ocultar " + lab + " no mapa";
-    c.innerHTML = `<span class="dot" style="background:${cor}"></span>${lab}`;
+    c.innerHTML =
+      (k === "manual"
+        ? `<span class="ln" style="border-top:2px solid ${cor}"></span>`
+        : `<span class="dot" style="background:${cor}"></span>`) +
+      lab +
+      `<span class="chk">✓</span>`;
     c.onclick = () => {
       mapLayers[k] = !mapLayers[k];
       mapaSoftRefresh();
@@ -4486,14 +4600,22 @@ function atualizarSelBar() {
     vis = fichas.filter(passa).length;
   const btnIA =
     window.IA && window.IA.processarLote && n > 0
-      ? `<button class="topbtn" onclick="iaLoteSelecionadas()">✨ Processar selecionadas</button>`
+      ? `<button class="topbtn" onclick="iaLoteSelecionadas()">Processar selecionadas</button>`
       : "";
-  bar.innerHTML = `<span class="cnt">${n} selecionada(s)</span>
+  bar.innerHTML = `<span class="selchk">✓</span><span class="cnt">${n} selecionada${n === 1 ? "" : "s"}</span>
     <button class="topbtn" onclick="selecionarVisiveis()">Selecionar visíveis (${vis})</button>
     <span class="grow"></span>
     ${btnIA}
-    <button class="seldel" onclick="excluirSelecionadas()">🗑 Excluir selecionadas</button>
-    <button class="topbtn" onclick="toggleSelMode()">Cancelar</button>`;
+    ${n > 0 ? `<button class="topbtn" onclick="selAddAoQuadro()">Adicionar ao quadro</button>` : ""}
+    <button class="seldel" onclick="excluirSelecionadas()">Excluir</button>
+    <button class="topbtn plain" onclick="toggleSelMode()">Cancelar</button>`;
+}
+/* Seleção múltipla → manda todas para o quadro atual */
+function selAddAoQuadro() {
+  const ids = [...state.sel];
+  if (!ids.length) return;
+  ids.forEach((id) => addAoQuadro(id));
+  toggleSelMode();
 }
 function limparBusca() {
   const i = document.getElementById("busca");
@@ -4522,9 +4644,36 @@ function limparFiltros() {
 }
 function atualizarContador() {
   const el = document.getElementById("contador");
-  if (!el) return;
   const n = fichas.filter(passa).length;
-  el.textContent = n + (n === 1 ? " ficha" : " fichas");
+  if (el) el.textContent = n + (n === 1 ? " ficha" : " fichas");
+  // Estatísticas viram filtros clicáveis no cabeçalho (decisão do handoff)
+  const st = document.getElementById("areaStats");
+  if (!st) return;
+  const pend = fichas.filter((f) => f.pendente).length;
+  const inc = fichas.filter((f) => fichaIncompleta(f).length).length;
+  const orf = fichas.filter(
+    (f) =>
+      (f.conexoes || []).length === 0 &&
+      !f.sala &&
+      !(f.personagens || []).length &&
+      !(f.grupos || []).length,
+  ).length;
+  const tot = fichas.length;
+  const parte = [];
+  parte.push(tot + (tot === 1 ? " ficha" : " fichas"));
+  if (pend)
+    parte.push(
+      `<span class="stat-link gold" onclick="state.pendentes=true;render()">${pend} pendente${pend > 1 ? "s" : ""}</span>`,
+    );
+  if (inc)
+    parte.push(
+      `<span class="stat-link red" onclick="state.incompletas=true;render()">${inc} incompleta${inc > 1 ? "s" : ""}</span>`,
+    );
+  if (orf)
+    parte.push(
+      `<span class="stat-link" onclick="state.orfas=true;render()">${orf} sem conexão</span>`,
+    );
+  st.innerHTML = parte.join(" · ");
 }
 function atualizarBtnFiltros() {
   const n =
@@ -4538,7 +4687,8 @@ function atualizarBtnFiltros() {
   const b = document.getElementById("btnFiltros");
   if (b) {
     b.classList.toggle("hasfilters", n > 0);
-    b.textContent = "⛃ Filtros" + (n > 0 ? " (" + n + ")" : "");
+    b.innerHTML =
+      "Filtros" + (n > 0 ? ` <span class="fbadge">${n}</span>` : "");
   }
   const bi = document.getElementById("btnInc");
   if (bi) bi.classList.toggle("on", state.incompletas);
@@ -4760,6 +4910,356 @@ function renderDiretorio() {
     <div class="dircontent"><div class="dirhead">${catLabel(state.dirCat)} — ${achadas}/${total} descobertas</div><div class="dirgrid">${tiles}</div></div>
   </div>`;
 }
+/* ===== ARQUIVO (Salas · Personagens · Grupos) — área nova do redesign =====
+   Une Mundo + Diretório + Gerenciar num só lugar, com dossiê lateral
+   persistente. A lógica de dados é a mesma das funções legadas
+   (renomearEnt, excluirEnt, mesclarPessoas, confirmarDescobrir…). */
+if (!state.arqTab) state.arqTab = "salas";
+var _arqSel = null; // {kind:'sala'|'pessoa'|'grupo', nome} — dossiê aberto
+var _arqBusca = "";
+const CORES_GRUPO_SUGERIDAS = [
+  "#8d3030",
+  "#b07a2e",
+  "#2e7a54",
+  "#3a5a8d",
+  "#6a4a8d",
+];
+function setArqTab(t) {
+  state.arqTab = t;
+  _arqSel = null;
+  renderArquivo();
+}
+function arqAbrir(kind, nome) {
+  _arqSel = { kind: kind, nome: nome };
+  // No mobile o dossiê vira página cheia: usa a gaveta legada (mesma lógica)
+  if (window.innerWidth <= 720) {
+    abrirEntidade(kind, nome);
+    return;
+  }
+  renderArquivo();
+}
+function arqFecharDossie() {
+  _arqSel = null;
+  renderArquivo();
+}
+function arqBuscaInput(v) {
+  _arqBusca = v || "";
+  renderArquivo(true);
+}
+function novoEntArq(kind) {
+  const nome = (prompt(kind === "grupo" ? "Nome do novo grupo:" : "Nome do novo personagem:") || "").trim();
+  if (!nome) return;
+  const arr = kind === "grupo" ? DADOS.grupos : DADOS.personagens;
+  if (arr.some((e) => e.nome.toLowerCase() === nome.toLowerCase())) {
+    toast("Já existe: " + nome);
+    return;
+  }
+  arr.push(
+    kind === "grupo" ? { nome: nome, cor: _corHash(nome) } : { nome: nome },
+  );
+  marcarAlterado();
+  _arqSel = { kind: kind === "grupo" ? "grupo" : "pessoa", nome: nome };
+  renderArquivo();
+}
+function arqRenomear(kind, nome) {
+  const arr = entListaDe(kind);
+  const o = acharEnt(arr, nome);
+  if (!o) return;
+  const nv = (prompt("Novo nome para “" + nome + "”:", nome) || "").trim();
+  if (!nv || nv === nome) return;
+  renomearEnt(kind, o, nv);
+  _arqSel = { kind: kind, nome: nv };
+  renderArquivo();
+}
+function arqExcluir(kind, nome) {
+  const arr = entListaDe(kind);
+  const o = acharEnt(arr, nome);
+  if (!o) return;
+  excluirEnt(kind, o);
+  _arqSel = null;
+  renderArquivo();
+}
+function arqCorGrupo(nome, cor) {
+  const g = acharEnt(DADOS.grupos, nome);
+  if (!g) return;
+  g.cor = cor;
+  marcarAlterado();
+  renderArquivo();
+}
+function arqMesclar(nome) {
+  // Reusa a ferramenta testada do modal Gerenciar: preenche os selects e chama
+  const sec = (prompt(
+    "“" + nome + "” é a mesma pessoa que… (digite o outro nome exatamente)",
+  ) || "").trim();
+  if (!sec) return;
+  const outro = acharEnt(DADOS.personagens, sec);
+  if (!outro) {
+    toast("Personagem não encontrado: " + sec);
+    return;
+  }
+  const modo = confirm(
+    "OK = JUNTAR (citações de “" +
+      sec +
+      "” são reescritas para “" +
+      nome +
+      "” e “" +
+      sec +
+      "” deixa de existir).\nCancelar = tornar “" +
+      sec +
+      "” um PSEUDÔNIMO de “" +
+      nome +
+      "”.",
+  )
+    ? "full"
+    : "alias";
+  fillMescla();
+  const p = document.getElementById("mesclaPrin"),
+    s = document.getElementById("mesclaSec");
+  if (!p || !s) return;
+  p.value = nome;
+  s.value = outro.nome;
+  mesclarPessoas(modo);
+  _arqSel = { kind: "pessoa", nome: nome };
+  renderArquivo();
+}
+function _arqFichasDe(kind, nome) {
+  return pistasQueCitam(kind, nome);
+}
+function _arqDossieHTML() {
+  if (!_arqSel) return "";
+  const kind = _arqSel.kind,
+    nome = _arqSel.nome;
+  const arr = entListaDe(kind);
+  const e = acharEnt(arr, nome);
+  if (!e) return "";
+  const fichasDe = _arqFichasDe(kind, nome);
+  const rowsFichas = fichasDe
+    .slice(0, 8)
+    .map(
+      (f) =>
+        `<div class="dosrow" onclick="abrir('${f.id}')"><span class="doscod">${esc(f.id)}</span><span class="dostit">${esc(f.titulo)}</span><span class="dosgo">›</span></div>`,
+    )
+    .join("");
+  const fatos =
+    e.fatos && e.fatos.length
+      ? `<div class="dossec"><div class="doslab">FATOS ANOTADOS (${e.fatos.length})</div><div class="dosfatos">${e.fatos.map((x) => "· " + esc(x)).join("<br>")}</div></div>`
+      : "";
+  if (kind === "sala") {
+    const desc = e.descoberta !== false;
+    return `<aside class="arqdossie">
+      <div class="doshead"><span class="doskicker">DOSSIÊ</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+      <div><div class="dosnome">${esc(e.nome)}</div><div class="dosmeta">${e.num ? "Nº " + String(e.num).padStart(3, "0") + " · " : ""}${desc ? "descoberta" : "não descoberta"}</div></div>
+      <div class="dosimg">${e.imagem ? `<img loading="lazy" src="${esc(thumbSala(e.imagem, 330))}" onerror="this.style.display='none'">` : `<span>planta / captura da sala</span>`}</div>
+      <div class="dossec"><div class="doslab">FICHAS DESTA SALA (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      ${fatos}
+      <button class="dosbtn ghost" onclick="abrirEntidade('sala','${jsq(e.nome)}')">Abrir dossiê completo</button>
+      <button class="dosbtn gold" onclick="focarEnt('sala','${jsq(e.nome)}')">Ver no mapa de conexões</button>
+    </aside>`;
+  }
+  if (kind === "pessoa") {
+    return `<aside class="arqdossie">
+      <div class="doshead"><span class="doskicker rosa">DOSSIÊ · PERSONAGEM</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+      <div class="dosid"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('pessoa','${jsq(e.nome)}')">renomear</button></div>
+      ${e.descricao ? `<div class="dosdesc">${esc(e.descricao)}</div>` : ""}
+      <div class="dossec"><div class="doslab">FICHAS QUE CITAM (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      ${fatos}
+      <button class="dosbtn ghost" onclick="abrirEntidade('pessoa','${jsq(e.nome)}')">Abrir dossiê completo</button>
+      <button class="dosbtn dashed" onclick="arqMesclar('${jsq(e.nome)}')">É a mesma pessoa que… (mesclar)</button>
+    </aside>`;
+  }
+  // grupo
+  const cor = e.cor || "#8d3030";
+  const sw = CORES_GRUPO_SUGERIDAS.map(
+    (c) =>
+      `<span class="dossw${c === cor ? " on" : ""}" style="background:${c}" onclick="arqCorGrupo('${jsq(e.nome)}','${c}')"></span>`,
+  ).join("");
+  return `<aside class="arqdossie">
+    <div class="doshead"><span class="doskicker">DOSSIÊ · GRUPO</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+    <div class="dosid"><span class="dosswatch" style="background:${esc(cor)}"></span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('grupo','${jsq(e.nome)}')">renomear</button></div>
+    <div class="dossec"><div class="doslab">COR DO GRUPO</div><div class="dossws">${sw}<label class="dossw custom" title="Cor personalizada" style="background:${esc(cor)}"><input type="color" value="${esc(hex6(cor))}" oninput="arqCorGrupo('${jsq(e.nome)}',this.value)">✎</label></div></div>
+    <div class="dossec"><div class="doslab">FICHAS DO GRUPO (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+    <button class="dosbtn danger" onclick="arqExcluir('grupo','${jsq(e.nome)}')">Excluir grupo…</button>
+    <button class="dosbtn gold" onclick="focarEnt('grupo','${jsq(e.nome)}')">Ver no mapa de conexões</button>
+  </aside>`;
+}
+function renderArquivo(soLista) {
+  const box = document.getElementById("arquivo");
+  if (!box) return;
+  const q = _arqBusca.toLowerCase();
+  const salasDesc = DADOS.salas.filter((s) => s.descoberta !== false).length;
+  const pessoasVis = DADOS.personagens.filter((e) => !ehAliasPessoa(e.nome));
+  const tab = (id, lab, n) =>
+    `<button class="seg${state.arqTab === id ? " active" : ""}" onclick="setArqTab('${id}')">${lab} <span class="segn">${n}</span></button>`;
+  const tabs = `<div class="segtabs">${tab("salas", "Salas", salasDesc + "/" + totalSalas())}${tab("pessoas", "Personagens", pessoasVis.length)}${tab("grupos", "Grupos", DADOS.grupos.length)}</div>`;
+  let acao = "";
+  if (state.arqTab === "pessoas")
+    acao = `<button class="topbtn primary" onclick="novoEntArq('pessoa')">＋ Novo personagem</button>`;
+  else if (state.arqTab === "grupos")
+    acao = `<button class="topbtn primary" onclick="novoEntArq('grupo')">＋ Novo grupo</button>`;
+  let corpo = "";
+  if (state.arqTab === "salas") {
+    corpo = _arqSalasHTML(q);
+  } else if (state.arqTab === "pessoas") {
+    const lista = pessoasVis
+      .filter((e) => !q || e.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.nome < b.nome ? -1 : 1));
+    const cards = lista
+      .map((e) => {
+        const nF = _arqFichasDe("pessoa", e.nome).length;
+        const nFa = (e.fatos || []).length;
+        return `<div class="pcard${_arqSel && _arqSel.kind === "pessoa" && _arqSel.nome === e.nome ? " on" : ""}" onclick="arqAbrir('pessoa','${jsq(e.nome)}')">
+          <div class="pcard-h"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="pcard-n">${esc(e.nome)}</div><span class="pcard-m" onclick="event.stopPropagation();arqRenomear('pessoa','${jsq(e.nome)}')" title="Renomear">···</span></div>
+          ${e.descricao ? `<div class="pcard-d">${esc(e.descricao)}</div>` : ""}
+          <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span><span>${nFa} fato${nFa === 1 ? "" : "s"}</span></div>
+        </div>`;
+      })
+      .join("");
+    corpo = `<div class="arqgrid pess">${cards}<div class="pcard novo" onclick="novoEntArq('pessoa')">＋ Novo personagem</div></div>`;
+  } else {
+    const lista = DADOS.grupos
+      .filter((e) => !q || e.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.nome < b.nome ? -1 : 1));
+    const cards = lista
+      .map((e) => {
+        const nF = _arqFichasDe("grupo", e.nome).length;
+        const cor = e.cor || "#8d3030";
+        return `<div class="pcard grp${_arqSel && _arqSel.kind === "grupo" && _arqSel.nome === e.nome ? " on" : ""}" style="border-left-color:${esc(cor)}" onclick="arqAbrir('grupo','${jsq(e.nome)}')">
+          <div class="pcard-h"><span class="gsw" style="background:${esc(cor)}" title="mudar cor"></span><div class="pcard-n">${esc(e.nome)}</div><span class="pcard-m" onclick="event.stopPropagation();arqRenomear('grupo','${jsq(e.nome)}')" title="Renomear">···</span></div>
+          <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span></div>
+        </div>`;
+      })
+      .join("");
+    corpo = `<div class="arqgrid grps">${cards}<div class="pcard novo" onclick="novoEntArq('grupo')">＋ Novo grupo</div></div>`;
+  }
+  box.innerHTML = `
+    <div class="arqhead">
+      <h3>Arquivo</h3>
+      ${tabs}
+      <div class="topgrow"></div>
+      <div class="search arqsearch"><svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg><input id="arqBusca" placeholder="Buscar no arquivo…" value="${esc(_arqBusca)}" oninput="arqBuscaInput(this.value)"></div>
+      ${acao}
+    </div>
+    <div class="arqbody${_arqSel ? " com-dossie" : ""}">${corpo}${_arqDossieHTML()}</div>`;
+  if (soLista) {
+    const inp = document.getElementById("arqBusca");
+    if (inp) {
+      inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+    }
+  }
+}
+function totalSalas() {
+  return DADOS.salas.length;
+}
+function _arqSalasHTML(q) {
+  // Mesmas faixas do Diretório legado, com contagem X/Y por faixa
+  const cats = [
+    "Rooms 001-012",
+    "Rooms 013-024",
+    "Rooms 025-036",
+    "Rooms 037-046",
+    "Bedrooms",
+    "Hallways",
+    "Green Rooms",
+    "Shops",
+    "Red Rooms",
+    "Found Floorplans",
+    "Outer Rooms",
+  ];
+  const EXTRA = ["Found Floorplans", "Outer Rooms"];
+  if (!state.dirCat) state.dirCat = cats[0];
+  const menu = cats
+    .map((c) => {
+      const all = DADOS.salas.filter((s) => s.diretorio === c);
+      const ach = all.filter((s) => s.descoberta !== false).length;
+      const oculta = EXTRA.includes(c) && !ach;
+      const lab = oculta ? "??????" : c.toUpperCase();
+      return `<button class="dirbtn2${c === state.dirCat ? " active" : ""}${oculta ? " mist" : ""}" onclick="state.dirCat='${c}';renderArquivo()">${lab}${all.length ? `<span class="dirn">${ach}/${all.length}</span>` : ""}</button>`;
+    })
+    .join("");
+  let lista = DADOS.salas
+    .filter((s) => s.diretorio === state.dirCat)
+    .sort(
+      (a, b) => (a.num || 999) - (b.num || 999) || (a.nome < b.nome ? -1 : 1),
+    );
+  if (q)
+    lista = DADOS.salas
+      .filter((s) => s.descoberta !== false && s.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.num || 999) - (b.num || 999));
+  const tiles =
+    lista
+      .map((s) => {
+        if (s.descoberta !== false) {
+          const nF = fichas.filter((f) => f.sala === s.nome).length;
+          const thumb = s.imagem
+            ? `<img loading="lazy" decoding="async" src="${esc(thumbSala(s.imagem, 200))}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(s.imagem)}'}">`
+            : "";
+          return `<div class="rtile${_arqSel && _arqSel.kind === "sala" && _arqSel.nome === s.nome ? " on" : ""}" onclick="arqAbrir('sala','${jsq(s.nome)}')" title="${esc(s.nome)}">
+        <div class="rthumb">${thumb}</div>
+        <div class="rname">${esc(s.nome)}</div>
+        <div class="rmeta">${s.num ? "Nº " + String(s.num).padStart(3, "0") : "—"} · ${nF} ficha${nF === 1 ? "" : "s"}</div></div>`;
+        }
+        return `<div class="rtile locked" title="Clique para marcá-la como descoberta" onclick="confirmarDescobrir('${jsq(s.nome)}')"><div class="rlk"><div class="rlknum">${s.num ? String(s.num).padStart(3, "0") : "?"}</div><div class="rlktxt">não descoberta</div></div></div>`;
+      })
+      .join("") || '<div class="gvazio">(sem salas nesta faixa)</div>';
+  const all = lista.length,
+    ach = lista.filter((s) => s.descoberta !== false).length;
+  const head = q
+    ? `<span class="arqfx">BUSCA</span><span class="arqfx-s">${all} sala(s) descobertas com “${esc(q)}”</span>`
+    : `<span class="arqfx">${state.dirCat.toUpperCase()}</span><span class="arqfx-s">${ach} de ${all} descobertas · clique numa sala trancada para marcá-la como descoberta</span>`;
+  return `<div class="dirmenu2"><div class="dirtitle2">MOUNT HOLLY<br><b>DIRECTORY</b></div>${menu}</div>
+    <div class="arqmain"><div class="arqfaixa">${head}</div><div class="arqgrid salas">${tiles}</div></div>`;
+}
+/* ===== CONTA — área própria (sai do modal Gerenciar) ===== */
+function renderConta() {
+  const box = document.getElementById("conta");
+  if (!box) return;
+  const email =
+    (window.USUARIO && (window.USUARIO.email || window.USUARIO.user_metadata?.email)) ||
+    "";
+  const ini = email ? email.slice(0, 2).toUpperCase() : "·";
+  const podeApagar = !!window.APAGAR_CONTA_ATIVO && !!window.apagarConta;
+  const online = !!window.MODO_ONLINE;
+  box.innerHTML = `
+  <div class="contawrap">
+    <div class="contacard">
+      <div class="conta-id">
+        <span class="avatar-lg">${esc(ini)}</span>
+        <div><div class="conta-tit">Conta</div><div class="conta-mail">${esc(email || "modo local (sem conta)")}</div></div>
+        ${online ? `<button class="dbtn" onclick="if(window.sairComConfirmacao)window.sairComConfirmacao()">Sair</button>` : ""}
+      </div>
+      <div class="conta-save">
+        <span class="save-dot2" id="contaSaveDot"></span>
+        <div class="conta-save-tx"><div id="contaSaveTit">Tudo salvo${online ? " na nuvem" : ""}</div><div class="conta-save-sub" id="contaSaveSub">salvamento automático ativo</div></div>
+        <button class="conta-link" onclick="salvarTudo()">Salvar agora</button>
+      </div>
+      <div class="conta-sec">
+        <div class="doslab">SEUS DADOS</div>
+        <div class="conta-row" onclick="exportarBackup()">
+          <div><div class="cr-t">Exportar backup</div><div class="cr-s">baixa uma cópia de tudo em um arquivo</div></div><span class="dosgo">›</span>
+        </div>
+        <div class="conta-row" onclick="importarDados()">
+          <div><div class="cr-t">Restaurar / importar</div><div class="cr-s">carrega dados de um arquivo de backup</div></div><span class="dosgo">›</span>
+        </div>
+      </div>
+      <div class="conta-sec">
+        <div class="doslab">PREFERÊNCIAS</div>
+        <div class="conta-row noclick">
+          <div><div class="cr-t">Idioma padrão dos cards</div><div class="cr-s">transcrições exibidas em PT ou EN</div></div>
+          <span class="langsw" onclick="toggleIdioma();renderConta()"><span class="${state.idioma === "original" ? "" : "on"}">PT</span><span class="${state.idioma === "original" ? "on" : ""}">EN</span></span>
+        </div>
+      </div>
+      ${
+        podeApagar
+          ? `<div class="conta-danger">
+        <div><div class="cr-t">Apagar conta e dados</div><div class="cr-s">remove tudo para sempre — pede confirmação dupla</div></div>
+        <button class="dosbtn danger slim" onclick="window.apagarConta()">Apagar…</button>
+      </div>`
+          : ""
+      }
+    </div>
+  </div>`;
+}
 /* ===== Ferramentas extras ===== */
 let _focus = null,
   _leitor = { col: "", i: 0 };
@@ -4772,7 +5272,7 @@ function ligarFichaUI(id) {
     m.className = "modal";
     document.body.appendChild(m);
   }
-  m.innerHTML = `<div class="modalbox" style="max-width:520px"><div class="modalhd"><h2>🔗 Ligar a outra ficha</h2><button class="close" onclick="fecharLink()">✕</button></div><div class="savehelp"><input id="linkBusca" class="edinput" placeholder="Buscar ficha pelo título..." oninput="renderLink('${id}',this.value)"><div id="linkLista" class="linklista"></div></div></div>`;
+  m.innerHTML = `<div class="modalbox" style="max-width:520px"><div class="modalhd"><h2>Ligar a outra ficha</h2><button class="close" onclick="fecharLink()">✕</button></div><div class="savehelp"><input id="linkBusca" class="edinput" placeholder="Buscar ficha pelo título..." oninput="renderLink('${id}',this.value)"><div id="linkLista" class="linklista"></div></div></div>`;
   m.classList.add("open");
   renderLink(id, "");
   setTimeout(() => {
@@ -4838,8 +5338,8 @@ function toggleFavoritas() {
 }
 function toggleIdioma() {
   state.idioma = state.idioma === "traducao" ? "original" : "traducao";
-  const b = document.getElementById("btnIdioma");
-  if (b) b.textContent = state.idioma === "original" ? "🌐 EN" : "🌐 PT";
+  const b = document.getElementById("mmIdioma");
+  if (b) b.textContent = state.idioma === "original" ? "EN" : "PT";
   render();
 }
 /* -- Foco no mapa -- */
@@ -5035,9 +5535,25 @@ function renderTeorias() {
     .join("");
   box.innerHTML = `<div class="qbar">
     <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
-    <div class="qtools"><span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">🅣</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Seta — arraste de um cartão a outro (A)">↗</button></span><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Texto</button><button class="topbtn" onclick="qAddNota()">🗒 Nota</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">V/H/T/N/A ferramentas · Del apaga · Ctrl+D duplica · clique na seta seleciona · 2× na seta = rótulo · Shift+1 enquadra</span></div>
+    <div class="qtools">
+      <span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn qt-t" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">T</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Barbante — arraste de um cartão a outro (A)">↗</button></span>
+      <button class="topbtn qfich" onclick="qAddItem()">＋ Ficha do arquivo</button>
+      <button class="topbtn ic" onclick="document.getElementById('qmore').classList.toggle('open')" title="Mais ações">···</button>
+      <div class="moremenu qmore" id="qmore">
+        <button class="mmit" onclick="qAddTexto();document.getElementById('qmore').classList.remove('open')">Texto</button>
+        <button class="mmit" onclick="qAddNota();document.getElementById('qmore').classList.remove('open')">Nota adesiva</button>
+        <div class="mm-sep"></div>
+        <button class="mmit del" onclick="document.getElementById('qmore').classList.remove('open');excluirQuadro()">Excluir quadro…</button>
+      </div>
+    </div>
   </div>
-  <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div></div>`;
+  <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div>
+  ${
+    !(quadroAtual().nodes || []).length
+      ? `<div class="qvazio"><div class="qv-ic">🧵</div><div class="qv-tit">Quadro vazio</div><div class="qv-tx">Arraste fichas do arquivo ou crie uma nota para começar a teoria.</div><div class="qv-btns"><button class="topbtn primary" onclick="qAddItem()">＋ Ficha do arquivo</button><button class="topbtn" onclick="qAddNota()">Nota</button></div></div>`
+      : ""
+  }
+  <div class="qhint">V selecionar · H mão · T texto · N nota · A barbante · Del apaga · Ctrl+D duplica</div></div>`;
   wireQuadro();
   desenhaQuadro();
   qSetTool(_qTool); // restaura a ferramenta ativa (a barra é recriada a cada render)
@@ -5118,11 +5634,16 @@ function nodeHTML(n) {
   const thumb = info.img
     ? `<div class="qthumb"><img src="${esc(info.img)}" onerror="this.parentNode.style.display='none'"></div>`
     : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')">${thumb}<div class="qreftit"><span class="qicon">${info.icon}</span><span class="qname">${esc(info.nome)}</span></div><span class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')">✕</span><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+  // Ficha no quadro = papel com alfinete vermelho, código e título serif
+  const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<span class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')">✕</span><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
   if (!q) return;
+  // Some o cartão "Quadro vazio" assim que o primeiro item entra
+  const qv = document.querySelector(".qvazio");
+  if (qv && (q.nodes || []).length) qv.remove();
   aplicaCam();
   const nd = document.getElementById("qnodes");
   if (nd) nd.innerHTML = q.nodes.map(nodeHTML).join("");
@@ -5181,8 +5702,17 @@ function desenhaSetas() {
   const q = quadroAtual();
   const svg = document.getElementById("qsvg");
   if (!svg || !q) return;
-  let s =
-    '<defs><marker id="qar" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#9fc0ff"/></marker><marker id="qarSel" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#e3c074"/></marker></defs>';
+  // Barbante vermelho: curva com leve "barriga", sem ponta de seta
+  let s = "";
+  const _curva = (p1, p2) => {
+    const mx = (p1.x + p2.x) / 2,
+      my = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x,
+      dy = p2.y - p1.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const sag = Math.min(34, len * 0.14);
+    return `M ${p1.x} ${p1.y} Q ${mx - (dy / len) * sag} ${my + (dx / len) * sag + sag * 0.6}, ${p2.x} ${p2.y}`;
+  };
   q.setas.forEach(function (se, i) {
     // Geometria derivada (estilo tldraw): mira o centro, corta na borda.
     const pp = qSetaPontos(q, se);
@@ -5195,25 +5725,26 @@ function desenhaSetas() {
       else p2 = _qRebindCur;
     }
     const sel = _qSetaSel.has(i);
-    const cor = sel ? "#e3c074" : "#9fc0ff";
-    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${sel ? 3 : 2}" marker-end="url(#${sel ? "qarSel" : "qar"})"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
-    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></line>`;
+    const cor = sel ? "#e0be7a" : "#b8452e";
+    const dPath = _curva(p1, p2);
+    s += `<path d="${dPath}" fill="none" stroke="${cor}" stroke-width="${sel ? 3.2 : 2.5}"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
+    s += `<path d="${dPath}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></path>`;
     if (se.rotulo) {
       const mx = (p1.x + p2.x) / 2,
         my = (p1.y + p2.y) / 2;
-      s += `<text x="${mx}" y="${my - 6}" text-anchor="middle" font-size="12" fill="#eaf0fb" paint-order="stroke" stroke="#0a1428" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
+      s += `<text x="${mx}" y="${my - 8}" text-anchor="middle" font-size="12" fill="#f0d878" font-family="'Special Elite',monospace" paint-order="stroke" stroke="#3a281a" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
     }
     if (sel && _qSetaSel.size === 1 && !religando) {
       // Alças das pontas (só com UMA seta selecionada): arrastar reconecta.
-      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
-      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
     }
   });
   if (_qArrow && _qArrowCur) {
     const a = q.nodes.find((n) => n.id === _qArrow.de);
     if (a) {
       const ca = nodeCenter(a);
-      s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#caa53a" stroke-width="2" stroke-dasharray="5 4"/>`;
+      s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#b8452e" stroke-width="2" stroke-dasharray="5 4"/>`;
     }
   }
   svg.innerHTML = s;
@@ -6067,6 +6598,8 @@ function render() {
   else if (state.view === "mundo") renderMundo();
   else if (state.view === "diretorio") renderDiretorio();
   else if (state.view === "teorias") renderTeorias();
+  else if (state.view === "arquivo") renderArquivo();
+  else if (state.view === "conta") renderConta();
 }
 render();
 // No modo online quem comanda o início (login -> carregar da nuvem) é a camada online (online.js).

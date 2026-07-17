@@ -23,6 +23,15 @@ const SEED = (vista) => `
   // sem nuvem: o app roda em modo local para a captura
   window.MODO_ONLINE = false; window.IA_ATIVA = true;
   function entra(){
+    if (${JSON.stringify(vista)}.indexOf("login") === 0) {
+      document.body.classList.remove("app-carregando");
+      document.body.classList.add("pre-login");
+      if (${JSON.stringify(vista)} === "login-erro") {
+        var mm = document.getElementById("authMsg");
+        if (mm) { mm.textContent = "E-mail ou senha incorretos."; mm.className = "auth-msg show erro"; }
+      }
+      return;
+    }
     document.body.classList.remove("pre-login","app-carregando");
     var a = document.getElementById("authScreen"); if (a) a.style.display="none";
     var D = (typeof DADOS !== "undefined") ? DADOS : null; if (!D || typeof setView !== "function") return setTimeout(entra, 60);
@@ -52,10 +61,11 @@ const SEED = (vista) => `
     if (typeof rebuildFilters === "function") rebuildFilters();
     var v = ${JSON.stringify(vista)};
     if (v === "detalhe") { setView("grade"); render(); abrir("f1"); }
-    else if (v === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("diretorio"); abrirEntidade("sala","Entrance Hall"); }
-    else if (v === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("diretorio"); }
-    else if (v === "arquivo-pessoas") { setArqTab("personagens"); }
-    else if (v === "conta") { setView("grade"); render(); abrirConta(); }
+    else if (v === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
+    else if (v === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
+    else if (v === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
+    else if (v === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
+    else if (v === "conta") { setView("conta"); }
     else if (v === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
     else { setView(v.replace("-diag",""), render()); render(); }
     if (v.indexOf("-diag") > 0) { setTimeout(function(){ __diag(); }, 400); }

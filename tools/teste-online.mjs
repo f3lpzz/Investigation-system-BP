@@ -508,8 +508,8 @@ const entrou = () =>
     g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Coleção")<0 && h.indexOf("tipo")<0;})()'),
   );
   ok(
-    "legenda: tem Grupo e Pista (cor = grupo)",
-    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Grupo")>=0 && h.indexOf("Pista (cor = grupo)")>=0 && h.indexOf("Conexão manual")>=0 && h.indexOf("Ligação automática")>=0;})()'),
+    "legenda: tem Ficha (cor do grupo) e fio manual",
+    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Ficha (cor do grupo)")>=0 && h.indexOf("Fio manual")>=0 && h.indexOf("Ligação automática")>=0;})()'),
   );
   ok(
     "como usar: menu existe acima da legenda (mesmo canto) e aberto por padrão",
