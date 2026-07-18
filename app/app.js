@@ -5786,15 +5786,18 @@ function thumbSala(url, w) {
   var i = url.indexOf(marca);
   if (i < 0) return url;
   var lado = w || 240;
-  // IMPORTANTE: só width (sem height) — o Supabase escala mantendo a
-  // proporção original da foto; height junto forçava um quadrado.
+  // Quadrado com resize=cover: o Supabase recorta o excesso mantendo a
+  // proporção (sem distorcer). As artes das salas são bem altas — proporção
+  // original deixava o card gigante; contain deixava faixas vazias.
   return (
     url.slice(0, i) +
     "/storage/v1/render/image/public/" +
     url.slice(i + marca.length) +
     "?width=" +
     lado +
-    "&quality=60"
+    "&height=" +
+    lado +
+    "&resize=cover&quality=60"
   );
 }
 // Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
