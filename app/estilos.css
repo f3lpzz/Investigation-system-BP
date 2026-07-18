@@ -5824,38 +5824,20 @@ body.view-conta .filtros-panel {
      título e rodapé usam a largura toda. */
   .card {
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr) auto;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
     grid-template-areas:
       "thumb head status"
       "thumb tit tit"
       "thumb foot foot";
     column-gap: 12px;
-    padding: 12px;
+    padding: 14px 12px;
     border-radius: 8px;
     align-items: center;
     align-content: center;
-    min-height: 82px;
+    min-height: 96px;
   }
   .pin {
     display: none;
-  }
-  /* Favorita: estrelinha discreta encostada na borda esquerda */
-  .pin.fav {
-    display: block;
-    left: 2px;
-    top: 50%;
-    width: auto;
-    height: auto;
-    transform: translateY(-50%);
-    background: none;
-    border: 0;
-    box-shadow: none;
-  }
-  .pin.fav::after {
-    content: "★";
-    color: var(--gold);
-    font-size: 10px;
-    line-height: 1;
   }
   .chead {
     grid-area: head;
@@ -5863,6 +5845,8 @@ body.view-conta .filtros-panel {
     display: flex;
     align-items: center;
     gap: 8px;
+    /* espaço para a estrela fixa no canto superior direito */
+    padding-right: 26px;
   }
   .csala {
     min-width: 0;
@@ -5870,18 +5854,35 @@ body.view-conta .filtros-panel {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* .chead na frente para vencer a regra de alvo de toque (P12) */
+  /* Estrela sempre visível no canto superior direito: fraca sem favorito,
+     dourada com. .chead na frente vence a regra de alvo de toque (P12). */
   .chead .cstar {
-    display: none;
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    opacity: 1;
+    font-size: 15px;
+    color: rgba(184, 172, 143, 0.5);
+    z-index: 2;
   }
-  /* Título: até DUAS linhas com "…"; segurar o dedo mostra o nome inteiro */
+  .chead .cstar.on {
+    color: var(--gold);
+  }
+  /* Título: UMA linha com "…"; segurar o dedo mostra o nome inteiro */
   .ctit {
     grid-area: tit;
-    font-size: 15.5px;
+    font-size: 16px;
     line-height: 1.25;
-    margin: 3px 0 4px;
+    margin: 4px 0 5px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     white-space: normal;
     overflow: hidden;
@@ -5894,8 +5895,8 @@ body.view-conta .filtros-panel {
   }
   .cthumb {
     grid-area: thumb;
-    width: 58px;
-    height: 58px;
+    width: 68px;
+    height: 68px;
     margin: 0;
     align-self: center;
     border-radius: 6px;
@@ -5909,19 +5910,27 @@ body.view-conta .filtros-panel {
   }
   .cfoot {
     grid-area: foot;
+    /* block (não flex): é o que faz o "…" funcionar na linha única
+       de etiqueta · personagens */
+    display: block;
     margin-top: 0;
-    font-size: 10.5px;
+    font-size: 11px;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Carimbo retangular e discreto, na linha do cabeçalho */
+  /* No bloco, o respiro entre etiqueta e personagens (o flex dava gap) */
+  .cfoot .cgrupo {
+    margin-right: 4px;
+  }
+  /* Carimbo retangular e discreto, na linha do cabeçalho, antes da estrela */
   .stamp {
     grid-area: status;
     position: static;
     justify-self: end;
     align-self: center;
+    margin-right: 24px;
     font-size: 8px;
     letter-spacing: 0.6px;
     line-height: 1.2;
