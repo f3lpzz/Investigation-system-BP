@@ -5790,7 +5790,7 @@ body.view-conta .filtros-panel {
   .topbar {
     flex-wrap: wrap;
     gap: 8px;
-    padding: 16px 18px 0;
+    padding: 16px 18px 8px;
   }
   .atitle h3 {
     font-size: 19px;
@@ -5818,6 +5818,10 @@ body.view-conta .filtros-panel {
     grid-template-columns: 1fr;
     gap: 10px;
     padding: 12px 18px 18px;
+    /* Na rolagem o card some suave perto da busca, sem corte seco
+       (12px = o padding do topo: parado, nenhum card fica esmaecido) */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
   }
   /* ClueCardCompact em DUAS colunas: foto · conteúdo. O carimbo
      retangular divide só a linha do cabeçalho (canto superior direito);
