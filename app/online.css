@@ -68,6 +68,8 @@ body.app-carregando #authLoading {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  /* Altura curta/teclado aberto: a tela rola em vez de cortar o cartão */
+  overflow-y: auto;
   background: radial-gradient(700px 400px at 50% -10%, #241b10, #100c07);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   color: #2b2317;
@@ -77,6 +79,8 @@ body.app-carregando #authLoading {
 .auth-card {
   width: 100%;
   max-width: 360px;
+  /* margin auto: continua centrado, mas rola inteiro quando não cabe */
+  margin: auto;
   background: #ece1c9;
   border: 0;
   border-radius: 5px;
@@ -320,4 +324,24 @@ body.app-carregando #authLoading {
 }
 .btn-apagar-conta:hover {
   background: rgba(90, 42, 32, 0.25) !important;
+}
+
+/* ---------- Modo compacto (mesma definição do app) ---------- */
+@media (max-width: 720px), (max-height: 500px) {
+  /* Teclado virtual: 16px evita zoom automático; alvos de 48px */
+  .auth-form input {
+    font-size: 16px;
+    padding: 12px;
+  }
+  .auth-btn {
+    min-height: 48px;
+  }
+  .auth-links a {
+    display: inline-block;
+    padding: 12px 8px;
+  }
+  #authScreen {
+    padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
 }

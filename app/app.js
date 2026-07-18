@@ -2223,11 +2223,33 @@ function abrir(id) {
       ${f.notas ? `<div class="dsec"><span class="dlab">NOTAS DO DETETIVE</span><div class="postit">${esc(f.notas)}</div></div>` : ""}
     </div>
     <div class="dfoot">
-      <button class="dbtn" onclick="editarFicha('${f.id}')">Editar</button>
-      <button class="dbtn primary" onclick="focarMapa('${f.id}')">Ver no mapa</button>
+      <button class="dbtn primary" onclick="editarFicha('${f.id}')">Editar</button>
+      <button class="dbtn" onclick="focarMapa('${f.id}')">Ver no mapa</button>
+      <button class="dbtn" onclick="fichaMais('${f.id}')" aria-haspopup="dialog">Mais ▾</button>
     </div>`;
   drawerAbrir();
   renderPaginaDetalhe();
+}
+/* Mobile: as ações do detalhe que não cabem no rodapé vão para a folha de
+   ações — nada some em relação ao desktop (P07). */
+function fichaMais(id) {
+  const f = fichas.find((x) => x.id === id);
+  if (!f) return;
+  abrirSheetAcoes(f.titulo, [
+    { rotulo: "Adicionar ao quadro", fn: () => addAoQuadro(id) },
+    { rotulo: "Ligar a outra ficha", fn: () => ligarFichaUI(id) },
+    window.IA_ATIVA && f.pendente
+      ? { rotulo: "Processar com IA", fn: () => iaProcessarPista(id) }
+      : null,
+    {
+      rotulo: f.fav ? "Tirar de favoritas" : "Favoritar",
+      fn: () => {
+        toggleFav(id);
+        abrir(id);
+      },
+    },
+    { rotulo: "Excluir ficha", perigo: true, fn: () => excluirFicha(id) },
+  ]);
 }
 /* Adiciona a ficha ao quadro atual (sem sair da tela) */
 function addAoQuadro(id) {
@@ -4802,8 +4824,43 @@ function abrirEntidade(kind, nome) {
       ${pessoalHtml}
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
       ${field("Mencionam em outro lugar (" + mencoes.length + ")", tagPistas(mencoes))}
+    </div>
+    <div class="dfoot">
+      ${ehSala ? "" : `<button class="dbtn primary" onclick="editarEntidade()">Editar</button>`}
+      <button class="dbtn${ehSala ? " primary" : ""}" onclick="focarEnt('${kind}','${jsq(nome)}')">Ver no mapa</button>
+      <button class="dbtn" onclick="entMais()" aria-haspopup="dialog">Mais ▾</button>
     </div>`;
   drawerAbrir();
+}
+/* Mobile: ações extras do dossiê (Folhear, IA, Re-bloquear…) na folha de
+   ações — o rodapé mostra só as frequentes. */
+function entMais() {
+  if (!_entAtual) return;
+  const kind = _entAtual.kind,
+    nome = _entAtual.nome;
+  const e = acharEnt(entListaDe(kind), nome);
+  if (!e) return;
+  abrirSheetAcoes(nome, [
+    kind === "colecao" && e.ordenada
+      ? { rotulo: "Folhear", fn: () => abrirLeitor(nome) }
+      : null,
+    kind === "pessoa" &&
+    window.IA &&
+    window.IA.personasProcessar &&
+    pistasQueCitam("pessoa", nome).length
+      ? {
+          rotulo: "Gerar descrição (IA)",
+          fn: () => window.IA.personasProcessar([nome], true),
+        }
+      : null,
+    kind === "sala"
+      ? {
+          rotulo: "Re-bloquear sala",
+          perigo: true,
+          fn: () => rebloquearSala(nome),
+        }
+      : null,
+  ].filter(Boolean));
 }
 function reabrirEnt() {
   if (_entAtual) abrirEntidade(_entAtual.kind, _entAtual.nome);
@@ -5596,17 +5653,36 @@ function renderArquivo(soLista) {
       <h3>Arquivo</h3>
       ${tabs}
       <div class="topgrow"></div>
-      <div class="search arqsearch"><svg width="13" height="13" viewBox="0 0 13 13"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg><input id="arqBusca" placeholder="Buscar no arquivo…" value="${esc(_arqBusca)}" oninput="arqBuscaInput(this.value)"></div>
+      <div class="search arqsearch${_arqBuscaAberta ? " aberta" : ""}">
+        <button type="button" class="arqlupa" onclick="arqBuscaAbrir()" aria-label="Buscar no arquivo"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg></button>
+        <input id="arqBusca" type="search" enterkeyhint="search" aria-label="Buscar no arquivo" placeholder="Buscar no arquivo…" value="${esc(_arqBusca)}" oninput="arqBuscaInput(this.value)">
+        <button type="button" class="arqx" onclick="arqBuscaFechar()" aria-label="Limpar e fechar a busca">✕</button>
+      </div>
       ${acao}
     </div>
     <div class="arqbody${_arqSel ? " com-dossie" : ""}">${corpo}${_arqDossieHTML()}</div>`;
-  if (soLista) {
+  if (soLista || (_arqBuscaAberta && _arqFocarBusca)) {
+    _arqFocarBusca = false;
     const inp = document.getElementById("arqBusca");
     if (inp) {
       inp.focus();
       inp.setSelectionRange(inp.value.length, inp.value.length);
     }
   }
+}
+/* Busca do Arquivo no compacto: a lupa é um botão real que expande o campo,
+   foca e oferece limpar/fechar (P06). */
+let _arqBuscaAberta = false,
+  _arqFocarBusca = false;
+function arqBuscaAbrir() {
+  _arqBuscaAberta = true;
+  _arqFocarBusca = true;
+  renderArquivo();
+}
+function arqBuscaFechar() {
+  _arqBuscaAberta = false;
+  _arqBusca = "";
+  renderArquivo();
 }
 function totalSalas() {
   return DADOS.salas.length;

@@ -71,7 +71,7 @@
           <div class="topgrow"></div>
           <div class="search">
             <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg>
-            <input id="busca" placeholder="Buscar fichas, salas, pessoas…" /><button
+            <input id="busca" type="search" enterkeyhint="search" aria-label="Buscar fichas, salas, pessoas" placeholder="Buscar fichas, salas, pessoas…" /><button
               class="searchx"
               onclick="limparBusca()"
               title="Limpar busca"
@@ -478,7 +478,7 @@
         <form class="auth-form" id="authForm" autocomplete="on">
           <label
             >E-MAIL
-            <input id="authEmail" type="email" autocomplete="email" required />
+            <input id="authEmail" type="email" inputmode="email" autocomplete="email" enterkeyhint="next" required />
           </label>
           <label
             >SENHA
@@ -487,6 +487,7 @@
                 id="authPass"
                 type="password"
                 autocomplete="current-password"
+                enterkeyhint="go"
                 required
               />
               <button

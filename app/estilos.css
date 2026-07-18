@@ -4762,6 +4762,28 @@ select:focus {
   font-size: 13px;
   font-family: var(--font-ui);
 }
+.arqsearch input::-webkit-search-cancel-button {
+  display: none;
+}
+.arqlupa {
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+.arqx {
+  display: none;
+  background: none;
+  border: 0;
+  color: var(--hint);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+}
 .arqbody {
   flex: 1;
   display: flex;
@@ -5802,13 +5824,46 @@ body.view-conta .filtros-panel {
   .segn {
     display: none;
   }
+  /* Busca do Arquivo: lupa vira botão real; aberta, ocupa a linha toda */
   .arqsearch {
-    width: 44px;
+    width: auto;
+    min-width: 0;
     padding: 0;
+    border: 0;
+    background: none;
     justify-content: center;
   }
-  .arqsearch input {
+  .arqsearch .arqlupa {
+    width: var(--alvo);
+    height: var(--alvo);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--field);
+    color: var(--hint);
+  }
+  .arqsearch:not(.aberta) input,
+  .arqsearch:not(.aberta) .arqx {
     display: none;
+  }
+  .arqsearch.aberta {
+    order: 6;
+    width: 100%;
+    height: var(--alvo);
+    padding: 0 6px 0 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--field);
+    justify-content: flex-start;
+  }
+  .arqsearch.aberta .arqlupa {
+    border: 0;
+    background: none;
+  }
+  .arqsearch.aberta .arqx {
+    display: grid;
+    place-items: center;
+    min-width: var(--alvo);
+    min-height: var(--alvo);
   }
   .arqbody {
     padding: 12px 18px 18px;
@@ -5834,7 +5889,10 @@ body.view-conta .filtros-panel {
     flex: none;
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 6px 13px;
+    padding: 6px 14px;
+    min-height: var(--alvo);
+    display: inline-flex;
+    align-items: center;
   }
   .dirbtn2.active {
     border-color: var(--gold);
@@ -5885,5 +5943,33 @@ body.view-conta .filtros-panel {
   body.drawer-aberta #toast,
   body.drawer-aberta #ialote {
     bottom: calc(12px + var(--sab));
+  }
+  /* Teclado virtual (§5.7): fonte mínima de 16px nos campos digitáveis
+     (evita o zoom automático do iOS e melhora a leitura) */
+  .topbar .search input,
+  .arqsearch input,
+  .edinput,
+  .fgrp select,
+  .gadd input,
+  .ginput,
+  .ordsel {
+    font-size: 16px;
+  }
+  /* Botões de formulários de edição com alvo de toque confortável */
+  .editbtns .dbtn,
+  .gadd button {
+    min-height: var(--alvo);
+  }
+  /* Ações que dependiam de hover ganham área e presença permanentes */
+  .pcard-m,
+  .dosren,
+  .dosx,
+  .fio-x,
+  .searchx {
+    min-width: var(--alvo);
+    min-height: var(--alvo);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
