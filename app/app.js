@@ -1108,7 +1108,7 @@ function renderGrade() {
       state.pendentes ||
       state.orfas ||
       state.favoritas;
-    const lupa = `<svg width="56" height="56" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="#7d715c" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="#7d715c" stroke-width="1.8" stroke-linecap="round"></line></svg>`;
+    const lupa = `<svg width="56" height="56" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="#948669" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="#948669" stroke-width="1.8" stroke-linecap="round"></line></svg>`;
     if (state.busca) {
       box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nada encontrado</div><div class="etxt">Nenhuma ficha, sala ou pessoa para <b>“${esc(state.busca)}”</b>.</div><button class="topbtn ghost" onclick="limparBusca()">Limpar busca</button></div>`;
     } else if (temFiltro) {
@@ -1814,7 +1814,18 @@ function camRedraw() {
 }
 // Anima a câmera até (tx,ty,ts) com easing — usada pelo "centralizar no nó".
 let _camAnim = null;
+const MQ_MENOS_MOVIMENTO = window.matchMedia
+  ? window.matchMedia("(prefers-reduced-motion: reduce)")
+  : null;
 function animarCamera(tx, ty, ts, ms) {
+  // Movimento reduzido: pula a animação espacial e vai direto ao destino.
+  if (MQ_MENOS_MOVIMENTO && MQ_MENOS_MOVIMENTO.matches) {
+    cam.x = tx;
+    cam.y = ty;
+    cam.s = ts;
+    camRedraw();
+    return;
+  }
   if (_camAnim) cancelAnimationFrame(_camAnim);
   const x0 = cam.x,
     y0 = cam.y,
@@ -2285,7 +2296,7 @@ function buildLegendIn(el) {
     <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
     <div class="row"><span class="dot" style="background:#8d3030"></span>Ficha (cor do grupo)</div>
     <div class="row"><span style="width:16px;border-top:2px solid ${COR_MANUAL}"></span>Fio manual</div>
-    <div class="row"><span style="width:16px;border-top:2px dashed #8a7c5e"></span>Ligação automática</div>`;
+    <div class="row"><span style="width:16px;border-top:2px dashed #6b5f45"></span>Ligação automática</div>`;
 }
 function buildLegend() {
   buildLegendIn(document.getElementById("legend"));
@@ -2494,7 +2505,7 @@ function renderPaginaDetalhe() {
       ? `<img class="dimg" src="${esc(p.imagem)}" onerror="this.style.display='none'" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`
       : `<div class="dph">foto da ficha</div>`
   }
-    <div class="transc-head"><span class="plab">TRANSCRIÇÃO</span><span class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></span></div>
+    <div class="transc-head"><span class="plab">TRANSCRIÇÃO</span><button class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)" aria-label="Trocar idioma da transcrição (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></button></div>
     <div class="transc">${esc((_orig ? p.original || p.traducao : p.traducao || p.original) || "—")}</div>
     ${p.explica ? `<div class="dexpl"><span class="plab">O QUE EXPLICA</span><div class="dexpl-tx">${esc(p.explica)}</div></div>` : ""}
     `;
@@ -2512,18 +2523,18 @@ function abrir(id) {
   // ETIQUETAS: sala (azul), personagens (rosa), grupos (cor sólida)
   const etiquetas =
     (f.sala
-      ? `<span class="et sala" onclick="filtraSala('${esc(f.sala)}')">${esc(f.sala)}</span>`
+      ? `<button class="et sala" onclick="filtraSala('${esc(f.sala)}')" title="Filtrar pela sala">${esc(f.sala)}</button>`
       : "") +
     (f.personagens || [])
       .map(
         (p) =>
-          `<span class="et pessoa" onclick="filtraPessoa('${esc(p)}')">${esc(p)}</span>`,
+          `<button class="et pessoa" onclick="filtraPessoa('${esc(p)}')" title="Filtrar pelo personagem">${esc(p)}</button>`,
       )
       .join("") +
     (f.grupos || [])
       .map((gn) => {
         var g = grupoObj(gn);
-        return `<span class="et grupo" style="background:${corContraste((g && g.cor) || "#8d3030")}" onclick="filtraGrupo('${jsq(gn)}')">${esc(gn)}</span>`;
+        return `<button class="et grupo" style="background:${corContraste((g && g.cor) || "#8d3030")}" onclick="filtraGrupo('${jsq(gn)}')" title="Filtrar pelo grupo">${esc(gn)}</button>`;
       })
       .join("");
   // FIOS: manuais (linha vermelha sólida, removível) + automáticas (tracejada)
@@ -2531,7 +2542,7 @@ function abrir(id) {
     .map((c) => {
       const o = fichas.find((z) => z.id === c);
       return o
-        ? `<div class="fio"><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="abrir('${c}')">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><span class="fio-x" onclick="desligarFicha('${f.id}','${c}')" title="Remover fio">✕</span></div>`
+        ? `<div class="fio"><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="abrir('${c}')">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><button class="fio-x" onclick="desligarFicha('${f.id}','${c}')" title="Remover fio" aria-label="Remover fio com ${esc(o.titulo)}">✕</button></div>`
         : "";
     })
     .join("");
@@ -2551,7 +2562,7 @@ function abrir(id) {
         <span class="did">${esc(f.id)}</span>
         <span class="dsala">${f.sala ? esc(f.sala) : "—"}</span>
         <div class="dgrow"></div>
-        <span class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar">★</span>
+        <button class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar">★</button>
         <button class="close" onclick="fechar()" title="Fechar">✕</button>
       </div>
       <h2 class="dtit">${esc(f.titulo)}</h2>
@@ -2632,6 +2643,9 @@ function field(lab, val) {
 function drawerAbrir() {
   const d = document.getElementById("drawer");
   if (!d) return;
+  try {
+    d.inert = false; // fechado, o painel fica fora do foco/leitor de tela
+  } catch (e) {}
   if (!d.classList.contains("open")) {
     d.classList.add("open");
     document.body.classList.add("drawer-aberta");
@@ -2645,11 +2659,23 @@ function drawerAbrir() {
         d.classList.remove("open");
         document.body.classList.remove("drawer-aberta");
         _fichaAberta = null;
+        try {
+          d.inert = true;
+        } catch (e) {}
       },
     });
   }
   d.scrollTop = 0;
 }
+// Estado inicial: o drawer começa fechado e inerte (invisível ao foco).
+(function () {
+  const d0 = document.getElementById("drawer");
+  if (d0 && !d0.classList.contains("open")) {
+    try {
+      d0.inert = true;
+    } catch (e) {}
+  }
+})();
 function fechar() {
   if (_ovInfo["drawer"]) {
     overlayFechar("drawer");
@@ -2857,13 +2883,13 @@ function rebuildFilters() {
 }
 
 function edCampo(lab, key, val) {
-  return `<div class="field"><div class="lab">${lab}</div><input id="ed-${key}" class="edinput" value="${esc(val || "")}"></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><input id="ed-${key}" class="edinput" value="${esc(val || "")}"></div>`;
 }
 function edArea(lab, key, val) {
-  return `<div class="field"><div class="lab">${lab}</div><textarea id="ed-${key}" class="edinput edarea">${esc(val || "")}</textarea></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><textarea id="ed-${key}" class="edinput edarea">${esc(val || "")}</textarea></div>`;
 }
 function edCampoL(lab, key, val, list) {
-  return `<div class="field"><div class="lab">${lab}</div><input id="ed-${key}" class="edinput" list="${list}" value="${esc(val || "")}"></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><input id="ed-${key}" class="edinput" list="${list}" value="${esc(val || "")}"></div>`;
 }
 function chipField(lab, key, vals, pool) {
   return `<div class="field"><div class="lab">${lab}</div><div class="chipfield" data-pool="${pool}"><input type="hidden" id="ed-${key}" value="${esc((vals || []).join(", "))}"></div></div>`;
@@ -4977,7 +5003,7 @@ function autoCount(f) {
 }
 function autoChip(kind, ic, nome, fid, cls, cor) {
   const style = cor ? ` style="background:${cor};color:#fff"` : "";
-  return `<span class="t auto ${cls || ""}"${style}>${ic}<span style="cursor:pointer" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</span> <b title="Remover vínculo" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</b></span>`;
+  return `<span class="t auto ${cls || ""}"${style}>${ic}<button class="t-abrir" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</button> <button class="t-x" title="Remover vínculo" aria-label="Remover vínculo com ${esc(nome)}" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</button></span>`;
 }
 function autosFichaHTML(f) {
   const chips = [];
@@ -5167,7 +5193,7 @@ function abrirEntidade(kind, nome) {
       <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
-      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
+      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" alt="${esc(nome)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
       ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
       ${pessoalHtml}
@@ -5361,9 +5387,11 @@ function buildMapToggles() {
     const k = dd[0],
       lab = dd[1],
       cor = dd[2];
-    const c = document.createElement("div");
+    const c = document.createElement("button");
+    c.type = "button";
     c.className = "mtog" + (mapLayers[k] ? " on" : "");
     c.title = "Mostrar/ocultar " + lab + " no mapa";
+    c.setAttribute("aria-pressed", mapLayers[k] ? "true" : "false");
     c.innerHTML =
       (k === "manual"
         ? `<span class="ln" style="border-top:2px solid ${cor}"></span>`
@@ -5913,7 +5941,7 @@ function _arqDossieHTML() {
   if (kind === "sala") {
     const desc = e.descoberta !== false;
     return `<aside class="arqdossie">
-      <div class="doshead"><span class="doskicker">DOSSIÊ</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+      <div class="doshead"><span class="doskicker">DOSSIÊ</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
       <div><div class="dosnome">${esc(e.nome)}</div><div class="dosmeta">${e.num ? "Nº " + String(e.num).padStart(3, "0") + " · " : ""}${desc ? "descoberta" : "não descoberta"}</div></div>
       <div class="dosimg">${e.imagem ? `<img loading="lazy" src="${esc(thumbSala(e.imagem, 330))}" onerror="this.style.display='none'">` : `<span>planta / captura da sala</span>`}</div>
       <div class="dossec"><div class="doslab">FICHAS DESTA SALA (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
@@ -5924,7 +5952,7 @@ function _arqDossieHTML() {
   }
   if (kind === "pessoa") {
     return `<aside class="arqdossie">
-      <div class="doshead"><span class="doskicker rosa">DOSSIÊ · PERSONAGEM</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+      <div class="doshead"><span class="doskicker rosa">DOSSIÊ · PERSONAGEM</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
       <div class="dosid"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('pessoa','${jsq(e.nome)}')">renomear</button></div>
       ${e.descricao ? `<div class="dosdesc">${esc(e.descricao)}</div>` : ""}
       <div class="dossec"><div class="doslab">FICHAS QUE CITAM (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
@@ -5940,7 +5968,7 @@ function _arqDossieHTML() {
       `<span class="dossw${c === cor ? " on" : ""}" style="background:${c}" onclick="arqCorGrupo('${jsq(e.nome)}','${c}')"></span>`,
   ).join("");
   return `<aside class="arqdossie">
-    <div class="doshead"><span class="doskicker">DOSSIÊ · GRUPO</span><span class="dosx" onclick="arqFecharDossie()">✕</span></div>
+    <div class="doshead"><span class="doskicker">DOSSIÊ · GRUPO</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
     <div class="dosid"><span class="dosswatch" style="background:${esc(cor)}"></span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('grupo','${jsq(e.nome)}')">renomear</button></div>
     <div class="dossec"><div class="doslab">COR DO GRUPO</div><div class="dossws">${sw}<label class="dossw custom" title="Cor personalizada" style="background:${esc(cor)}"><input type="color" value="${esc(hex6(cor))}" oninput="arqCorGrupo('${jsq(e.nome)}',this.value)">✎</label></div></div>
     <div class="dossec"><div class="doslab">FICHAS DO GRUPO (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
@@ -5955,7 +5983,7 @@ function renderArquivo(soLista) {
   const salasDesc = DADOS.salas.filter((s) => s.descoberta !== false).length;
   const pessoasVis = DADOS.personagens.filter((e) => !ehAliasPessoa(e.nome));
   const tab = (id, lab, n) =>
-    `<button class="seg${state.arqTab === id ? " active" : ""}" onclick="setArqTab('${id}')">${lab} <span class="segn">${n}</span></button>`;
+    `<button class="seg${state.arqTab === id ? " active" : ""}"${state.arqTab === id ? ' aria-current="true"' : ""} onclick="setArqTab('${id}')">${lab} <span class="segn">${n}</span></button>`;
   const tabs = `<div class="segtabs">${tab("salas", "Salas", salasDesc + "/" + totalSalas())}${tab("pessoas", "Personagens", pessoasVis.length)}${tab("grupos", "Grupos", DADOS.grupos.length)}</div>`;
   let acao = "";
   if (state.arqTab === "pessoas")
@@ -5974,7 +6002,7 @@ function renderArquivo(soLista) {
         const nF = _arqFichasDe("pessoa", e.nome).length;
         const nFa = (e.fatos || []).length;
         return `<div class="pcard${_arqSel && _arqSel.kind === "pessoa" && _arqSel.nome === e.nome ? " on" : ""}" onclick="arqAbrir('pessoa','${jsq(e.nome)}')">
-          <div class="pcard-h"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="pcard-n">${esc(e.nome)}</div><span class="pcard-m" onclick="event.stopPropagation();arqRenomear('pessoa','${jsq(e.nome)}')" title="Renomear">···</span></div>
+          <div class="pcard-h"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="pcard-n">${esc(e.nome)}</div><button class="pcard-m" onclick="event.stopPropagation();arqRenomear('pessoa','${jsq(e.nome)}')" title="Renomear" aria-label="Renomear ${esc(e.nome)}">···</button></div>
           ${e.descricao ? `<div class="pcard-d">${esc(e.descricao)}</div>` : ""}
           <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span><span>${nFa} fato${nFa === 1 ? "" : "s"}</span></div>
         </div>`;
@@ -5990,7 +6018,7 @@ function renderArquivo(soLista) {
         const nF = _arqFichasDe("grupo", e.nome).length;
         const cor = e.cor || "#8d3030";
         return `<div class="pcard grp${_arqSel && _arqSel.kind === "grupo" && _arqSel.nome === e.nome ? " on" : ""}" style="border-left-color:${esc(cor)}" onclick="arqAbrir('grupo','${jsq(e.nome)}')">
-          <div class="pcard-h"><span class="gsw" style="background:${esc(cor)}" title="mudar cor"></span><div class="pcard-n">${esc(e.nome)}</div><span class="pcard-m" onclick="event.stopPropagation();arqRenomear('grupo','${jsq(e.nome)}')" title="Renomear">···</span></div>
+          <div class="pcard-h"><span class="gsw" style="background:${esc(cor)}" title="mudar cor"></span><div class="pcard-n">${esc(e.nome)}</div><button class="pcard-m" onclick="event.stopPropagation();arqRenomear('grupo','${jsq(e.nome)}')" title="Renomear" aria-label="Renomear ${esc(e.nome)}">···</button></div>
           <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span></div>
         </div>`;
       })
@@ -6131,7 +6159,7 @@ function renderConta() {
         <div class="doslab">PREFERÊNCIAS</div>
         <div class="conta-row noclick">
           <div><div class="cr-t">Idioma padrão dos cards</div><div class="cr-s">transcrições exibidas em PT ou EN</div></div>
-          <span class="langsw" onclick="toggleIdioma();renderConta()"><span class="${state.idioma === "original" ? "" : "on"}">PT</span><span class="${state.idioma === "original" ? "on" : ""}">EN</span></span>
+          <button class="langsw" onclick="toggleIdioma();renderConta()" aria-label="Trocar idioma padrão dos cards (PT/EN)"><span class="${state.idioma === "original" ? "" : "on"}">PT</span><span class="${state.idioma === "original" ? "on" : ""}">EN</span></button>
         </div>
       </div>
       ${
@@ -6415,7 +6443,7 @@ function renderTeorias() {
   const tabs = DADOS.quadros
     .map(
       (q, i) =>
-        `<button class="qtab${i === _qIdx ? " active" : ""}" ondblclick="renomearQuadro(${i})" onclick="trocarQuadro(${i})" title="Clique para abrir · 2 cliques para renomear">${esc(q.nome)}</button>`,
+        `<button class="qtab${i === _qIdx ? " active" : ""}"${i === _qIdx ? ' aria-current="true"' : ""} ondblclick="renomearQuadro(${i})" onclick="trocarQuadro(${i})" title="Clique para abrir · 2 cliques para renomear">${esc(q.nome)}</button>`,
     )
     .join("");
   box.innerHTML = `<div class="qbar">
@@ -6427,6 +6455,7 @@ function renderTeorias() {
       <div class="moremenu qmore" id="qmore">
         <button class="mmit" onclick="qAddTexto();document.getElementById('qmore').classList.remove('open')">Texto</button>
         <button class="mmit" onclick="qAddNota();document.getElementById('qmore').classList.remove('open')">Nota adesiva</button>
+        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');qLista()">Lista de itens…</button>
         <div class="mm-sep"></div>
         <button class="mmit del" onclick="document.getElementById('qmore').classList.remove('open');excluirQuadro()">Excluir quadro…</button>
       </div>
@@ -6511,9 +6540,9 @@ function nodeHTML(n) {
       ? `;background:${QCORES_NOTA[(n.cor | 0) % QCORES_NOTA.length]}`
       : "";
     const btnCor = nota
-      ? `<span class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor">🎨</span>`
+      ? `<button class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor" aria-label="Mudar a cor da nota">🎨</button>`
       : "";
-    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><span class="qdel" onclick="qDelNode('${n.id}')">✕</span>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
@@ -6521,7 +6550,7 @@ function nodeHTML(n) {
     : "";
   // Ficha no quadro = papel com alfinete vermelho, código e título serif
   const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<span class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')">✕</span><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -7353,6 +7382,34 @@ function qNoMenu(id) {
       },
     },
   ]);
+}
+/* Alternativa acessível em LISTA para o quadro (Etapa 6): todo item pode
+   ser alcançado e operado sem gesto espacial. */
+function qLista() {
+  const q = quadroAtual();
+  if (!(q.nodes || []).length) {
+    toast("O quadro está vazio.");
+    return;
+  }
+  abrirSheetAcoes(
+    "Itens do quadro",
+    q.nodes.slice(0, 60).map(function (n) {
+      const ehTexto = n.tipo === "texto";
+      const nome = ehTexto
+        ? (n.texto || "(sem texto)").replace(/<[^>]*>/g, "").slice(0, 40) ||
+          "(sem texto)"
+        : qRefInfo(n).nome;
+      return {
+        rotulo: nome,
+        detalhe: ehTexto ? (n.estilo === "nota" ? "nota" : "texto") : "ficha",
+        fn: function () {
+          _qSelSet = new Set([n.id]);
+          markSelDom();
+          qNoMenu(n.id);
+        },
+      };
+    }),
+  );
 }
 /* Menu do barbante: rótulo, religar pontas e excluir — sem arraste. */
 function qSetaMenu(i) {

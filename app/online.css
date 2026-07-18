@@ -136,13 +136,13 @@ body.app-carregando #authLoading {
 .auth-tag {
   font-family: "Special Elite", monospace;
   font-size: 11px;
-  color: #8a7c5e;
+  color: #6b5f45;
   letter-spacing: 2px;
   margin: 6px 0 4px;
 }
 .auth-sub {
   font-size: 12px;
-  color: #8a7c5e;
+  color: #6b5f45;
   margin-bottom: 16px;
 }
 
@@ -160,7 +160,7 @@ body.app-carregando #authLoading {
   font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
   letter-spacing: 1px;
-  color: #7d715c;
+  color: #948669;
   text-transform: uppercase;
 }
 
@@ -280,7 +280,7 @@ body.app-carregando #authLoading {
   margin-top: 18px;
   padding-top: 12px;
   font-size: 10.5px;
-  color: #8a7c5e;
+  color: #6b5f45;
   line-height: 1.5;
 }
 
@@ -304,7 +304,7 @@ body.app-carregando #authLoading {
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #8a7c5e;
+  color: #6b5f45;
   opacity: 0.8;
   display: flex;
   align-items: center;
