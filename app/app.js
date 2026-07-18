@@ -5786,17 +5786,15 @@ function thumbSala(url, w) {
   var i = url.indexOf(marca);
   if (i < 0) return url;
   var lado = w || 240;
-  // IMPORTANTE: sem resize=contain o Supabase distorce (ex.: 200x512). Com
-  // width+height+contain a imagem fica proporcional (ex.: 240x240) e leve.
+  // IMPORTANTE: só width (sem height) — o Supabase escala mantendo a
+  // proporção original da foto; height junto forçava um quadrado.
   return (
     url.slice(0, i) +
     "/storage/v1/render/image/public/" +
     url.slice(i + marca.length) +
     "?width=" +
     lado +
-    "&height=" +
-    lado +
-    "&resize=contain&quality=60"
+    "&quality=60"
   );
 }
 // Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
