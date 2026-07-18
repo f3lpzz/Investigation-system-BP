@@ -4348,10 +4348,123 @@ select:focus {
   color: var(--ink-soft);
   cursor: pointer;
 }
+.mapbtn.ic {
+  width: 38px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
 .mapbtn.em {
   background: var(--ativo);
   border-color: var(--line-em);
   color: var(--ink);
+}
+/* Botões que só existem no modo compacto (ex.: "?" do mapa) */
+.soCompacto,
+.mapbtn.soCompacto {
+  display: none;
+}
+/* O canvas do mapa é 2D próprio: gesto do navegador só FORA dele (P03).
+   touch-action fica restrito ao svg — nunca global. */
+#mapa svg {
+  touch-action: none;
+}
+/* ---------- Bottom sheet do ponto selecionado (Mapa) ---------- */
+#mapsheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  background: var(--s2);
+  border-top: 1px solid var(--line-em);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 16px calc(12px + var(--sab));
+  transform: translateY(105%);
+  transition: transform 0.2s;
+  box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.5);
+}
+#mapsheet.open {
+  transform: none;
+}
+.ms-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-em);
+  margin: 0 auto 6px;
+}
+.ms-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ms-tx {
+  flex: 1;
+  min-width: 0;
+}
+.ms-tit {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.ms-x {
+  min-width: var(--alvo-lg);
+  min-height: var(--alvo-lg);
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  flex: none;
+}
+.ms-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.ms-acoes .dbtn {
+  min-height: var(--alvo);
+}
+/* Conteúdo informativo dentro do sheet (ajuda/legenda do mapa) */
+.acsheet-html {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 6px 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.acsheet-html .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.acsheet-html .ltit {
+  font-family: var(--font-type);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--hint);
+  margin-top: 10px;
+}
+.acsheet-html .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
 }
 .maptoggles {
   display: none;
@@ -5915,11 +6028,36 @@ body.view-conta .filtros-panel {
   .qhint {
     display: none;
   }
-  .qtoolbar {
-    display: none;
-  }
   .minimap {
     display: none;
+  }
+  /* Mapa no toque: controles críticos com 48px, em pilha vertical */
+  .mapctrl {
+    flex-direction: column;
+    align-items: flex-end;
+    right: calc(10px + var(--sar));
+    top: 10px;
+    gap: 8px;
+  }
+  .mapbtn {
+    min-height: var(--alvo-lg);
+    min-width: var(--alvo-lg);
+  }
+  .mapbtn.ic {
+    width: var(--alvo-lg);
+    height: var(--alvo-lg);
+    font-size: 18px;
+  }
+  .soCompacto,
+  .mapbtn.soCompacto {
+    display: grid;
+  }
+  /* Ajuda e legenda não cobrem o grafo por padrão (P17): viram sheet no "?" */
+  .mapcorner {
+    display: none;
+  }
+  .maptoggles {
+    display: none !important;
   }
   .contawrap {
     padding: 16px 18px;

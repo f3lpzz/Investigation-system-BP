@@ -207,23 +207,14 @@
               <span class="maphint">arraste para navegar · roda = zoom · clique abre a ficha</span>
             </div>
             <svg id="svg"></svg>
-            <div class="mapctrl">
-              <button
-                class="mapbtn"
-                id="btnFit"
-                onclick="fitCamera(true)"
-                title="Reenquadrar todo o mapa na tela"
-              >
-                ⤢ Centralizar
-              </button>
-              <button
-                class="mapbtn em"
-                id="btnCamadas"
-                onclick="document.getElementById('maptoggles').classList.toggle('open')"
-                title="Mostrar/ocultar camadas do mapa"
-              >
-                Camadas ▾
-              </button>
+            <div class="mapctrl" role="group" aria-label="Controles do mapa">
+              <button class="mapbtn ic" id="btnZoomIn" onclick="zoomMapa(1.25)" aria-label="Aproximar" title="Aproximar">＋</button>
+              <button class="mapbtn ic" id="btnZoomOut" onclick="zoomMapa(0.8)" aria-label="Afastar" title="Afastar">−</button>
+              <button class="mapbtn ic" id="btnFit" onclick="fitCamera(true)" aria-label="Enquadrar todo o mapa" title="Enquadrar todo o mapa (Shift+1)">⤢</button>
+              <button class="mapbtn ic" id="btnZoom100" onclick="zoom100Mapa()" aria-label="Restaurar zoom para 100%" title="Zoom 100% (Shift+0)">1:1</button>
+              <button class="mapbtn ic" id="btnLista" onclick="mapaLista()" aria-label="Lista de pontos do mapa" title="Lista de pontos (alternativa aos gestos)">☰</button>
+              <button class="mapbtn em" id="btnCamadas" onclick="toggleCamadas()" aria-label="Camadas do mapa" title="Mostrar/ocultar camadas do mapa">Camadas ▾</button>
+              <button class="mapbtn ic soCompacto" id="btnMapAjuda" onclick="mapaAjuda()" aria-label="Como usar o mapa e legenda" title="Como usar">?</button>
             </div>
             <div class="maptoggles" id="maptoggles"></div>
             <div class="mapcorner">

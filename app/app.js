@@ -797,6 +797,40 @@ function abrirSheetAcoes(titulo, itens, opts) {
   });
   return el.id;
 }
+/* Variante do sheet para conteúdo informativo (ajuda, legenda). */
+function abrirSheetHTML(titulo, html) {
+  const el = document.createElement("div");
+  el.className = "acsheet";
+  el.id = "acsheet-" + Date.now();
+  el.innerHTML =
+    '<div class="acsheet-veu"></div>' +
+    '<div class="acsheet-caixa" role="document">' +
+    '<div class="sheet-grip"></div>' +
+    '<div class="acsheet-tit">' +
+    esc(titulo) +
+    "</div>" +
+    '<div class="acsheet-html">' +
+    html +
+    "</div>" +
+    '<button class="acit cancelar">Fechar</button>' +
+    "</div>";
+  document.body.appendChild(el);
+  el.setAttribute("aria-label", titulo);
+  const fecha = function () {
+    overlayFechar(el.id);
+  };
+  el.querySelector(".acsheet-veu").addEventListener("click", fecha);
+  el.querySelector(".acit.cancelar").addEventListener("click", fecha);
+  overlayAbrir(el, {
+    id: el.id,
+    modal: true,
+    jaAberto: true,
+    fechar: function () {
+      el.remove();
+    },
+  });
+  return el.id;
+}
 
 /* ===== Gestos de ponteiro compartilhados (plano mobile §5.5) =====
    Mapa, Quadros e lightbox usam o mesmo controlador: tap × arraste com
@@ -1604,6 +1638,18 @@ function fitCamera(redraw) {
   cam.y = _viewH / 2 - ((bb.minY + bb.maxY) / 2) * cam.s;
   if (redraw) camRedraw();
 }
+/* Zoom por botão (+/−): âncora no centro da tela — alternativa simples ao
+   gesto de pinça (P03/§3.2). */
+function zoomMapaEm(sx, sy, f) {
+  const w = s2w(sx, sy);
+  cam.s = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * f));
+  cam.x = sx - w.x * cam.s;
+  cam.y = sy - w.y * cam.s;
+  aplicaCamMapa();
+}
+function zoomMapa(f) {
+  zoomMapaEm(_viewW / 2, _viewH / 2, f);
+}
 // Zoom 100% mantendo o ponto do centro da tela fixo (Shift+0).
 function zoom100Mapa() {
   const c = s2w(_viewW / 2, _viewH / 2);
@@ -1709,7 +1755,10 @@ function draw(svg) {
             );
           })());
       const seld = _selMap && _selMap.has(n.id);
+      // Halo de toque (48px na tela): área interativa maior que o ponto (P12)
+      const haloR = Math.max(n.r + 6, 24 / (cam.s || 1));
       return `<g class="gn" data-id="${n.id}" data-kind="${n.kind}" data-full="${esc(n.label)}" data-trunc="${wl.trunc ? 1 : 0}" style="cursor:pointer;opacity:${dim ? 0.18 : 1}">
+      <circle class="halo" cx="${n.x}" cy="${n.y}" r="${haloR}" data-base="${n.r + 6}" fill="transparent"/>
       ${seld ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none" stroke="#c9a35c" stroke-width="1.6" stroke-dasharray="3 3"/>` : ""}<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.cor}" stroke="${seld || hl ? "#c9a35c" : "#14100b"}" stroke-width="${seld || hl ? 2.5 : 3}"/>
       <text font-size="11" text-anchor="middle" paint-order="stroke" stroke="#14100b" stroke-width="3" stroke-linejoin="round" fill="#ede4d3">${tsp}</text>
     </g>`;
@@ -1729,10 +1778,19 @@ function draw(svg) {
    (alinhada aos 40px do padrão, para as linhas não "nadarem"). */
 const MAPA_ZOOM_MIN = 0.1,
   MAPA_ZOOM_MAX = 8;
+let _ultHaloS = null;
 function aplicaCamMapa() {
   const g = document.getElementById("mapworld");
   if (!g) return;
   g.setAttribute("transform", `translate(${cam.x},${cam.y}) scale(${cam.s})`);
+  // Mantém o halo de toque com ~48px na TELA em qualquer zoom.
+  if (_ultHaloS !== cam.s) {
+    _ultHaloS = cam.s;
+    const minR = 24 / (cam.s || 1);
+    g.querySelectorAll(".gn .halo").forEach(function (c) {
+      c.setAttribute("r", Math.max(+c.dataset.base || 0, minR));
+    });
+  }
   const r = document.getElementById("mgridRect");
   if (r) {
     const tl = s2w(0, 0),
@@ -1986,19 +2044,251 @@ function wireMap(svg) {
         wy = (e.clientY - r.top - _miniT.oy) / _miniT.s;
       animarCamera(_viewW / 2 - wx * cam.s, _viewH / 2 - wy * cam.s, cam.s, 200);
     });
+  // ===== Toque (P03/§3.2): um dedo move o canvas, pinça dá zoom, tap
+  // seleciona e mantém o detalhe num bottom sheet. Mouse segue o fluxo
+  // original (mouseProprio) — os dois convivem em aparelhos híbridos.
+  let _gpan = null;
+  ligarGestos(svg, {
+    mouseProprio: true,
+    dragInicio: function () {
+      _gpan = { x: cam.x, y: cam.y };
+    },
+    drag: function (e, dx, dy) {
+      if (!_gpan) return;
+      cam.x = _gpan.x + dx;
+      cam.y = _gpan.y + dy;
+      aplicaCamMapa();
+    },
+    dragFim: function () {
+      _gpan = null;
+    },
+    dragCancela: function () {
+      _gpan = null;
+    },
+    cancelar: function () {
+      _gpan = null;
+    },
+    pinch: function (p) {
+      const r = svg.getBoundingClientRect();
+      const cx = p.cx - r.left,
+        cy = p.cy - r.top;
+      const w = s2w(cx, cy);
+      const ns = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * p.fator));
+      cam.x = cx - w.x * ns + p.dx;
+      cam.y = cy - w.y * ns + p.dy;
+      cam.s = ns;
+      aplicaCamMapa();
+    },
+    tap: function (e, alvo) {
+      const gEl = alvo && alvo.closest ? alvo.closest(".gn") : null;
+      if (gEl) mapaTapNo(gEl.dataset);
+      else {
+        if (_mapSelModo) return; // no modo seleção, tap no vazio não limpa
+        _selMap = new Set();
+        _focus = null;
+        draw(svg);
+        mapaFecharSheet();
+      }
+    },
+    doubleTap: function (e) {
+      const r = svg.getBoundingClientRect();
+      zoomMapaEm(e.clientX - r.left, e.clientY - r.top, 1.6);
+    },
+  });
+}
+/* ===== Bottom sheet do ponto selecionado (não modal, persiste) ===== */
+let _mapSelModo = false;
+function _mapNoInfo(d) {
+  if (d.kind === "ficha") {
+    const f = fichas.find((x) => x.id === d.id);
+    return {
+      titulo: f ? f.titulo : d.id,
+      sub: f && f.sala ? f.sala : "Ficha",
+      abrir: function () {
+        abrir(d.id);
+      },
+    };
+  }
+  const nome =
+    d.kind === "sala" ? d.id.slice(6) : d.id.slice(5);
+  return {
+    titulo: nome,
+    sub: rotKind(d.kind),
+    abrir: function () {
+      abrirEntidade(d.kind === "colecao" ? "colecao" : d.kind, nome);
+    },
+  };
+}
+function mapaTapNo(d) {
+  const svg = document.getElementById("svg");
+  if (_mapSelModo) {
+    if (_selMap.has(d.id)) _selMap.delete(d.id);
+    else _selMap.add(d.id);
+    draw(svg);
+    mapaAtualizaSheetSel();
+    return;
+  }
+  _selMap = new Set([d.id]);
+  draw(svg);
+  mapaAbrirSheet(d);
+}
+function mapaAbrirSheet(d) {
+  const mapa = document.getElementById("mapa");
+  if (!mapa) return;
+  let sh = document.getElementById("mapsheet");
+  if (!sh) {
+    sh = document.createElement("div");
+    sh.id = "mapsheet";
+    sh.setAttribute("role", "region");
+    sh.setAttribute("aria-label", "Ponto selecionado do mapa");
+    mapa.appendChild(sh);
+  }
+  const info = _mapNoInfo(d);
+  sh.innerHTML =
+    '<div class="ms-grip"></div>' +
+    '<div class="ms-linha"><div class="ms-tx"><div class="ms-tit">' +
+    esc(info.titulo) +
+    '</div><div class="ms-sub">' +
+    esc(info.sub) +
+    "</div></div>" +
+    '<button class="ms-x" onclick="mapaFecharSheet()" aria-label="Fechar detalhe do ponto">✕</button></div>' +
+    '<div class="ms-acoes">' +
+    '<button class="dbtn primary" id="msAbrir">Abrir</button>' +
+    '<button class="dbtn" id="msCentrar">Centralizar</button>' +
+    '<button class="dbtn" id="msSel">Selecionar vários</button>' +
+    "</div>";
+  sh.classList.add("open");
+  document.getElementById("msAbrir").onclick = info.abrir;
+  document.getElementById("msCentrar").onclick = function () {
+    centralizarNo(d.id);
+  };
+  document.getElementById("msSel").onclick = function () {
+    _mapSelModo = true;
+    mapaAtualizaSheetSel();
+  };
+  navPushOverlay("mapsheet", mapaFecharSheet);
+}
+function mapaAtualizaSheetSel() {
+  const sh = document.getElementById("mapsheet");
+  if (!sh) return;
+  const n = _selMap.size;
+  sh.innerHTML =
+    '<div class="ms-grip"></div>' +
+    '<div class="ms-linha"><div class="ms-tx"><div class="ms-tit">' +
+    n +
+    " selecionado" +
+    (n === 1 ? "" : "s") +
+    '</div><div class="ms-sub">toque nos pontos para marcar/desmarcar</div></div>' +
+    '<button class="ms-x" onclick="mapaFecharSheet()" aria-label="Sair da seleção">✕</button></div>' +
+    '<div class="ms-acoes">' +
+    '<button class="dbtn primary" onclick="mapaSelConcluir()">Concluir</button>' +
+    '<button class="dbtn" onclick="mapaSelLimpar()">Limpar seleção</button>' +
+    "</div>";
+  sh.classList.add("open");
+}
+function mapaSelLimpar() {
+  _selMap = new Set();
+  const svg = document.getElementById("svg");
+  if (svg) draw(svg);
+  mapaAtualizaSheetSel();
+}
+function mapaSelConcluir() {
+  _mapSelModo = false;
+  mapaFecharSheet();
+}
+function mapaFecharSheet() {
+  _mapSelModo = false;
+  const sh = document.getElementById("mapsheet");
+  if (sh) sh.classList.remove("open");
+  navOverlayFechado("mapsheet");
+}
+/* Camadas: no toque/compacto abre em sheet; no desktop, painel flutuante. */
+function toggleCamadas() {
+  if (ehCompacto() || ehToque()) {
+    const defs = [
+      ["pessoa", "Personagens"],
+      ["sala", "Salas"],
+      ["grupo", "Grupos"],
+      ["manual", "Fios manuais"],
+    ];
+    abrirSheetAcoes(
+      "Camadas do mapa",
+      defs.map(function (dd) {
+        return {
+          rotulo: dd[1],
+          detalhe: mapLayers[dd[0]] ? "visível ✓" : "oculto",
+          fn: function () {
+            mapLayers[dd[0]] = !mapLayers[dd[0]];
+            mapaSoftRefresh();
+          },
+        };
+      }),
+    );
+    return;
+  }
+  const mt = document.getElementById("maptoggles");
+  if (mt) mt.classList.toggle("open");
+}
+/* Alternativa por LISTA aos gestos do mapa (P03): toca num item, o mapa
+   centraliza e abre o detalhe. */
+function mapaLista() {
+  if (!nodes.length) {
+    toast("O mapa ainda não tem pontos.");
+    return;
+  }
+  abrirSheetAcoes(
+    "Pontos do mapa",
+    nodes.slice(0, 60).map(function (n) {
+      return {
+        rotulo: n.label,
+        detalhe: rotKind(n.kind),
+        fn: function () {
+          _selMap = new Set([n.id]);
+          centralizarNo(n.id);
+          const svg = document.getElementById("svg");
+          if (svg) draw(svg);
+          mapaAbrirSheet({ id: n.id, kind: n.kind });
+        },
+      };
+    }),
+  );
+}
+/* Ajuda + legenda numa folha (mobile): não cobre o grafo por padrão (P17). */
+function mapaAjuda() {
+  const box = document.createElement("div");
+  buildLegendIn(box);
+  abrirSheetHTML(
+    "Como usar o mapa",
+    '<div class="mh-body">' +
+      (ehToque()
+        ? "<div class='row'>Arraste com um dedo: navegar</div>" +
+          "<div class='row'>Pinça com dois dedos: zoom</div>" +
+          "<div class='row'>Toque num ponto: selecionar</div>" +
+          "<div class='row'>Botões ＋/−/⤢: zoom e enquadrar</div>"
+        : "<div class='row'>Arraste o fundo: navegar</div>" +
+          "<div class='row'>Roda do mouse: zoom</div>" +
+          "<div class='row'>Arraste um ponto: reposicionar</div>" +
+          "<div class='row'><b>Shift+1</b>: enquadrar · <b>Shift+0</b>: 100%</div>") +
+      "</div>" +
+      box.innerHTML,
+  );
 }
 
-function buildLegend() {
+function buildLegendIn(el) {
   // Legenda fiel ao que o mapa desenha HOJE: pista (cor = grupo), sala,
   // personagem, grupo (cor própria), linha sólida = conexão manual,
   // tracejada = ligação automática. ("Coleção"/"tipo" eram do sistema antigo.)
-  document.getElementById("legend").innerHTML = `
+  if (!el) return;
+  el.innerHTML = `
     <div class="ltit">LEGENDA</div>
     <div class="row"><span class="dot" style="background:${COR_SALA}"></span>Sala</div>
     <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
     <div class="row"><span class="dot" style="background:#8d3030"></span>Ficha (cor do grupo)</div>
     <div class="row"><span style="width:16px;border-top:2px solid ${COR_MANUAL}"></span>Fio manual</div>
     <div class="row"><span style="width:16px;border-top:2px dashed #8a7c5e"></span>Ligação automática</div>`;
+}
+function buildLegend() {
+  buildLegendIn(document.getElementById("legend"));
   buildMapHelp();
 }
 /* Menu "Como usar" do mapa (fica acima da legenda). Recolhível; a escolha
@@ -2014,17 +2304,24 @@ function buildMapHelp() {
       _mapHelpAberto = true;
     }
   }
-  box.innerHTML =
-    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
-    (_mapHelpAberto
-      ? `<div class="mh-body">
+  // As instruções seguem a capacidade de entrada (toque × mouse) — P17.
+  const corpo = ehToque()
+    ? `<div class="mh-body">
+      <div class="row">Arraste com um dedo: navegar</div>
+      <div class="row">Pinça: zoom</div>
+      <div class="row">Toque num ponto: selecionar</div>
+      <div class="row">Botões ＋/−/⤢: zoom e enquadrar</div>
+    </div>`
+    : `<div class="mh-body">
       <div class="row">Arraste o fundo: navegar</div>
       <div class="row">Roda do mouse: zoom</div>
       <div class="row">Arraste um ponto: reposicionar</div>
       <div class="row"><b>Shift+1</b>&nbsp;: enquadrar tudo</div>
       <div class="row"><b>Shift+0</b>&nbsp;: zoom 100%</div>
-    </div>`
-      : "");
+    </div>`;
+  box.innerHTML =
+    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
+    (_mapHelpAberto ? corpo : "");
 }
 function toggleMapHelp() {
   _mapHelpAberto = !_mapHelpAberto;
