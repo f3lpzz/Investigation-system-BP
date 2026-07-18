@@ -511,6 +511,8 @@ document.addEventListener("keydown", (e) => {
     }
   }
   if (e.key === "Escape") {
+    // Fecha o overlay do topo da pilha (modal, sheet, popover, detalhe…)
+    if (typeof overlayFecharTopo === "function" && overlayFecharTopo()) return;
     const om = document.querySelector(".modal.open");
     if (om) {
       om.classList.remove("open");
@@ -592,6 +594,330 @@ window.addEventListener("popstate", function (e) {
   if (st && st.bpView) setView(st.bpView, true);
 });
 
+/* ===== Controlador de overlays (plano mobile §5.4) =====
+   Um caminho só para modal, bottom sheet, detalhe full-screen, popover e
+   lightbox: foco inicial, armadilha de Tab, fundo inert, fechar por botão/
+   Escape/Voltar, devolução de foco e semântica de diálogo. */
+const _ovInfo = {}; // id -> {el, opts, acionador, trap}
+function _ovFocaveis(el) {
+  const sel =
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.prototype.filter.call(el.querySelectorAll(sel), function (x) {
+    return x.offsetParent !== null || x === document.activeElement;
+  });
+}
+function _ovRecalculaInert() {
+  // Fundo inerte = há modal aberto que não contém o alvo (nem é contido).
+  const modais = Object.keys(_ovInfo)
+    .map((k) => _ovInfo[k])
+    .filter((i) => i.opts.modal);
+  const alvos = document.querySelectorAll(
+    ".side, .tabbar, .fab, .topbar, .filtros-pills, .selbar, main > *",
+  );
+  alvos.forEach(function (alvo) {
+    const deveInert = modais.some(
+      (i) => !i.el.contains(alvo) && !alvo.contains(i.el),
+    );
+    try {
+      alvo.inert = deveInert;
+    } catch (e) {}
+  });
+}
+function overlayAbrir(el, opts) {
+  opts = opts || {};
+  const id = opts.id || el.id;
+  if (!el || !id || _ovInfo[id]) return;
+  const info = {
+    el: el,
+    opts: opts,
+    acionador:
+      document.activeElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null,
+  };
+  _ovInfo[id] = info;
+  if (!opts.jaAberto) el.classList.add("open");
+  if (opts.modal) {
+    if (!el.getAttribute("role")) el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    info.trap = function (e) {
+      if (e.key !== "Tab") return;
+      const f = _ovFocaveis(el);
+      if (!f.length) {
+        e.preventDefault();
+        return;
+      }
+      const first = f[0],
+        last = f[f.length - 1];
+      if (
+        e.shiftKey &&
+        (document.activeElement === first || !el.contains(document.activeElement))
+      ) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    el.addEventListener("keydown", info.trap);
+    _ovRecalculaInert();
+  }
+  // Foco inicial: [autofocus] > primeiro focável > o próprio overlay.
+  const foco =
+    el.querySelector("[autofocus]") ||
+    (opts.focoEm && el.querySelector(opts.focoEm)) ||
+    _ovFocaveis(el)[0];
+  try {
+    if (foco) foco.focus();
+    else {
+      el.tabIndex = -1;
+      el.focus();
+    }
+  } catch (e) {}
+  navPushOverlay(id, function () {
+    _ovDesfaz(id); // fechamento vindo do Voltar (popstate)
+  });
+  return id;
+}
+function overlayFechar(id) {
+  // Fechamento por botão/Escape: desfaz e recua a entrada do histórico.
+  if (!_ovInfo[id]) return;
+  _ovDesfaz(id);
+  navOverlayFechado(id);
+}
+function _ovDesfaz(id) {
+  const info = _ovInfo[id];
+  if (!info) return;
+  delete _ovInfo[id];
+  if (info.trap) info.el.removeEventListener("keydown", info.trap);
+  if (info.opts.modal) {
+    info.el.removeAttribute("aria-modal");
+    _ovRecalculaInert();
+  }
+  if (info.opts.fechar) info.opts.fechar();
+  else info.el.classList.remove("open");
+  if (info.acionador && document.contains(info.acionador)) {
+    try {
+      info.acionador.focus();
+    } catch (e) {}
+  }
+}
+function overlayFecharTopo() {
+  const topo = _ovStack[_ovStack.length - 1];
+  if (!topo) return false;
+  if (_ovInfo[topo.id]) overlayFechar(topo.id);
+  else {
+    try {
+      topo.fechar(); // legado (drawer): o próprio fechar avisa a pilha
+    } catch (e) {}
+  }
+  return true;
+}
+/* Qualquer .modal (ou .lightbox) que ganhe/perca .open entra/sai da pilha
+   automaticamente — cobre também os modais da camada de IA (ia.js). */
+if (window.MutationObserver) {
+  new MutationObserver(function (muts) {
+    muts.forEach(function (mu) {
+      const el = mu.target;
+      if (
+        !el.classList ||
+        !(el.classList.contains("modal") || el.classList.contains("lightbox"))
+      )
+        return;
+      const aberto = el.classList.contains("open");
+      if (!el.id) el.id = "ov-" + Math.random().toString(36).slice(2);
+      if (aberto && !_ovInfo[el.id])
+        overlayAbrir(el, { id: el.id, modal: true, jaAberto: true });
+      else if (!aberto && _ovInfo[el.id]) overlayFechar(el.id);
+    });
+  }).observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    subtree: true,
+  });
+}
+
+/* ===== Folha de ações contextual (plano mobile §5.6) =====
+   Tap seleciona; as ações do item aparecem aqui (menu/bottom sheet modal).
+   Nenhuma ação fica só no hover ou no duplo clique; excluir vem separado. */
+function abrirSheetAcoes(titulo, itens, opts) {
+  opts = opts || {};
+  const el = document.createElement("div");
+  el.className = "acsheet";
+  el.id = "acsheet-" + Date.now();
+  const botoes = itens
+    .filter(Boolean)
+    .map(function (it, i) {
+      return (
+        '<button class="acit' +
+        (it.perigo ? " perigo" : "") +
+        '" data-i="' +
+        i +
+        '"' +
+        (it.desativado ? " disabled" : "") +
+        ">" +
+        (it.icone ? '<span class="acic">' + it.icone + "</span>" : "") +
+        esc(it.rotulo) +
+        (it.detalhe ? '<span class="acdet">' + esc(it.detalhe) + "</span>" : "") +
+        "</button>"
+      );
+    })
+    .join("");
+  el.innerHTML =
+    '<div class="acsheet-veu"></div>' +
+    '<div class="acsheet-caixa" role="document">' +
+    '<div class="sheet-grip"></div>' +
+    (titulo ? '<div class="acsheet-tit">' + esc(titulo) + "</div>" : "") +
+    botoes +
+    '<button class="acit cancelar">Cancelar</button>' +
+    "</div>";
+  document.body.appendChild(el);
+  el.setAttribute("aria-label", titulo || "Ações");
+  const fecha = function () {
+    overlayFechar(el.id);
+  };
+  el.querySelector(".acsheet-veu").addEventListener("click", fecha);
+  el.querySelector(".acit.cancelar").addEventListener("click", fecha);
+  el.querySelectorAll(".acit[data-i]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      const it = itens.filter(Boolean)[+b.dataset.i];
+      fecha();
+      // Ação concluída no clique/pointerup (nunca no pointerdown) — §3.6
+      if (it && it.fn) setTimeout(it.fn, 0);
+    });
+  });
+  overlayAbrir(el, {
+    id: el.id,
+    modal: true,
+    jaAberto: true,
+    fechar: function () {
+      el.remove();
+    },
+  });
+  return el.id;
+}
+
+/* ===== Gestos de ponteiro compartilhados (plano mobile §5.5) =====
+   Mapa, Quadros e lightbox usam o mesmo controlador: tap × arraste com
+   limiar, pan, pinch, captura de ponteiro, pointercancel e conclusão de
+   ações no pointerup. Mouse e teclado continuam com os caminhos atuais. */
+function ligarGestos(el, h) {
+  const pts = new Map(); // pointerId -> {x, y, x0, y0}
+  let modo = null; // null | aguarda | drag | pinch
+  let t0 = 0,
+    ultTap = 0,
+    pinchBase = null,
+    alvo0 = null;
+  const LIMIAR = 8; // px de movimento antes de virar arraste
+  function pAtual() {
+    const arr = [...pts.values()];
+    if (arr.length < 2) return null;
+    const dx = arr[1].x - arr[0].x,
+      dy = arr[1].y - arr[0].y;
+    return {
+      d: Math.hypot(dx, dy) || 1,
+      cx: (arr[0].x + arr[1].x) / 2,
+      cy: (arr[0].y + arr[1].y) / 2,
+    };
+  }
+  function down(e) {
+    if (h.ignorar && h.ignorar(e)) return;
+    if (e.pointerType === "mouse" && h.mouseProprio) return; // mouse: fluxo atual
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    pts.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      x0: e.clientX,
+      y0: e.clientY,
+    });
+    if (pts.size === 1) {
+      modo = "aguarda";
+      t0 = Date.now();
+      alvo0 = e.target;
+      if (h.inicio) h.inicio(e);
+    } else if (pts.size === 2) {
+      if (modo === "drag" && h.dragCancela) h.dragCancela(e);
+      modo = "pinch";
+      pinchBase = pAtual();
+      if (h.pinchInicio) h.pinchInicio(pinchBase);
+    }
+    if (e.pointerType !== "mouse") e.preventDefault();
+  }
+  function move(e) {
+    const p = pts.get(e.pointerId);
+    if (!p) return;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (modo === "aguarda") {
+      if (Math.hypot(p.x - p.x0, p.y - p.y0) > LIMIAR) {
+        modo = "drag";
+        if (h.dragInicio) h.dragInicio(e, alvo0, p.x0, p.y0);
+      }
+    }
+    if (modo === "drag" && h.drag) h.drag(e, p.x - p.x0, p.y - p.y0);
+    else if (modo === "pinch" && pinchBase) {
+      const agora = pAtual();
+      if (!agora) return;
+      if (h.pinch)
+        h.pinch({
+          fator: agora.d / pinchBase.d,
+          cx: agora.cx,
+          cy: agora.cy,
+          dx: agora.cx - pinchBase.cx,
+          dy: agora.cy - pinchBase.cy,
+        });
+      pinchBase = agora;
+    }
+  }
+  function up(e) {
+    const p = pts.get(e.pointerId);
+    if (!p) return;
+    pts.delete(e.pointerId);
+    if (modo === "aguarda" && Date.now() - t0 < 600) {
+      const agora = Date.now();
+      if (h.doubleTap && agora - ultTap < 320) {
+        ultTap = 0;
+        h.doubleTap(e, alvo0);
+      } else {
+        ultTap = agora;
+        if (h.tap) h.tap(e, alvo0);
+      }
+    } else if (modo === "drag" && h.dragFim) h.dragFim(e);
+    else if (modo === "pinch" && h.pinchFim) h.pinchFim(e);
+    modo = pts.size === 1 ? "drag" : pts.size ? modo : null;
+    if (pts.size === 1) {
+      // sobrou um dedo do pinch: recomeça o arraste do zero
+      const resto = [...pts.values()][0];
+      resto.x0 = resto.x;
+      resto.y0 = resto.y;
+      if (h.dragInicio) h.dragInicio(e, null, resto.x, resto.y);
+    }
+    if (!pts.size) pinchBase = null;
+  }
+  function cancel(e) {
+    // Gesto cancelado pelo sistema: NENHUMA ação dispara (§P03/P11).
+    pts.delete(e.pointerId);
+    modo = null;
+    pinchBase = null;
+    if (h.cancelar) h.cancelar(e);
+  }
+  el.addEventListener("pointerdown", down);
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", cancel);
+  return {
+    destruir: function () {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
+    },
+  };
+}
+
 [
   ["vGrade", "grade"],
   ["vMapa", "mapa"],
@@ -661,7 +987,8 @@ function toggleMore(force) {
   const m = document.getElementById("moreMenu");
   if (!m) return;
   const abrir = typeof force === "boolean" ? force : !m.classList.contains("open");
-  m.classList.toggle("open", abrir);
+  if (abrir) overlayAbrir(m, { id: "moreMenu", modal: false });
+  else overlayFechar("moreMenu");
 }
 document.addEventListener("click", function (e) {
   const m = document.getElementById("moreMenu");
@@ -669,7 +996,7 @@ document.addEventListener("click", function (e) {
   if (m.contains(e.target)) return;
   const b = document.getElementById("btnMore");
   if (b && b.contains(e.target)) return;
-  m.classList.remove("open");
+  overlayFechar("moreMenu");
 });
 
 /* ---- filtro ---- */
@@ -1931,34 +2258,37 @@ function field(lab, val) {
    Todo caminho que abre o painel passa por drawerAbrir(); todo caminho que
    fecha passa por fechar(). Isso garante que a tabbar e o FAB voltam
    (body.drawer-aberta), o foco retorna ao acionador e o Voltar funciona. */
-let _drawerAcionador = null;
 function drawerAbrir() {
   const d = document.getElementById("drawer");
   if (!d) return;
   if (!d.classList.contains("open")) {
-    _drawerAcionador =
-      document.activeElement && document.activeElement !== document.body
-        ? document.activeElement
-        : null;
-    navPushOverlay("drawer", fechar);
+    d.classList.add("open");
+    document.body.classList.add("drawer-aberta");
+    // Overlay central: foco, inert (só no compacto, onde é página cheia),
+    // Escape/Voltar e devolução de foco ao acionador.
+    overlayAbrir(d, {
+      id: "drawer",
+      modal: ehCompacto(),
+      jaAberto: true,
+      fechar: function () {
+        d.classList.remove("open");
+        document.body.classList.remove("drawer-aberta");
+        _fichaAberta = null;
+      },
+    });
   }
-  d.classList.add("open");
   d.scrollTop = 0;
-  document.body.classList.add("drawer-aberta");
 }
 function fechar() {
+  if (_ovInfo["drawer"]) {
+    overlayFechar("drawer");
+    return;
+  }
+  // Segurança: fecha mesmo se o registro se perdeu.
   const d = document.getElementById("drawer");
   if (d) d.classList.remove("open");
   document.body.classList.remove("drawer-aberta");
   _fichaAberta = null;
-  navOverlayFechado("drawer");
-  // Devolve o foco a quem abriu (se ainda existir na página).
-  if (_drawerAcionador && document.contains(_drawerAcionador)) {
-    try {
-      _drawerAcionador.focus();
-    } catch (e) {}
-  }
-  _drawerAcionador = null;
 }
 function filtraPessoa(p) {
   p = nomeCanon(p);
@@ -3411,6 +3741,8 @@ function toast(msg, ms) {
   if (!t) {
     t = document.createElement("div");
     t.id = "toast";
+    t.setAttribute("role", "status");
+    t.setAttribute("aria-live", "polite");
     document.body.appendChild(t);
   }
   t.textContent = msg;
@@ -4641,7 +4973,16 @@ function buildMapToggles() {
 }
 function toggleFiltros() {
   const pn = document.getElementById("filtrosPanel");
-  if (pn) pn.classList.toggle("open");
+  if (!pn) return;
+  // No compacto vira bottom sheet MODAL (fundo inerte, foco preso, Voltar
+  // fecha); no desktop segue como painel inline, mas com Escape/Voltar.
+  if (pn.classList.contains("open")) overlayFechar("filtrosPanel");
+  else
+    overlayAbrir(pn, {
+      id: "filtrosPanel",
+      modal: ehCompacto(),
+      focoEm: "#fsala",
+    });
 }
 function toggleSelMode() {
   state.selMode = !state.selMode;
