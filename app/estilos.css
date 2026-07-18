@@ -5811,25 +5811,43 @@ body.view-conta .filtros-panel {
     gap: 10px;
     padding: 12px 18px 18px;
   }
-  /* ClueCardCompact em TRÊS colunas: foto · conteúdo · status.
-     A coluna de status é reservada SEMPRE — o carimbo nunca cobre o
-     título. minmax(0,1fr) é o que permite o "…" dentro do grid. */
+  /* ClueCardCompact em DUAS colunas: foto · conteúdo. O carimbo
+     retangular divide só a linha do cabeçalho (canto superior direito);
+     título e rodapé usam a largura toda. */
   .card {
     display: grid;
-    grid-template-columns: 84px minmax(0, 1fr) 48px;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
     grid-template-areas:
       "thumb head status"
-      "thumb tit status"
-      "thumb foot status";
+      "thumb tit tit"
+      "thumb foot foot";
     column-gap: 12px;
     padding: 12px;
     border-radius: 8px;
     align-items: center;
     align-content: center;
-    min-height: 108px;
+    min-height: 82px;
   }
   .pin {
     display: none;
+  }
+  /* Favorita: estrelinha discreta encostada na borda esquerda */
+  .pin.fav {
+    display: block;
+    left: 2px;
+    top: 50%;
+    width: auto;
+    height: auto;
+    transform: translateY(-50%);
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+  .pin.fav::after {
+    content: "★";
+    color: var(--gold);
+    font-size: 10px;
+    line-height: 1;
   }
   .chead {
     grid-area: head;
@@ -5844,9 +5862,9 @@ body.view-conta .filtros-panel {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .cstar {
-    opacity: 1;
-    flex: none;
+  /* .chead na frente para vencer a regra de alvo de toque (P12) */
+  .chead .cstar {
+    display: none;
   }
   /* Título: até DUAS linhas com "…"; segurar o dedo mostra o nome inteiro */
   .ctit {
@@ -5868,11 +5886,15 @@ body.view-conta .filtros-panel {
   }
   .cthumb {
     grid-area: thumb;
-    width: 84px;
-    height: 84px;
+    width: 58px;
+    height: 58px;
     margin: 0;
     align-self: center;
     border-radius: 6px;
+  }
+  /* Sem foto: só a hachura, sem o texto "foto da ficha" */
+  .cthumb .cph {
+    display: none;
   }
   .cexc {
     display: none;
@@ -5886,23 +5908,18 @@ body.view-conta .filtros-panel {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Carimbo circular na coluna própria (nunca por cima do conteúdo) */
+  /* Carimbo retangular e discreto, na linha do cabeçalho */
   .stamp {
     grid-area: status;
     position: static;
-    justify-self: center;
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    text-align: center;
-    font-size: 7.5px;
-    letter-spacing: 0.4px;
-    line-height: 1;
-    padding: 0;
+    justify-self: end;
+    align-self: center;
+    font-size: 8px;
+    letter-spacing: 0.6px;
+    line-height: 1.2;
+    padding: 1px 6px;
     border-width: 1.5px;
-    transform: rotate(-12deg);
+    border-radius: 3px;
   }
   .selcheck {
     left: 6px;

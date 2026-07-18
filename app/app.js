@@ -1216,8 +1216,12 @@ function renderGrade() {
       rodape =
         `<span class="cfalta" title="Falta tradução">falta tradução</span>` +
         (rPess ? " " + rPess : "");
-    else if (falta.length && !rodape)
-      rodape = `<span class="cfalta" title="Falta: ${falta.join(", ")}">falta ${falta.join(", ")}</span>`;
+    else if (falta.length && !rodape) {
+      // "falta imagem" não entra no rodapé — sem conexões, vale "sem conexões ainda"
+      const faltaTxt = falta.filter((x) => x !== "imagem");
+      if (faltaTxt.length)
+        rodape = `<span class="cfalta" title="Falta: ${faltaTxt.join(", ")}">falta ${faltaTxt.join(", ")}</span>`;
+    }
     if (!rodape) rodape = `<span class="cvazio">sem conexões ainda</span>`;
     // Carimbos datilografados no lugar de badges
     let stamp = "";
@@ -1227,11 +1231,16 @@ function renderGrade() {
       stamp = `<span class="stamp pend" title="Ainda não processada">PENDENTE</span>`;
     else if (f.status === "importante")
       stamp = `<span class="stamp imp">IMPORTANTE</span>`;
+    // Identificador no estilo do carimbo do design: f3 → F-003
+    const idVis = String(f.id).replace(
+      /^([a-z]+)(\d+)$/i,
+      (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
+    );
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
       <span class="pin${f.fav ? " fav" : ""}"></span>
       <div class="chead">
-        <span class="cid">${esc(f.id)}</span>
+        <span class="cid">${esc(idVis)}</span>
         <span class="csala">${f.sala ? esc(f.sala) : "—"}</span>
         <span class="cstar${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</span>
       </div>
