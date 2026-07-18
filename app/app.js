@@ -832,9 +832,10 @@ function abrirSheetHTML(titulo, html) {
   return el.id;
 }
 
-/* ===== Título do card no compacto: segurar rola o nome até o fim =====
-   O título fica numa linha com "…"; um toque LONGO (450ms) anima o texto
-   até o final e soltar volta ao normal — sem disparar o clique do card. */
+/* ===== Título do card no compacto: segurar mostra o nome inteiro =====
+   O título fica em até 2 linhas com "…"; um toque LONGO (450ms) solta o
+   corte e revela o texto completo; soltar volta ao normal — sem disparar
+   o clique do card. */
 let _titTimer = null,
   _titSegurou = false;
 document.addEventListener(
@@ -845,11 +846,8 @@ document.addEventListener(
     _titSegurou = false;
     clearTimeout(_titTimer);
     _titTimer = setTimeout(function () {
-      const dist = t.scrollWidth - t.clientWidth;
-      if (dist > 4) {
+      if (t.scrollHeight - t.clientHeight > 4) {
         _titSegurou = true;
-        t.style.setProperty("--rolagem", -(dist + 8) + "px");
-        t.style.setProperty("--rolagem-t", Math.max(1.5, dist / 35) + "s");
         t.classList.add("rolando");
       }
     }, 450);
@@ -863,8 +861,6 @@ document.addEventListener(
       clearTimeout(_titTimer);
       document.querySelectorAll(".ctit.rolando").forEach(function (t) {
         t.classList.remove("rolando");
-        t.style.removeProperty("--rolagem");
-        t.style.removeProperty("--rolagem-t");
       });
     },
     true,

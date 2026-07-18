@@ -127,15 +127,6 @@
     opacity: 1;
   }
 }
-/* Título do card rolando (segurar o dedo revela o nome inteiro) */
-@keyframes ctit-rola {
-  20% {
-    text-indent: 0;
-  }
-  to {
-    text-indent: var(--rolagem, -200px);
-  }
-}
 /* Movimento reduzido: corta transições/animações espaciais */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -5820,20 +5811,22 @@ body.view-conta .filtros-panel {
     gap: 10px;
     padding: 12px 18px 18px;
   }
-  /* ClueCardCompact: miniatura à esquerda, título numa linha à direita.
-     minmax(0,1fr) é o que permite o "…" dentro do grid. */
+  /* ClueCardCompact em TRÊS colunas: foto · conteúdo · status.
+     A coluna de status é reservada SEMPRE — o carimbo nunca cobre o
+     título. minmax(0,1fr) é o que permite o "…" dentro do grid. */
   .card {
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-columns: 84px minmax(0, 1fr) 48px;
     grid-template-areas:
-      "thumb head"
-      "thumb tit"
-      "thumb foot";
+      "thumb head status"
+      "thumb tit status"
+      "thumb foot status";
     column-gap: 12px;
     padding: 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     align-items: center;
     align-content: center;
+    min-height: 108px;
   }
   .pin {
     display: none;
@@ -5855,30 +5848,31 @@ body.view-conta .filtros-panel {
     opacity: 1;
     flex: none;
   }
-  /* Título: uma linha com "…"; segurar o dedo rola o texto até o fim */
+  /* Título: até DUAS linhas com "…"; segurar o dedo mostra o nome inteiro */
   .ctit {
     grid-area: tit;
     font-size: 15.5px;
     line-height: 1.25;
     margin: 3px 0 4px;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
     -webkit-user-select: none;
     user-select: none;
   }
   .ctit.rolando {
-    text-overflow: clip;
-    animation: ctit-rola var(--rolagem-t, 2.5s) linear forwards;
+    -webkit-line-clamp: 99;
   }
   .cthumb {
     grid-area: thumb;
-    width: 58px;
-    height: 58px;
+    width: 84px;
+    height: 84px;
     margin: 0;
     align-self: center;
-    border-radius: 5px;
+    border-radius: 6px;
   }
   .cexc {
     display: none;
@@ -5892,13 +5886,23 @@ body.view-conta .filtros-panel {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* Carimbo circular na coluna própria (nunca por cima do conteúdo) */
   .stamp {
-    right: 36px;
-    top: 8px;
-    bottom: auto;
-    font-size: 9.5px;
+    grid-area: status;
+    position: static;
+    justify-self: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    font-size: 7.5px;
+    letter-spacing: 0.4px;
+    line-height: 1;
+    padding: 0;
     border-width: 1.5px;
-    padding: 0 6px;
+    transform: rotate(-12deg);
   }
   .selcheck {
     left: 6px;
