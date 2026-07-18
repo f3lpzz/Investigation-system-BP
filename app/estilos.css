@@ -5864,10 +5864,10 @@ body.view-conta .filtros-panel {
   /* Detalhe vira página cheia com barra de ações (P07) */
   #drawer {
     position: fixed;
-    inset: 0;
-    width: 100vw;
+    inset: 0; /* estica até as bordas reais — acompanha as barras sozinho */
+    width: auto;
     max-width: 100vw;
-    height: 100dvh; /* acompanha as barras do navegador */
+    height: auto;
     border-left: 0;
     z-index: 60;
     padding-top: var(--sat);
