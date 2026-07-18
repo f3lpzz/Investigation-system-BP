@@ -10,8 +10,9 @@
       href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="estilos.css" />
-    <link rel="stylesheet" href="online.css" />
+    <!-- ?v= força o celular a baixar a versão nova (troque ao mudar o CSS/JS) -->
+    <link rel="stylesheet" href="estilos.css?v=20260718a" />
+    <link rel="stylesheet" href="online.css?v=20260718a" />
   </head>
   <body class="app-carregando view-grade">
     <div class="shell">
@@ -208,13 +209,17 @@
             </div>
             <svg id="svg"></svg>
             <div class="mapctrl" role="group" aria-label="Controles do mapa">
-              <button class="mapbtn ic" id="btnZoomIn" onclick="zoomMapa(1.25)" aria-label="Aproximar" title="Aproximar">＋</button>
-              <button class="mapbtn ic" id="btnZoomOut" onclick="zoomMapa(0.8)" aria-label="Afastar" title="Afastar">−</button>
-              <button class="mapbtn ic" id="btnFit" onclick="fitCamera(true)" aria-label="Enquadrar todo o mapa" title="Enquadrar todo o mapa (Shift+1)">⤢</button>
-              <button class="mapbtn ic" id="btnZoom100" onclick="zoom100Mapa()" aria-label="Restaurar zoom para 100%" title="Zoom 100% (Shift+0)">1:1</button>
-              <button class="mapbtn ic" id="btnLista" onclick="mapaLista()" aria-label="Lista de pontos do mapa" title="Lista de pontos (alternativa aos gestos)">☰</button>
-              <button class="mapbtn em" id="btnCamadas" onclick="toggleCamadas()" aria-label="Camadas do mapa" title="Mostrar/ocultar camadas do mapa">Camadas ▾</button>
-              <button class="mapbtn ic soCompacto" id="btnMapAjuda" onclick="mapaAjuda()" aria-label="Como usar o mapa e legenda" title="Como usar">?</button>
+              <div class="mapgrupo mapzoom" role="group" aria-label="Zoom">
+                <button class="mapbtn ic" id="btnZoomIn" onclick="zoomMapa(1.25)" aria-label="Aproximar" title="Aproximar">＋</button>
+                <button class="mapbtn ic" id="btnZoomOut" onclick="zoomMapa(0.8)" aria-label="Afastar" title="Afastar">−</button>
+                <button class="mapbtn ic" id="btnFit" onclick="fitCamera(true)" aria-label="Enquadrar todo o mapa" title="Enquadrar todo o mapa (Shift+1)">⤢</button>
+                <button class="mapbtn ic" id="btnZoom100" onclick="zoom100Mapa()" aria-label="Restaurar zoom para 100%" title="Zoom 100% (Shift+0)">1:1</button>
+              </div>
+              <div class="mapgrupo mapextras">
+                <button class="mapbtn ic" id="btnLista" onclick="mapaLista()" aria-label="Lista de pontos do mapa" title="Lista de pontos (alternativa aos gestos)">☰</button>
+                <button class="mapbtn em" id="btnCamadas" onclick="toggleCamadas()" aria-label="Camadas do mapa" title="Mostrar/ocultar camadas do mapa">Camadas ▾</button>
+                <button class="mapbtn ic soCompacto" id="btnMapAjuda" onclick="mapaAjuda()" aria-label="Como usar o mapa e legenda" title="Como usar">?</button>
+              </div>
             </div>
             <div class="maptoggles" id="maptoggles"></div>
             <div class="mapcorner">
@@ -420,7 +425,7 @@
     <!-- Status de salvamento e avisos, anunciados a leitores de tela -->
     <div id="srlive" role="status" aria-live="polite" class="visually-hidden"></div>
     <!-- ===== FAB mobile: nova ficha ===== -->
-    <button class="fab" id="fab" onclick="novaFicha()" title="Nova ficha">＋</button>
+    <button class="fab" id="fab" onclick="fabAcao()" title="Nova ficha" aria-label="Nova ficha">＋</button>
 
     <div id="onboard" class="onboard" style="display: none">
       <div class="onboard-card">
@@ -535,16 +540,16 @@
     <!-- SDK do Supabase (cliente de auth + banco + storage) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0"></script>
     <!-- Config pública (URL + chave anon) e liga o MODO_ONLINE -->
-    <script src="supabase-config.js"></script>
+    <script src="supabase-config.js?v=20260718a"></script>
     <!-- Esqueleto v6 vazio: a fonte real é a nuvem (não o dados.js) -->
-    <script src="dados-vazio.js"></script>
+    <script src="dados-vazio.js?v=20260718a"></script>
     <!-- O app (miolo inalterado) -->
-    <script src="app.js"></script>
+    <script src="app.js?v=20260718a"></script>
     <!-- Lista-base das salas (dado do jogo): semeia o Diretório de usuários novos -->
-    <script src="salas-base.js"></script>
+    <script src="salas-base.js?v=20260718a"></script>
     <!-- Camada online: login + carregar/salvar na nuvem -->
-    <script src="online.js"></script>
+    <script src="online.js?v=20260718a"></script>
     <!-- IA: processar pistas (inerte sem window.IA_ATIVA) -->
-    <script src="ia.js"></script>
+    <script src="ia.js?v=20260718a"></script>
   </body>
 </html>

@@ -127,6 +127,15 @@
     opacity: 1;
   }
 }
+/* Título do card rolando (segurar o dedo revela o nome inteiro) */
+@keyframes ctit-rola {
+  20% {
+    text-indent: 0;
+  }
+  to {
+    text-indent: var(--rolagem, -200px);
+  }
+}
 /* Movimento reduzido: corta transições/animações espaciais */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -4362,6 +4371,10 @@ select:focus {
   display: flex;
   gap: 8px;
 }
+.mapgrupo {
+  display: flex;
+  gap: 8px;
+}
 .mapbtn {
   position: static;
   background: rgba(29, 23, 16, 0.9);
@@ -5807,10 +5820,11 @@ body.view-conta .filtros-panel {
     gap: 10px;
     padding: 12px 18px 18px;
   }
-  /* ClueCardCompact: miniatura à esquerda, carimbo menor */
+  /* ClueCardCompact: miniatura à esquerda, título numa linha à direita.
+     minmax(0,1fr) é o que permite o "…" dentro do grid. */
   .card {
     display: grid;
-    grid-template-columns: 58px 1fr;
+    grid-template-columns: 58px minmax(0, 1fr);
     grid-template-areas:
       "thumb head"
       "thumb tit"
@@ -5818,28 +5832,53 @@ body.view-conta .filtros-panel {
     column-gap: 12px;
     padding: 12px;
     border-radius: 6px;
-    align-items: start;
+    align-items: center;
+    align-content: center;
   }
   .pin {
     display: none;
   }
   .chead {
     grid-area: head;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .csala {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .cstar {
     opacity: 1;
+    flex: none;
   }
+  /* Título: uma linha com "…"; segurar o dedo rola o texto até o fim */
   .ctit {
     grid-area: tit;
     font-size: 15.5px;
-    line-height: 1.15;
+    line-height: 1.25;
     margin: 3px 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .ctit.rolando {
+    text-overflow: clip;
+    animation: ctit-rola var(--rolagem-t, 2.5s) linear forwards;
   }
   .cthumb {
     grid-area: thumb;
     width: 58px;
     height: 58px;
     margin: 0;
+    align-self: center;
+    border-radius: 5px;
   }
   .cexc {
     display: none;
@@ -5848,6 +5887,10 @@ body.view-conta .filtros-panel {
     grid-area: foot;
     margin-top: 0;
     font-size: 10.5px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .stamp {
     right: 36px;
@@ -6057,13 +6100,26 @@ body.view-conta .filtros-panel {
   .minimap {
     display: none;
   }
-  /* Mapa no toque: controles críticos com 48px, em pilha vertical */
+  /* Mapa no toque: extras (lista/camadas/ajuda) numa linha no TOPO;
+     zoom (+/−/⤢/1:1) numa pilha no CANTO DE BAIXO, perto do polegar. */
   .mapctrl {
-    flex-direction: column;
-    align-items: flex-end;
     right: calc(10px + var(--sar));
     top: 10px;
     gap: 8px;
+  }
+  .mapextras {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .mapzoom {
+    position: fixed;
+    right: calc(10px + var(--sar));
+    bottom: calc(var(--tabbar-total) + 14px);
+    top: auto;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 6;
   }
   .mapbtn {
     min-height: var(--alvo-lg);
@@ -6085,30 +6141,47 @@ body.view-conta .filtros-panel {
   .maptoggles {
     display: none !important;
   }
-  /* Quadros no toque (P04): abas numa linha só, com rolagem própria;
-     ferramentas com alvo de 44px. */
+  /* Quadros no toque (P04): barra FINA de uma linha só — abas + menu ···.
+     Criar (ficha/nota/texto) fica no botão ＋; selecionar/mover/conectar
+     saem do toque no cartão. As ferramentas de desktop somem. */
+  .qbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+  }
   .qtabs {
+    flex: 1;
+    min-width: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
-    max-width: 100%;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .qtabs::-webkit-scrollbar {
+    display: none;
   }
   .qtab {
     flex: none;
-    min-height: var(--alvo);
+    min-height: 42px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
     white-space: nowrap;
   }
+  .qtab.active {
+    border-radius: 8px;
+    border-bottom: 1px solid var(--line-em);
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
   .qtools {
-    overflow-x: auto;
-    max-width: 100%;
+    flex: none;
+    display: flex;
+    align-items: center;
   }
-  .qtoolbtn {
-    width: var(--alvo);
-    height: var(--alvo);
-    font-size: 16px;
-  }
+  .qtoolbar,
   .qfich {
-    height: var(--alvo);
+    display: none;
   }
   /* Menus e popups com alvo de 44px; atalhos de teclado somem no toque */
   .mmit {

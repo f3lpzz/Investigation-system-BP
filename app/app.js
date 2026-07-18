@@ -832,6 +832,62 @@ function abrirSheetHTML(titulo, html) {
   return el.id;
 }
 
+/* ===== Título do card no compacto: segurar rola o nome até o fim =====
+   O título fica numa linha com "…"; um toque LONGO (450ms) anima o texto
+   até o final e soltar volta ao normal — sem disparar o clique do card. */
+let _titTimer = null,
+  _titSegurou = false;
+document.addEventListener(
+  "pointerdown",
+  function (e) {
+    const t = e.target.closest && e.target.closest(".ctit");
+    if (!t || !ehCompacto()) return;
+    _titSegurou = false;
+    clearTimeout(_titTimer);
+    _titTimer = setTimeout(function () {
+      const dist = t.scrollWidth - t.clientWidth;
+      if (dist > 4) {
+        _titSegurou = true;
+        t.style.setProperty("--rolagem", -(dist + 8) + "px");
+        t.style.setProperty("--rolagem-t", Math.max(1.5, dist / 35) + "s");
+        t.classList.add("rolando");
+      }
+    }, 450);
+  },
+  true,
+);
+["pointerup", "pointercancel"].forEach(function (ev) {
+  document.addEventListener(
+    ev,
+    function () {
+      clearTimeout(_titTimer);
+      document.querySelectorAll(".ctit.rolando").forEach(function (t) {
+        t.classList.remove("rolando");
+        t.style.removeProperty("--rolagem");
+        t.style.removeProperty("--rolagem-t");
+      });
+    },
+    true,
+  );
+});
+// Depois do toque longo, o clique que o navegador dispara não deve abrir o card.
+document.addEventListener(
+  "click",
+  function (e) {
+    if (_titSegurou && e.target.closest && e.target.closest(".card")) {
+      _titSegurou = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  },
+  true,
+);
+// O menu de contexto do navegador não deve interromper o toque longo no título.
+document.addEventListener("contextmenu", function (e) {
+  if (e.target.closest && e.target.closest(".ctit") && ehCompacto())
+    e.preventDefault();
+});
+
 /* ===== Gestos de ponteiro compartilhados (plano mobile §5.5) =====
    Mapa, Quadros e lightbox usam o mesmo controlador: tap × arraste com
    limiar, pan, pinch, captura de ponteiro, pointercancel e conclusão de
@@ -1014,7 +1070,26 @@ function setView(v, deHistorico) {
   if (ar) ar.style.display = v === "arquivo" ? "flex" : "none";
   const ct = document.getElementById("conta");
   if (ct) ct.style.display = v === "conta" ? "block" : "none";
+  // O ＋ (FAB) muda de papel por vista: nova ficha × adicionar ao quadro.
+  const fabEl = document.getElementById("fab");
+  if (fabEl) {
+    const rot = v === "teorias" ? "Adicionar ao quadro" : "Nova ficha";
+    fabEl.title = rot;
+    fabEl.setAttribute("aria-label", rot);
+  }
   render();
+}
+/* FAB por vista: em Quadros abre a folha de criação; nas demais, nova ficha. */
+function fabAcao() {
+  if (state.view === "teorias") {
+    abrirSheetAcoes("Adicionar ao quadro", [
+      { rotulo: "Ficha do arquivo", icone: "🗂", fn: qAddItem },
+      { rotulo: "Nota adesiva", icone: "🗒", fn: qAddNota },
+      { rotulo: "Caixa de texto", icone: "T", fn: qAddTexto },
+    ]);
+    return;
+  }
+  novaFicha();
 }
 /* Menu ··· (ações raras: idioma, seleção, ordenar, desfazer/refazer) */
 function toggleMore(force) {
@@ -6456,6 +6531,7 @@ function renderTeorias() {
         <button class="mmit" onclick="qAddTexto();document.getElementById('qmore').classList.remove('open')">Texto</button>
         <button class="mmit" onclick="qAddNota();document.getElementById('qmore').classList.remove('open')">Nota adesiva</button>
         <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');qLista()">Lista de itens…</button>
+        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');renomearQuadro(_qIdx)">Renomear quadro…</button>
         <div class="mm-sep"></div>
         <button class="mmit del" onclick="document.getElementById('qmore').classList.remove('open');excluirQuadro()">Excluir quadro…</button>
       </div>
@@ -6464,7 +6540,7 @@ function renderTeorias() {
   <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div>
   ${
     !(quadroAtual().nodes || []).length
-      ? `<div class="qvazio"><div class="qv-ic">🧵</div><div class="qv-tit">Quadro vazio</div><div class="qv-tx">Arraste fichas do arquivo ou crie uma nota para começar a teoria.</div><div class="qv-btns"><button class="topbtn primary" onclick="qAddItem()">＋ Ficha do arquivo</button><button class="topbtn" onclick="qAddNota()">Nota</button></div></div>`
+      ? `<div class="qvazio"><div class="qv-ic">🧵</div><div class="qv-tit">Quadro vazio</div><div class="qv-tx">${ehToque() ? "Toque em ＋ para adicionar uma ficha, nota ou texto e começar a teoria." : "Arraste fichas do arquivo ou crie uma nota para começar a teoria."}</div><div class="qv-btns"><button class="topbtn primary" onclick="qAddItem()">＋ Ficha do arquivo</button><button class="topbtn" onclick="qAddNota()">Nota</button></div></div>`
       : ""
   }
   <div class="qhint">V selecionar · H mão · T texto · N nota · A barbante · Del apaga · Ctrl+D duplica</div></div>`;

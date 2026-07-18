@@ -38,7 +38,7 @@ const SEED = (vista) => `
     var D = (typeof DADOS !== "undefined") ? DADOS : null; if (!D || typeof setView !== "function") return setTimeout(entra, 60);
     if (D.fichas.length) return; // já semeado
     D.fichas.push(
-      {id:"f1",titulo:"Bilhete rasgado no salão",sala:"Entrance Hall",grupos:["Cartas Vermelhas"],personagens:["Simon"],conexoes:["f5"],notas:"Procurar a outra metade atrás dos móveis do salão.",pendente:false,fav:true,status:"",paginas:[{imagem:"",original:"I found half a note behind the grandfather clock.",traducao:"Encontrei metade de um bilhete atrás do relógio de pé. A caligrafia parece a mesma das cartas vermelhas. A outra metade deve estar em algum lugar do salão.",explica:"Liga o salão de entrada à série de cartas vermelhas.",rotulo:""}]},
+      {id:"f1",titulo:"Bilhete rasgado no salão — jornal sobre o sumiço de Mary Matthew Jones na ala oeste",sala:"Entrance Hall",grupos:["Cartas Vermelhas"],personagens:["Simon"],conexoes:["f5"],notas:"Procurar a outra metade atrás dos móveis do salão.",pendente:true,fav:true,status:"",paginas:[{imagem:"imagens/ficha-01.png",original:"I found half a note behind the grandfather clock.",traducao:"Encontrei metade de um bilhete atrás do relógio de pé. A caligrafia parece a mesma das cartas vermelhas. A outra metade deve estar em algum lugar do salão.",explica:"Liga o salão de entrada à série de cartas vermelhas.",rotulo:""}]},
       {id:"f3",titulo:"Nota do despenseiro",sala:"Pantry",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"Lista de compras com um item circulado três vezes. Falta transcrever a foto.",explica:"",rotulo:""}]},
       {id:"f4",titulo:"Mapa antigo da propriedade",sala:"Study",grupos:[],personagens:["Herbert"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"Old map pinned inside the desk drawer. Someone marked the east wing…",traducao:"",explica:"",rotulo:""}]},
       {id:"f5",titulo:"Carta com selo partido",sala:"Library",grupos:["Cartas Vermelhas"],personagens:["Simon","Mary"],conexoes:["f1"],notas:"",pendente:false,fav:true,status:"resolvida",paginas:[{imagem:"",original:"The third letter of the series.",traducao:"A terceira carta da série. O selo combina com o anel do retrato do corredor.",explica:"",rotulo:""}]},
@@ -104,6 +104,18 @@ createServer((req, res) => {
     const [path, qs] = req.url.split("?");
     let p = decodeURIComponent(path);
     if (p === "/" || p === "/painel") p = "/painel.html";
+    // /moldura.html?w=412&h=880&seed=grade — iframe com viewport CSS exato
+    // (o Chrome headless do Windows não desce de ~500px de janela; o iframe
+    // dá o layout real de celular estreito lá dentro).
+    if (p === "/moldura.html") {
+      const q = new URLSearchParams(qs || "");
+      const w = +(q.get("w") || 412), h = +(q.get("h") || 880);
+      const seed = q.get("seed") || "grade";
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#333}</style></head>
+<body><iframe src="/painel.html?seed=${encodeURIComponent(seed)}" style="width:${w}px;height:${h}px;border:0;display:block"></iframe></body></html>`);
+      return;
+    }
     const file = join(DIR, p);
     let body = readFileSync(file);
     const seed = new URLSearchParams(qs || "").get("seed");
