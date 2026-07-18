@@ -5875,23 +5875,22 @@ body.view-conta .filtros-panel {
   .chead .cstar.on {
     color: var(--gold);
   }
-  /* Título: UMA linha com "…"; segurar o dedo mostra o nome inteiro */
+  /* Título: UMA linha até quase a borda (corta no meio da palavra com
+     "…"); segurar o dedo mostra o nome inteiro */
   .ctit {
     grid-area: tit;
     font-size: 16px;
     line-height: 1.25;
-    margin: 4px 0 5px;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    white-space: normal;
+    margin: 2px 0 4px;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
     min-width: 0;
     -webkit-user-select: none;
     user-select: none;
   }
   .ctit.rolando {
-    -webkit-line-clamp: 99;
+    white-space: normal;
   }
   .cthumb {
     grid-area: thumb;
@@ -5919,6 +5918,9 @@ body.view-conta .filtros-panel {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* nomes param antes da borda, e o "…" sai na cor dos personagens */
+    padding-right: 28px;
+    color: #8a5c50;
   }
   /* No bloco, o respiro entre etiqueta e personagens (o flex dava gap) */
   .cfoot .cgrupo {
