@@ -6304,7 +6304,14 @@ body.view-conta .filtros-panel {
   }
   .langsw,
   #conta .langsw {
-    min-height: var(--alvo);
+    position: relative;
     align-items: center;
+  }
+  /* Alvo de 44px sem inflar a cápsula: a área de toque cresce invisível
+     ao redor (a borda visível continua abraçando só o PT/EN) */
+  .langsw::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
   }
 }
