@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Magnify — Sistema de investigação</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -408,8 +408,8 @@
       </div>
     </div>
 
-    <!-- ===== Barra inferior mobile (4 abas) ===== -->
-    <nav class="tabbar" id="tabbar">
+    <!-- ===== Barra inferior mobile (5 abas) ===== -->
+    <nav class="tabbar" id="tabbar" aria-label="Navegação principal">
       <button class="tbit active" data-view="grade" onclick="setView('grade')">
         <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"></rect></svg>Fichas
       </button>
@@ -422,7 +422,12 @@
       <button class="tbit" data-view="arquivo" onclick="setView('arquivo')">
         <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><rect x="2" y="9" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><line x1="6.5" y1="5.2" x2="9.5" y2="5.2" stroke="currentColor" stroke-width="1.4"></line><line x1="6.5" y1="11.2" x2="9.5" y2="11.2" stroke="currentColor" stroke-width="1.4"></line></svg>Arquivo
       </button>
+      <button class="tbit" data-view="conta" onclick="setView('conta')">
+        <span class="tb-conta"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.4" r="3" fill="none" stroke="currentColor" stroke-width="1.4"></circle><path d="M2.6 13.6c.8-2.6 2.9-4 5.4-4s4.6 1.4 5.4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg><span class="tb-dot" aria-hidden="true"></span></span>Conta
+      </button>
     </nav>
+    <!-- Status de salvamento e avisos, anunciados a leitores de tela -->
+    <div id="srlive" role="status" aria-live="polite" class="visually-hidden"></div>
     <!-- ===== FAB mobile: nova ficha ===== -->
     <button class="fab" id="fab" onclick="novaFicha()" title="Nova ficha">＋</button>
 

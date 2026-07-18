@@ -525,6 +525,73 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+/* ===== Modo compacto (mobile) — a MESMA definição do CSS =====
+   CSS e JS compartilham esta media query (regra do plano mobile §3.5).
+   Capacidade de entrada (toque × mouse) é uma dimensão separada. */
+const MQ_COMPACTO = window.matchMedia
+  ? window.matchMedia("(max-width: 720px), (max-height: 500px)")
+  : null;
+const MQ_TOQUE = window.matchMedia
+  ? window.matchMedia("(pointer: coarse)")
+  : null;
+function ehCompacto() {
+  return !!(MQ_COMPACTO && MQ_COMPACTO.matches);
+}
+function ehToque() {
+  return !!(MQ_TOQUE && MQ_TOQUE.matches);
+}
+// Rotação/resize que muda o modo: re-renderiza a vista SEM trocar o que
+// está aberto (drawer, filtros etc. permanecem como estão).
+if (MQ_COMPACTO && MQ_COMPACTO.addEventListener) {
+  MQ_COMPACTO.addEventListener("change", function () {
+    try {
+      render();
+    } catch (e) {}
+  });
+}
+
+/* ===== Navegação com estado + botão Voltar (History API) =====
+   Ordem do Voltar: fechar overlay aberto → voltar de vista → sair do app.
+   Cada overlay aberto registra um fechador; o popstate fecha o do topo. */
+const _ovStack = []; // pilha de overlays abertos: {id, fechar}
+let _navPopSilencioso = false; // history.back() interno (não fechar de novo)
+function navPushOverlay(id, fecharFn) {
+  if (_ovStack.some((o) => o.id === id)) return;
+  _ovStack.push({ id: id, fechar: fecharFn });
+  try {
+    if (history.pushState) history.pushState({ bpOv: id }, "");
+  } catch (e) {}
+}
+function navOverlayFechado(id) {
+  const i = _ovStack.findIndex((o) => o.id === id);
+  if (i < 0) return;
+  _ovStack.splice(i, 1);
+  // Fechou pelo botão/Escape: recua a entrada do histórico que o abriu.
+  try {
+    if (history.state && history.state.bpOv === id) {
+      _navPopSilencioso = true;
+      history.back();
+    }
+  } catch (e) {}
+}
+window.addEventListener("popstate", function (e) {
+  if (_navPopSilencioso) {
+    _navPopSilencioso = false;
+    return;
+  }
+  // 1) Overlay aberto? Fecha o do topo (o history já recuou sozinho).
+  const topo = _ovStack.pop();
+  if (topo) {
+    try {
+      topo.fechar();
+    } catch (err) {}
+    return;
+  }
+  // 2) Sem overlay: volta de vista, se o estado guardar uma.
+  const st = e.state;
+  if (st && st.bpView) setView(st.bpView, true);
+});
+
 [
   ["vGrade", "grade"],
   ["vMapa", "mapa"],
@@ -535,8 +602,17 @@ document.addEventListener("keydown", (e) => {
   const b = document.getElementById(id);
   if (b) b.onclick = () => setView(v);
 });
-function setView(v) {
+function setView(v, deHistorico) {
+  const mudou = state.view !== v;
   state.view = v;
+  // Botão Voltar: cada troca de vista vira uma entrada no histórico.
+  try {
+    if (!deHistorico && history.pushState) {
+      if (mudou && history.state && history.state.bpView)
+        history.pushState({ bpView: v }, "");
+      else history.replaceState({ bpView: v }, "");
+    }
+  } catch (e) {}
   // Trilho: item ativo (mundo/diretorio são legado dos testes — acendem Arquivo)
   const ativo = {
     grade: "vGrade",
@@ -553,11 +629,12 @@ function setView(v) {
   });
   // Barra inferior (mobile)
   document.querySelectorAll("#tabbar .tbit").forEach((b) => {
-    b.classList.toggle(
-      "active",
+    const ativoTab =
       b.dataset.view === v ||
-        (b.dataset.view === "arquivo" && (v === "mundo" || v === "diretorio")),
-    );
+      (b.dataset.view === "arquivo" && (v === "mundo" || v === "diretorio"));
+    b.classList.toggle("active", ativoTab);
+    if (ativoTab) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
   });
   document.body.className = document.body.className
     .replace(/\bview-[a-z]+\b/g, "")
@@ -1822,8 +1899,7 @@ function abrir(id) {
       <button class="dbtn" onclick="editarFicha('${f.id}')">Editar</button>
       <button class="dbtn primary" onclick="focarMapa('${f.id}')">Ver no mapa</button>
     </div>`;
-  d.classList.add("open");
-  document.body.classList.add("drawer-aberta");
+  drawerAbrir();
   renderPaginaDetalhe();
 }
 /* Adiciona a ficha ao quadro atual (sem sair da tela) */
@@ -1851,8 +1927,38 @@ function addAoQuadro(id) {
 function field(lab, val) {
   return `<div class="field"><div class="lab">${lab}</div><div class="val">${val}</div></div>`;
 }
+/* ===== Abertura/fechamento CENTRAL do detalhe (drawer) =====
+   Todo caminho que abre o painel passa por drawerAbrir(); todo caminho que
+   fecha passa por fechar(). Isso garante que a tabbar e o FAB voltam
+   (body.drawer-aberta), o foco retorna ao acionador e o Voltar funciona. */
+let _drawerAcionador = null;
+function drawerAbrir() {
+  const d = document.getElementById("drawer");
+  if (!d) return;
+  if (!d.classList.contains("open")) {
+    _drawerAcionador =
+      document.activeElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null;
+    navPushOverlay("drawer", fechar);
+  }
+  d.classList.add("open");
+  d.scrollTop = 0;
+  document.body.classList.add("drawer-aberta");
+}
 function fechar() {
-  document.getElementById("drawer").classList.remove("open");
+  const d = document.getElementById("drawer");
+  if (d) d.classList.remove("open");
+  document.body.classList.remove("drawer-aberta");
+  _fichaAberta = null;
+  navOverlayFechado("drawer");
+  // Devolve o foco a quem abriu (se ainda existir na página).
+  if (_drawerAcionador && document.contains(_drawerAcionador)) {
+    try {
+      _drawerAcionador.focus();
+    } catch (e) {}
+  }
+  _drawerAcionador = null;
 }
 function filtraPessoa(p) {
   p = nomeCanon(p);
@@ -2008,6 +2114,22 @@ function updateSaveStatus(st) {
     b.classList.remove("st-ok", "st-info", "st-warn");
     b.classList.add("st-" + m[2]);
   }
+  // Mobile: o status aparece na aba Conta da tabbar (bolinha colorida)...
+  var tc = document.querySelector('#tabbar .tbit[data-view="conta"]');
+  if (tc) {
+    tc.classList.remove("st-ok", "st-info", "st-warn");
+    tc.classList.add("st-" + m[2]);
+  }
+  // ...e é anunciado para leitores de tela quando muda.
+  anunciarStatus(m[1]);
+}
+/* Região viva (aria-live) — anuncia salvando/salvo/erro sem roubar o foco. */
+var _srUltimo = "";
+function anunciarStatus(txt) {
+  var r = document.getElementById("srlive");
+  if (!r || txt === _srUltimo) return;
+  _srUltimo = txt;
+  r.textContent = txt;
 }
 
 function rebuildFilters() {
@@ -2878,8 +3000,7 @@ function editarFicha(id) {
         .map((g) => `<option value="${esc(g)}">`)
         .join("")}</datalist>
     </div>`;
-  d.classList.add("open");
-  document.body.classList.add("drawer-aberta");
+  drawerAbrir();
   renderPagEdit();
   initChipFields();
 }
@@ -4350,8 +4471,7 @@ function abrirEntidade(kind, nome) {
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
       ${field("Mencionam em outro lugar (" + mencoes.length + ")", tagPistas(mencoes))}
     </div>`;
-  d.classList.add("open");
-  document.body.classList.add("drawer-aberta");
+  drawerAbrir();
 }
 function reabrirEnt() {
   if (_entAtual) abrirEntidade(_entAtual.kind, _entAtual.nome);
@@ -4384,8 +4504,7 @@ function editarEntidade() {
         <button class="dbtn del" onclick="excluirEntPainel()">🗑 Excluir</button>
       </div>
     </div>`;
-  d.classList.add("open");
-  document.body.classList.add("drawer-aberta");
+  drawerAbrir();
   initChipFields();
 }
 function salvarEntidade() {
@@ -4931,8 +5050,8 @@ function setArqTab(t) {
 }
 function arqAbrir(kind, nome) {
   _arqSel = { kind: kind, nome: nome };
-  // No mobile o dossiê vira página cheia: usa a gaveta legada (mesma lógica)
-  if (window.innerWidth <= 720) {
+  // No modo compacto o dossiê vira página cheia (mesma definição do CSS)
+  if (ehCompacto()) {
     abrirEntidade(kind, nome);
     return;
   }

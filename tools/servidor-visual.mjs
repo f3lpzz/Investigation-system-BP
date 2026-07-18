@@ -61,15 +61,16 @@ const SEED = (vista) => `
     );
     if (typeof rebuildFilters === "function") rebuildFilters();
     var v = ${JSON.stringify(vista)};
-    if (v === "detalhe") { setView("grade"); render(); abrir("f1"); }
-    else if (v === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
-    else if (v === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
-    else if (v === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
-    else if (v === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
-    else if (v === "conta") { setView("conta"); }
-    else if (v === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
-    else { setView(v.replace("-diag",""), render()); render(); }
-    if (v.indexOf("-diag") > 0) { setTimeout(function(){ __diag(); }, 400); }
+    var base = v.replace("-diag","");
+    if (base === "detalhe") { setView("grade"); render(); abrir("f1"); }
+    else if (base === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
+    else if (base === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
+    else if (base === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
+    else if (base === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
+    else if (base === "conta") { setView("conta"); }
+    else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
+    else { setView(base); render(); }
+    if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }
   function __diag(){
     var vw = document.documentElement.clientWidth, pior = [];
@@ -78,7 +79,21 @@ const SEED = (vista) => `
       if (r.right > vw + 1 && r.width > 0) pior.push([Math.round(r.right), Math.round(r.width), el.tagName + "." + (el.className && el.className.baseVal === undefined ? String(el.className).split(" ").join(".") : "")]);
     });
     pior.sort(function(a,b){ return b[0]-a[0]; });
-    document.title = "VW=" + vw + " SCROLLW=" + document.documentElement.scrollWidth + " || " + pior.slice(0,6).map(function(p){ return p[2] + " right=" + p[0] + " w=" + p[1]; }).join(" | ");
+    // Rolagem vertical: quem é o dono e se o conteúdo é alcançável.
+    var donos = [];
+    ["#grade", ".arqbody", ".arqgrid", "#conta", "#teorias", "#drawer", ".db", ".contawrap"].forEach(function(sel){
+      document.querySelectorAll(sel).forEach(function(el){
+        var cs = getComputedStyle(el);
+        if (cs.display === "none" || !el.clientHeight) return;
+        var rola = /(auto|scroll)/.test(cs.overflowY);
+        if (el.scrollHeight > el.clientHeight + 1 || rola)
+          donos.push(sel + " sh=" + el.scrollHeight + " ch=" + el.clientHeight + (rola ? " ROLA" : " PRESO"));
+      });
+    });
+    document.title = "VW=" + vw + " SCROLLW=" + document.documentElement.scrollWidth +
+      " BODYH=" + document.documentElement.clientHeight + " SCROLLH=" + document.documentElement.scrollHeight +
+      " || " + pior.slice(0,6).map(function(p){ return p[2] + " right=" + p[0] + " w=" + p[1]; }).join(" | ") +
+      " ||V|| " + donos.join(" | ");
   }
   if (document.readyState === "complete") setTimeout(entra, 120);
   else window.addEventListener("load", function(){ setTimeout(entra, 120); });

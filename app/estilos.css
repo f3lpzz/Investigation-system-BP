@@ -65,6 +65,48 @@
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-type: "Special Elite", "IBM Plex Mono", monospace;
+  /* ===== Tokens mobile (plano mobile §5.2) =====
+     Modo compacto = @media (max-width: 720px), (max-height: 500px)
+     — a MESMA definição vive no JS (MQ_COMPACTO em app.js). */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --tabbar-h: 58px;
+  --tabbar-total: calc(var(--tabbar-h) + var(--sab));
+  --fab-offset: calc(var(--tabbar-total) + 14px);
+  --toast-offset: calc(var(--tabbar-total) + 12px);
+  --alvo: 44px; /* alvo de toque padrão */
+  --alvo-lg: 48px; /* alvo de toque crítico (mapa, fechar, salvar) */
+  --foco-cor: #e0be7a; /* foco visível (≥3:1 sobre superfícies escuras) */
+}
+/* Foco visível consistente (teclado) — não some sobre fundos escuros */
+:focus-visible {
+  outline: 2px solid var(--foco-cor);
+  outline-offset: 2px;
+}
+/* Conteúdo só para leitores de tela (região de status etc.) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Movimento reduzido: corta transições/animações espaciais */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 * {
   box-sizing: border-box;
@@ -84,6 +126,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Shell estável: svh ignora as barras móveis do navegador (não "pula") */
+  height: 100svh;
   overflow: hidden;
 }
 h1,
@@ -4642,7 +4686,9 @@ select:focus {
 #arquivo {
   display: none;
   flex-direction: column;
-  flex: 1;
+  /* Dono da altura: o main não é flex — a vista precisa de height explícita
+     para a rolagem interna (arqbody/arqgrid) funcionar. */
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -5151,7 +5197,8 @@ select:focus {
 #conta {
   display: none;
   overflow-y: auto;
-  flex: 1;
+  height: 100%;
+  min-height: 0;
 }
 .contawrap {
   padding: 26px 24px;
@@ -5347,31 +5394,58 @@ body.view-conta .filtros-panel {
   z-index: 40;
   border-top: 1px solid var(--line);
   background: var(--s2);
-  padding: 8px 6px 14px;
+  /* Reserva a área segura (home indicator) sem crescer o alvo de toque */
+  padding: 6px calc(6px + var(--sar)) calc(6px + var(--sab)) calc(6px + var(--sal));
+  min-height: var(--tabbar-total);
 }
 .tbit {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  color: var(--hint);
+  color: var(--ink-soft);
   font-size: 10.5px;
   background: none;
   border: 0;
   font-family: var(--font-ui);
   cursor: pointer;
-  min-height: 44px;
+  min-height: var(--alvo);
+  min-width: var(--alvo);
+  padding: 2px 0;
 }
 .tbit.active {
   color: var(--gold);
   font-weight: 600;
 }
+/* Bolinha de status de salvamento na aba Conta (espelha o trilho) */
+.tb-conta {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.tb-conta .tb-dot {
+  position: absolute;
+  right: -4px;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  border: 1.5px solid var(--s2);
+}
+.tbit.st-info .tb-dot {
+  background: var(--info);
+}
+.tbit.st-warn .tb-dot {
+  background: var(--warn);
+}
 .fab {
   display: none;
   position: fixed;
-  right: 16px;
-  bottom: 86px;
+  right: calc(16px + var(--sar));
+  bottom: var(--fab-offset);
   z-index: 41;
   width: 56px;
   height: 56px;
@@ -5387,8 +5461,35 @@ body.view-conta .filtros-panel {
   line-height: 0;
 }
 
-/* ---------- Mobile (≤720px) ---------- */
-@media (max-width: 720px) {
+/* ---------- Trilho estreito (721–1000px): degrau entre mobile e desktop.
+   Sem ele, 720→721px saltava de tabbar para uma sidebar de 212px (P09). */
+@media (min-width: 721px) and (max-width: 1000px) and (min-height: 501px) {
+  .side {
+    width: 64px;
+    min-width: 64px;
+  }
+  .side .side-brand-txt,
+  .side .ni-lb,
+  .side .side-brand .sub {
+    display: none;
+  }
+  .side .navit {
+    justify-content: center;
+    padding: 11px 0;
+  }
+  .side .navit.save {
+    padding: 8px 0;
+  }
+  .side-brand {
+    justify-content: center;
+    padding: 14px 8px;
+  }
+}
+
+/* ---------- Modo compacto (mobile) ----------
+   MESMA definição do JS (MQ_COMPACTO): largura estreita OU altura curta
+   (celular deitado). Capacidade de entrada é tratada à parte (pointer). */
+@media (max-width: 720px), (max-height: 500px) {
   .side {
     display: none;
   }
@@ -5404,7 +5505,7 @@ body.view-conta .filtros-panel {
     display: none;
   }
   .appwrap {
-    padding-bottom: 74px;
+    padding-bottom: var(--tabbar-total);
   }
   .topbar {
     flex-wrap: wrap;
@@ -5492,16 +5593,28 @@ body.view-conta .filtros-panel {
     left: 6px;
     top: 6px;
   }
-  /* Detalhe vira página cheia com barra de ações */
+  /* Detalhe vira página cheia com barra de ações (P07) */
   #drawer {
+    position: fixed;
+    inset: 0;
     width: 100vw;
     max-width: 100vw;
+    height: 100dvh; /* acompanha as barras do navegador */
+    border-left: 0;
+    z-index: 60;
+    padding-top: var(--sat);
   }
   #drawer .dactions {
     display: none;
   }
   .dfoot {
     display: flex;
+    padding-bottom: calc(12px + var(--sab));
+  }
+  #drawer .dh .close,
+  .dfoot .dbtn {
+    min-height: var(--alvo-lg);
+    min-width: var(--alvo-lg);
   }
   /* Filtros viram folha inferior */
   .filtros-panel.open {
@@ -5514,11 +5627,12 @@ body.view-conta .filtros-panel {
     border-top: 1px solid var(--line-em);
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.6);
-    padding: 14px 18px 22px;
+    padding: 14px 18px calc(22px + var(--sab));
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
-    max-height: 80vh;
+    /* dvh: o limite acompanha o teclado/barras; corpo interno rola */
+    max-height: min(80vh, 85dvh);
     overflow-y: auto;
   }
   .filtros-panel.open .sheet-grip {
