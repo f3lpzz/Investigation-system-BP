@@ -2352,7 +2352,11 @@ function abrirLightbox(src) {
     m.id = "lightbox";
     m.className = "lightbox";
     m.innerHTML =
-      '<button class="lbclose" title="Fechar (Esc)">✕</button><div class="lbhint">Roda do mouse: zoom · arraste: mover · duplo-clique: reset</div><img class="lbimg" alt="">';
+      '<button class="lbclose" title="Fechar (Esc)" aria-label="Fechar imagem">✕</button><div class="lbhint">' +
+      (ehToque()
+        ? "Pinça: zoom · arraste: mover · toque duplo: reset"
+        : "Roda do mouse: zoom · arraste: mover · duplo-clique: reset") +
+      '</div><img class="lbimg" alt="Imagem ampliada">';
     document.body.appendChild(m);
     const img = m.querySelector(".lbimg");
     m.addEventListener("mousedown", (e) => {
@@ -2408,6 +2412,54 @@ function abrirLightbox(src) {
     });
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && m.classList.contains("open")) fecharLightbox();
+    });
+    // Toque (P13): mesmo controlador de gestos do Mapa/Quadros.
+    let _lbPan = null;
+    ligarGestos(m, {
+      mouseProprio: true,
+      ignorar: function (e) {
+        return !!(e.target.closest && e.target.closest(".lbclose"));
+      },
+      dragInicio: function () {
+        _lbPan = { x: _lb.x, y: _lb.y };
+      },
+      drag: function (e, dx, dy) {
+        if (!_lbPan) return;
+        _lb.x = _lbPan.x + dx;
+        _lb.y = _lbPan.y + dy;
+        aplicaLB();
+      },
+      dragFim: function () {
+        _lbPan = null;
+      },
+      dragCancela: function () {
+        _lbPan = null;
+      },
+      cancelar: function () {
+        _lbPan = null;
+      },
+      pinch: function (p) {
+        const ns = Math.max(0.15, Math.min(10, _lb.s * p.fator));
+        const r = ns / _lb.s;
+        const ox = window.innerWidth / 2,
+          oy = window.innerHeight / 2,
+          ux = p.cx - ox,
+          uy = p.cy - oy;
+        _lb.x = ux - (ux - _lb.x) * r + p.dx;
+        _lb.y = uy - (uy - _lb.y) * r + p.dy;
+        _lb.s = ns;
+        aplicaLB();
+      },
+      tap: function (e, alvo) {
+        // Toque fora da imagem fecha (equivalente ao clique no fundo).
+        if (alvo === m) fecharLightbox();
+      },
+      doubleTap: function () {
+        _lb.s = 1;
+        _lb.x = 0;
+        _lb.y = 0;
+        aplicaLB();
+      },
     });
   }
   _lb = { s: 1, x: 0, y: 0, drag: null };
@@ -7106,6 +7158,236 @@ function wireQuadro() {
     },
     { passive: false },
   );
+  // ===== Toque (P04/§3.3): modo mão por padrão — um dedo move o quadro,
+  // pinça dá zoom, tap seleciona e abre o menu do item. Mover, conectar e
+  // religar têm caminho guiado por toques (sem arraste obrigatório).
+  let _gqPan = null;
+  ligarGestos(cv, {
+    mouseProprio: true,
+    ignorar: function (e) {
+      // Digitação nos editores de texto segue o fluxo nativo.
+      return (
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable ||
+        (e.target.closest && e.target.closest(".qtxt"))
+      );
+    },
+    dragInicio: function () {
+      const q = quadroAtual();
+      _gqPan = { x: q.cam.x, y: q.cam.y };
+    },
+    drag: function (e, dx, dy) {
+      if (!_gqPan) return;
+      const q = quadroAtual();
+      q.cam.x = _gqPan.x + dx;
+      q.cam.y = _gqPan.y + dy;
+      aplicaCam();
+    },
+    dragFim: function () {
+      if (_gqPan) qAgendaSalvarCam();
+      _gqPan = null;
+    },
+    dragCancela: function () {
+      _gqPan = null;
+    },
+    cancelar: function () {
+      _gqPan = null;
+    },
+    pinch: function (p) {
+      const q = quadroAtual();
+      const r = cv.getBoundingClientRect();
+      const cx = p.cx - r.left,
+        cy = p.cy - r.top;
+      const wx = (cx - q.cam.x) / q.cam.s,
+        wy = (cy - q.cam.y) / q.cam.s;
+      const ns = Math.max(
+        QUADRO_ZOOM_MIN,
+        Math.min(QUADRO_ZOOM_MAX, q.cam.s * p.fator),
+      );
+      q.cam.x = cx - wx * ns + p.dx;
+      q.cam.y = cy - wy * ns + p.dy;
+      q.cam.s = ns;
+      aplicaCam();
+      qAgendaSalvarCam();
+    },
+    tap: function (e, alvo) {
+      qTapToque(e, alvo, rel, toW);
+    },
+  });
+}
+/* ===== Toque nos Quadros: tap com modos guiados ===== */
+let _qConectarDe = null, // conexão guiada: origem escolhida, falta o destino
+  _qMoverId = null, // mover guiado: próximo toque diz o novo lugar
+  _qReligar = null; // religar guiado: {i, end}
+function qTapToque(e, alvo, rel, toW) {
+  const q = quadroAtual();
+  const p = toW(rel(e));
+  const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+  const setaEl = alvo && alvo.closest ? alvo.closest("[data-seta]") : null;
+  // 1) Modos guiados pendentes
+  if (_qConectarDe) {
+    const de = _qConectarDe;
+    _qConectarDe = null;
+    if (noEl && noEl.getAttribute("data-id") !== de) {
+      const para = noEl.getAttribute("data-id");
+      if (!q.setas.some((s) => s.de === de && s.para === para)) {
+        q.setas.push({ de: de, para: para });
+        marcarAlterado();
+        desenhaSetas();
+      }
+      toast("Barbante criado.");
+    } else toast("Ligação cancelada.");
+    return;
+  }
+  if (_qReligar) {
+    const rl = _qReligar;
+    _qReligar = null;
+    if (noEl) qReligarSeta(rl.i, rl.end, noEl.getAttribute("data-id"));
+    else toast("Religação cancelada.");
+    return;
+  }
+  if (_qMoverId) {
+    const n = q.nodes.find((x) => x.id === _qMoverId);
+    _qMoverId = null;
+    if (n) {
+      n.x = Math.round(p.x - 70);
+      n.y = Math.round(p.y - 20);
+      marcarAlterado();
+      desenhaQuadro();
+      toast("Item movido.");
+    }
+    return;
+  }
+  // 2) Ferramentas de criação escolhidas na barra
+  if ((_qTool === "texto" || _qTool === "nota") && !noEl) {
+    qNovoTextoEm(p.x, p.y, _qTool === "nota" ? "nota" : undefined);
+    qSetTool("select");
+    return;
+  }
+  // 3) Tap num cartão: seleciona e abre o menu de ações
+  if (noEl) {
+    const id = noEl.getAttribute("data-id");
+    _qSelSet = new Set([id]);
+    markSelDom();
+    qNoMenu(id);
+    return;
+  }
+  // 4) Tap numa seta: seleciona e abre o menu do barbante
+  if (setaEl) {
+    const i = +setaEl.getAttribute("data-seta");
+    qSelSeta(i);
+    qSetaMenu(i);
+    return;
+  }
+  // 5) Tap no vazio: limpa seleção
+  _qSelSet = new Set();
+  if (_qSetaSel.size) {
+    _qSetaSel = new Set();
+    desenhaSetas();
+  }
+  markSelDom();
+}
+/* Menu contextual do cartão (§3.3): nada depende de hover/duplo clique. */
+function qNoMenu(id) {
+  const q = quadroAtual();
+  const n = q.nodes.find((x) => x.id === id);
+  if (!n) return;
+  const ehTexto = n.tipo === "texto";
+  const ehNota = ehTexto && n.estilo === "nota";
+  const titulo = ehTexto
+    ? ehNota
+      ? "Nota adesiva"
+      : "Caixa de texto"
+    : qRefInfo(n).nome;
+  abrirSheetAcoes(titulo, [
+    !ehTexto
+      ? {
+          rotulo: "Abrir",
+          fn: function () {
+            qOpenRef(id);
+          },
+        }
+      : {
+          rotulo: "Editar texto",
+          fn: function () {
+            const el = document.querySelector(
+              '.qnode[data-id="' + id + '"] .qtxt',
+            );
+            if (el) el.focus();
+          },
+        },
+    {
+      rotulo: "Conectar (barbante)",
+      fn: function () {
+        _qConectarDe = id;
+        toast("Toque no cartão de DESTINO para ligar o barbante.");
+      },
+    },
+    {
+      rotulo: "Mover para…",
+      fn: function () {
+        _qMoverId = id;
+        toast("Toque no lugar do quadro para onde mover.");
+      },
+    },
+    ehNota
+      ? {
+          rotulo: "Mudar a cor",
+          fn: function () {
+            qCorNota(id);
+          },
+        }
+      : null,
+    {
+      rotulo: "Duplicar",
+      fn: function () {
+        _qSelSet = new Set([id]);
+        qDuplicarSelecao();
+      },
+    },
+    {
+      rotulo: "Excluir do quadro",
+      perigo: true,
+      fn: function () {
+        qDelNode(id);
+      },
+    },
+  ]);
+}
+/* Menu do barbante: rótulo, religar pontas e excluir — sem arraste. */
+function qSetaMenu(i) {
+  const q = quadroAtual();
+  const se = q.setas[i];
+  if (!se) return;
+  abrirSheetAcoes("Barbante", [
+    {
+      rotulo: se.rotulo ? "Editar rótulo" : "Adicionar rótulo",
+      fn: function () {
+        qRotuloSeta(i);
+      },
+    },
+    {
+      rotulo: "Religar origem",
+      fn: function () {
+        _qReligar = { i: i, end: "de" };
+        toast("Toque no cartão que passa a ser a ORIGEM.");
+      },
+    },
+    {
+      rotulo: "Religar destino",
+      fn: function () {
+        _qReligar = { i: i, end: "para" };
+        toast("Toque no cartão que passa a ser o DESTINO.");
+      },
+    },
+    {
+      rotulo: "Excluir barbante",
+      perigo: true,
+      fn: function () {
+        qDelSeta(i);
+      },
+    },
+  ]);
 }
 function qCentro() {
   const q = quadroAtual();

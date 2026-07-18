@@ -4366,9 +4366,11 @@ select:focus {
 .mapbtn.soCompacto {
   display: none;
 }
-/* O canvas do mapa é 2D próprio: gesto do navegador só FORA dele (P03).
-   touch-action fica restrito ao svg — nunca global. */
-#mapa svg {
+/* Canvas 2D próprios: gesto do navegador só FORA deles (P03/P04/P13).
+   touch-action fica restrito aos canvases — nunca global. */
+#mapa svg,
+.qcanvas,
+.lightbox {
   touch-action: none;
 }
 /* ---------- Bottom sheet do ponto selecionado (Mapa) ---------- */
@@ -6058,6 +6060,52 @@ body.view-conta .filtros-panel {
   }
   .maptoggles {
     display: none !important;
+  }
+  /* Quadros no toque (P04): abas numa linha só, com rolagem própria;
+     ferramentas com alvo de 44px. */
+  .qtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .qtab {
+    flex: none;
+    min-height: var(--alvo);
+    white-space: nowrap;
+  }
+  .qtools {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .qtoolbtn {
+    width: var(--alvo);
+    height: var(--alvo);
+    font-size: 16px;
+  }
+  .qfich {
+    height: var(--alvo);
+  }
+  /* Menus e popups com alvo de 44px; atalhos de teclado somem no toque */
+  .mmit {
+    min-height: var(--alvo);
+  }
+  .mm-k,
+  .kbd {
+    display: none;
+  }
+  .mentmenu {
+    max-width: calc(100vw - 16px);
+    max-height: 40dvh;
+    overflow-y: auto;
+  }
+  /* Lightbox: fechar com 48px e dica fora da área segura */
+  .lightbox .lbclose {
+    width: var(--alvo-lg);
+    height: var(--alvo-lg);
+  }
+  .lightbox .lbhint {
+    bottom: calc(10px + var(--sab));
   }
   .contawrap {
     padding: 16px 18px;
