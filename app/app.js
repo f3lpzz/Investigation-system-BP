@@ -5516,14 +5516,108 @@ function toggleFiltros() {
   const pn = document.getElementById("filtrosPanel");
   if (!pn) return;
   // No compacto vira bottom sheet MODAL (fundo inerte, foco preso, Voltar
-  // fecha); no desktop segue como painel inline, mas com Escape/Voltar.
-  if (pn.classList.contains("open")) overlayFechar("filtrosPanel");
-  else
-    overlayAbrir(pn, {
-      id: "filtrosPanel",
-      modal: ehCompacto(),
-      focoEm: "#fsala",
+  // fecha) que sobe animado, desce arrastando pela alça e fecha tocando no
+  // fundo escurecido; no desktop segue como painel inline (Escape/Voltar).
+  if (pn.classList.contains("open")) {
+    overlayFechar("filtrosPanel");
+    return;
+  }
+  fSheetWire(pn);
+  if (ehCompacto()) fSheetFundo(true);
+  overlayAbrir(pn, {
+    id: "filtrosPanel",
+    modal: ehCompacto(),
+    focoEm: "#fsala",
+    fechar: function () {
+      fSheetFechaAnim(pn);
+    },
+  });
+}
+/* Fundo escurecido da folha de filtros: tocar nele fecha a folha */
+function fSheetFundo(liga) {
+  let bd = document.getElementById("sheetFundo");
+  if (!bd) {
+    if (!liga) return;
+    bd = document.createElement("div");
+    bd.id = "sheetFundo";
+    bd.className = "sheet-fundo";
+    bd.onclick = function () {
+      overlayFechar("filtrosPanel");
+    };
+    document.body.appendChild(bd);
+  }
+  if (liga)
+    requestAnimationFrame(function () {
+      bd.classList.add("on");
     });
+  else bd.classList.remove("on");
+}
+/* Fecha a folha DESCENDO — vale para Aplicar, Voltar, Escape e toque fora */
+function fSheetFechaAnim(pn) {
+  fSheetFundo(false);
+  if (!ehCompacto()) {
+    pn.classList.remove("open");
+    return;
+  }
+  pn.style.transition = "transform 0.22s ease-in";
+  pn.style.transform = "translateY(110%)";
+  setTimeout(function () {
+    pn.classList.remove("open");
+    pn.style.transition = "";
+    pn.style.transform = "";
+  }, 230);
+}
+/* Arrastar a folha pela alça/cabeçalho: segue o dedo; soltar longe (ou
+   rápido) fecha, soltar perto volta com mola */
+function fSheetWire(pn) {
+  if (pn._sheetWired) return;
+  pn._sheetWired = true;
+  let st = null;
+  function volta() {
+    pn.style.transition = "transform 0.2s ease";
+    pn.style.transform = "";
+    setTimeout(function () {
+      pn.style.transition = "";
+    }, 220);
+  }
+  function down(e) {
+    if (!ehCompacto() || !pn.classList.contains("open")) return;
+    // Toque nos botões do cabeçalho (limpar) segue o fluxo normal
+    if (e.target.closest && e.target.closest("button")) return;
+    st = { y0: e.clientY, t0: Date.now(), dy: 0 };
+    pn.style.transition = "none";
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    e.preventDefault();
+  }
+  function move(e) {
+    if (!st) return;
+    st.dy = Math.max(0, e.clientY - st.y0);
+    pn.style.transform = st.dy ? "translateY(" + st.dy + "px)" : "";
+  }
+  function up() {
+    if (!st) return;
+    const rapido = st.dy / Math.max(1, Date.now() - st.t0) > 0.5;
+    const fecha = st.dy > 110 || (st.dy > 30 && rapido);
+    st = null;
+    pn.style.transition = "";
+    if (fecha) overlayFechar("filtrosPanel");
+    else volta();
+  }
+  function cancel() {
+    if (!st) return;
+    st = null;
+    volta();
+  }
+  [".sheet-grip", ".sheet-head"].forEach(function (s) {
+    const el = pn.querySelector(s);
+    if (!el) return;
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", cancel);
+  });
 }
 function toggleSelMode() {
   state.selMode = !state.selMode;

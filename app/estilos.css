@@ -3532,6 +3532,20 @@ select:focus {
 .sheet-head {
   display: none;
 }
+/* Fundo escurecido da folha de filtros (só o compacto liga o .on) */
+.sheet-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+  background: rgba(12, 8, 4, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.sheet-fundo.on {
+  opacity: 1;
+  pointer-events: auto;
+}
 .fgrp {
   display: flex;
   flex-direction: column;
@@ -5989,7 +6003,14 @@ body.view-conta .filtros-panel {
     /* dvh: o limite acompanha o teclado/barras; corpo interno rola */
     max-height: min(80vh, 85dvh);
     overflow-y: auto;
+    animation: sheetSobe 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
   }
+  @keyframes sheetSobe {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  /* Alça: visual de 40×4, mas área de toque bem maior (padding invisível) */
   .filtros-panel.open .sheet-grip {
     display: block;
     width: 40px;
@@ -5997,10 +6018,17 @@ body.view-conta .filtros-panel {
     border-radius: 2px;
     background: var(--line-em);
     align-self: center;
+    box-sizing: content-box;
+    padding: 10px 44px;
+    margin: -10px 0;
+    background-clip: content-box;
+    touch-action: none;
+    cursor: grab;
   }
   .filtros-panel.open .sheet-head {
     display: flex;
     align-items: center;
+    touch-action: none;
   }
   .sheet-title {
     font-family: var(--font-serif);

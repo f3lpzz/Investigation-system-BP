@@ -665,6 +665,36 @@ const entrou = () =>
     g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
   );
 
+  /* Teste 18.5 — Folha de filtros no compacto: fundo escurecido fecha ao
+     toque e arrastar a alça para baixo fecha (ehCompacto forçado) */
+  g("window._ehcOrig = ehCompacto; ehCompacto = function(){ return true; };");
+  g("toggleFiltros()");
+  await new Promise((r) => setTimeout(r, 50)); // rAF do fundo
+  ok(
+    "folha de filtros: abre com fundo escurecido (sheet-fundo .on)",
+    g(
+      '(function(){var pn=document.getElementById("filtrosPanel");var bd=document.getElementById("sheetFundo");return pn.classList.contains("open") && !!bd && bd.classList.contains("on");})()',
+    ),
+  );
+  g('document.getElementById("sheetFundo").onclick()');
+  await new Promise((r) => setTimeout(r, 300)); // animação de descida (230ms)
+  ok(
+    "folha de filtros: tocar no fundo fecha (descendo, e o fundo apaga)",
+    g(
+      '(function(){var pn=document.getElementById("filtrosPanel");var bd=document.getElementById("sheetFundo");return !pn.classList.contains("open") && !bd.classList.contains("on") && pn.style.transform==="";})()',
+    ),
+  );
+  g("toggleFiltros()");
+  g(
+    '(function(){function pe(t,el,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientY:y}))}var al=document.querySelector("#filtrosPanel .sheet-grip");pe("pointerdown",al,100);pe("pointermove",al,320);pe("pointerup",al,320);})()',
+  );
+  await new Promise((r) => setTimeout(r, 300));
+  ok(
+    "folha de filtros: arrastar a alça para baixo fecha a folha",
+    g('!document.getElementById("filtrosPanel").classList.contains("open")'),
+  );
+  g("ehCompacto = window._ehcOrig;");
+
   /* Teste 19 — IA: dossiês de personagens (elegibilidade + fila + escrita segura) */
   g(`
     DADOS.personagens.push({nome:"Dossie Persona",imagem:"",descricao:"manual antiga",fatos:["fato do usuário"],notas:"nota minha",aliases:["D.P."]});
