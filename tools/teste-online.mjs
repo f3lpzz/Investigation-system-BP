@@ -348,6 +348,37 @@ const entrou = () =>
     g("quadroAtual().setas.length === 0 && _qSetaSel.size === 0"),
   );
 
+  /* Teste 9.5 — Toque nos Quadros: arrastar move o cartão; segurar puxa o
+     barbante (eventos de ponteiro simulados; MouseEvent serve de PointerEvent) */
+  g(
+    '(function(){desenhaQuadro();var q=quadroAtual();window._gA=q.nodes.find(function(n){return n.id===window._nA});window._gB=q.nodes.find(function(n){return n.id===window._nB});window._gA.x=0;window._gA.y=0;desenhaQuadro();})()',
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"] .qtxt\');pe("pointerdown",el,100,100);pe("pointermove",el,140,130);pe("pointerup",el,140,130);})()',
+  );
+  ok(
+    "toque: arrastar o corpo da nota/texto MOVE o cartão (não o quadro)",
+    g("window._gA.x === 40 && window._gA.y === 30"),
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"]\');pe("pointerdown",el,100,100);})()',
+  );
+  await new Promise((r) => setTimeout(r, 550)); // segurar 450ms sem mover
+  ok(
+    "toque: segurar num cartão entra no modo de puxar o barbante",
+    g("_qArrow !== null && _qArrow.de === window._nA"),
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var elB=document.querySelector(\'.qnode[data-id="\'+window._nB+\'"]\');pe("pointermove",elB,300,50);pe("pointerup",elB,300,50);})()',
+  );
+  ok(
+    "toque: soltar sobre outro cartão cria o barbante (e sai do modo)",
+    g(
+      "_qArrow === null && quadroAtual().setas.some(function(s){return s.de===window._nA && s.para===window._nB})",
+    ),
+  );
+  g("quadroAtual().setas.length = 0");
+
   /* Teste 10 — IA: aplicador + anti-duplicata (sem chamada real; tudo local) */
   g(
     'DADOS.fichas.push({id:"fIA",titulo:"(pendente)",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]});',

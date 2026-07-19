@@ -890,11 +890,12 @@ document.addEventListener("contextmenu", function (e) {
    ações no pointerup. Mouse e teclado continuam com os caminhos atuais. */
 function ligarGestos(el, h) {
   const pts = new Map(); // pointerId -> {x, y, x0, y0}
-  let modo = null; // null | aguarda | drag | pinch
+  let modo = null; // null | aguarda | drag | pinch | long
   let t0 = 0,
     ultTap = 0,
     pinchBase = null,
-    alvo0 = null;
+    alvo0 = null,
+    lpTimer = null; // segurar o toque parado -> h.longPress
   const LIMIAR = 8; // px de movimento antes de virar arraste
   function pAtual() {
     const arr = [...pts.values()];
@@ -923,9 +924,25 @@ function ligarGestos(el, h) {
       modo = "aguarda";
       t0 = Date.now();
       alvo0 = e.target;
+      if (h.longPress) {
+        clearTimeout(lpTimer);
+        const alvoLp = e.target,
+          px = e.clientX,
+          py = e.clientY;
+        lpTimer = setTimeout(function () {
+          if (
+            modo === "aguarda" &&
+            pts.size === 1 &&
+            h.longPress(alvoLp, { x: px, y: py })
+          )
+            modo = "long";
+        }, 450);
+      }
       if (h.inicio) h.inicio(e);
     } else if (pts.size === 2) {
+      clearTimeout(lpTimer);
       if (modo === "drag" && h.dragCancela) h.dragCancela(e);
+      if (modo === "long" && h.cancelar) h.cancelar(e);
       modo = "pinch";
       pinchBase = pAtual();
       if (h.pinchInicio) h.pinchInicio(pinchBase);
@@ -939,11 +956,13 @@ function ligarGestos(el, h) {
     p.y = e.clientY;
     if (modo === "aguarda") {
       if (Math.hypot(p.x - p.x0, p.y - p.y0) > LIMIAR) {
+        clearTimeout(lpTimer);
         modo = "drag";
         if (h.dragInicio) h.dragInicio(e, alvo0, p.x0, p.y0);
       }
     }
-    if (modo === "drag" && h.drag) h.drag(e, p.x - p.x0, p.y - p.y0);
+    if (modo === "long" && h.longDrag) h.longDrag(e);
+    else if (modo === "drag" && h.drag) h.drag(e, p.x - p.x0, p.y - p.y0);
     else if (modo === "pinch" && pinchBase) {
       const agora = pAtual();
       if (!agora) return;
@@ -962,6 +981,13 @@ function ligarGestos(el, h) {
     const p = pts.get(e.pointerId);
     if (!p) return;
     pts.delete(e.pointerId);
+    clearTimeout(lpTimer);
+    if (modo === "long") {
+      if (h.longFim) h.longFim(e);
+      modo = null;
+      pinchBase = null;
+      return;
+    }
     if (modo === "aguarda" && Date.now() - t0 < 600) {
       const agora = Date.now();
       if (h.doubleTap && agora - ultTap < 320) {
@@ -985,6 +1011,7 @@ function ligarGestos(el, h) {
   }
   function cancel(e) {
     // Gesto cancelado pelo sistema: NENHUMA ação dispara (§P03/P11).
+    clearTimeout(lpTimer);
     pts.delete(e.pointerId);
     modo = null;
     pinchBase = null;
@@ -7269,40 +7296,128 @@ function wireQuadro() {
     },
     { passive: false },
   );
-  // ===== Toque (P04/§3.3): modo mão por padrão — um dedo move o quadro,
-  // pinça dá zoom, tap seleciona e abre o menu do item. Mover, conectar e
-  // religar têm caminho guiado por toques (sem arraste obrigatório).
-  let _gqPan = null;
+  // ===== Toque (P04/§3.3): arrastar um CARTÃO move o cartão (ficha, nota
+  // ou texto); arrastar o fundo move o quadro; pinça dá zoom; tap abre o
+  // menu do item; SEGURAR o toque num cartão puxa o barbante até outro.
+  const toWxy = (x, y) => {
+    const r = cv.getBoundingClientRect();
+    return toW({ x: x - r.left, y: y - r.top });
+  };
+  let _gqPan = null,
+    _gqDrag = null;
   ligarGestos(cv, {
     mouseProprio: true,
     ignorar: function (e) {
-      // Digitação nos editores de texto segue o fluxo nativo.
-      return (
-        e.target.tagName === "TEXTAREA" ||
-        e.target.isContentEditable ||
-        (e.target.closest && e.target.closest(".qtxt"))
-      );
+      // Editor de texto EM USO (teclado aberto) segue o fluxo nativo;
+      // fora de edição, o dedo arrasta a nota/texto normalmente.
+      if (e.target.tagName === "TEXTAREA") return true;
+      const ed = e.target.closest && e.target.closest(".qtxt");
+      return !!(ed && document.activeElement === ed);
     },
-    dragInicio: function () {
+    dragInicio: function (e, alvo, x0, y0) {
+      _gqDrag = null;
       const q = quadroAtual();
+      const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+      if (noEl && x0 != null) {
+        // Dedo num cartão: arrasta o cartão (e o resto da seleção junto)
+        const id = noEl.getAttribute("data-id");
+        if (!_qSelSet.has(id)) {
+          _qSelSet = new Set([id]);
+          markSelDom();
+        }
+        _gqDrag = { ids: [..._qSelSet], orig: {} };
+        _gqDrag.ids.forEach(function (i) {
+          const nn = q.nodes.find((x) => x.id === i);
+          if (nn) _gqDrag.orig[i] = { x: nn.x, y: nn.y };
+        });
+        return;
+      }
+      // Dedo no vazio: move o quadro
       _gqPan = { x: q.cam.x, y: q.cam.y };
     },
     drag: function (e, dx, dy) {
-      if (!_gqPan) return;
       const q = quadroAtual();
+      if (_gqDrag) {
+        const s = q.cam.s || 1;
+        _gqDrag.ids.forEach(function (id) {
+          const n = q.nodes.find((x) => x.id === id),
+            o = _gqDrag.orig[id];
+          if (n && o) {
+            n.x = Math.round(o.x + dx / s);
+            n.y = Math.round(o.y + dy / s);
+            const el = nodeEl(id);
+            if (el) {
+              el.style.left = n.x + "px";
+              el.style.top = n.y + "px";
+            }
+          }
+        });
+        desenhaSetas();
+        return;
+      }
+      if (!_gqPan) return;
       q.cam.x = _gqPan.x + dx;
       q.cam.y = _gqPan.y + dy;
       aplicaCam();
     },
     dragFim: function () {
+      if (_gqDrag) marcarAlterado();
       if (_gqPan) qAgendaSalvarCam();
+      _gqDrag = null;
       _gqPan = null;
     },
     dragCancela: function () {
+      _gqDrag = null;
       _gqPan = null;
     },
     cancelar: function () {
+      _gqDrag = null;
       _gqPan = null;
+      if (_qArrow) {
+        _qArrow = null;
+        _qArrowCur = null;
+        desenhaSetas();
+      }
+    },
+    // Segurar o toque num cartão: puxa o barbante até outro cartão
+    longPress: function (alvo, pt) {
+      const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+      if (!noEl) return false;
+      _qArrow = { de: noEl.getAttribute("data-id") };
+      _qArrowCur = toWxy(pt.x, pt.y);
+      desenhaSetas();
+      try {
+        if (navigator.vibrate) navigator.vibrate(30);
+      } catch (err) {}
+      toast("Puxe a linha até outro cartão.");
+      return true;
+    },
+    longDrag: function (e) {
+      _qArrowCur = toWxy(e.clientX, e.clientY);
+      desenhaSetas();
+    },
+    longFim: function (e) {
+      const de = _qArrow && _qArrow.de;
+      _qArrow = null;
+      _qArrowCur = null;
+      // Com pointer capture o e.target é o canvas; quem diz onde o dedo
+      // soltou é o elementFromPoint (fallback: e.target, p/ testes).
+      let t = null;
+      try {
+        t = document.elementFromPoint(e.clientX, e.clientY);
+      } catch (err) {}
+      if (!t) t = e.target;
+      const noEl = t && t.closest ? t.closest(".qnode") : null;
+      const para = noEl && noEl.getAttribute("data-id");
+      if (de && para && para !== de) {
+        const q = quadroAtual();
+        if (!q.setas.some((s) => s.de === de && s.para === para)) {
+          q.setas.push({ de: de, para: para });
+          marcarAlterado();
+        }
+        toast("Barbante criado.");
+      } else toast("Ligação cancelada.");
+      desenhaSetas();
     },
     pinch: function (p) {
       const q = quadroAtual();
@@ -7333,6 +7448,12 @@ let _qConectarDe = null, // conexão guiada: origem escolhida, falta o destino
 function qTapToque(e, alvo, rel, toW) {
   const q = quadroAtual();
   const p = toW(rel(e));
+  // Toque fora do editor de texto em uso: solta o foco (fecha o teclado)
+  const edAtivo =
+    document.activeElement &&
+    document.activeElement.closest &&
+    document.activeElement.closest(".qtxt");
+  if (edAtivo && !(alvo && edAtivo.contains(alvo))) edAtivo.blur();
   const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
   const setaEl = alvo && alvo.closest ? alvo.closest("[data-seta]") : null;
   // 1) Modos guiados pendentes
