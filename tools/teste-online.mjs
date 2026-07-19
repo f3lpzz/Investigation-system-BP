@@ -379,6 +379,46 @@ const entrou = () =>
   );
   g("quadroAtual().setas.length = 0");
 
+  /* Teste 9.6 — Toque nos cartões: 1º toque seleciona, o 2º abre o menu,
+     dois toques rápidos editam (e o clique fantasma não fecha a folha) */
+  g(
+    '(function(){window._tap=function(id){var el=document.querySelector(\'.qnode[data-id="\'+id+\'"]\');function pe(t,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}pe("pointerdown",10,10);pe("pointerup",10,10);};_qSelSet=new Set();qMenuCancela();})()',
+  );
+  g("window._tap(window._nA)");
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 1º toque só SELECIONA (não abre menu)",
+    g(
+      '(function(){return _qSelSet.has(window._nA) && !document.querySelector(".acsheet");})()',
+    ),
+  );
+  g("window._tap(window._nA)");
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 2º toque no já selecionado ABRE o menu",
+    g('!!document.querySelector(".acsheet")'),
+  );
+  ok(
+    "menu: clique fantasma logo após abrir NÃO fecha a folha (bug do toque)",
+    g(
+      '(function(){var s=document.querySelector(".acsheet");s.querySelector(".acsheet-veu").dispatchEvent(new MouseEvent("click",{bubbles:true}));return !!document.querySelector(".acsheet");})()',
+    ),
+  );
+  g(
+    '(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()',
+  );
+  g(
+    '(function(){var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"]\');function pe(t){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:10,clientY:10}))}pe("pointerdown");pe("pointerup");pe("pointerdown");pe("pointerup");})()',
+  );
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 2 toques rápidos no selecionado EDITAM (sem abrir menu)",
+    g(
+      '(function(){var ed=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"] .qtxt\');return document.activeElement===ed && !document.querySelector(".acsheet");})()',
+    ),
+  );
+  g("document.activeElement.blur(); _qSelSet=new Set();");
+
   /* Teste 10 — IA: aplicador + anti-duplicata (sem chamada real; tudo local) */
   g(
     'DADOS.fichas.push({id:"fIA",titulo:"(pendente)",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]});',

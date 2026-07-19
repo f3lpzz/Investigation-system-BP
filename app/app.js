@@ -777,10 +777,21 @@ function abrirSheetAcoes(titulo, itens, opts) {
   const fecha = function () {
     overlayFechar(el.id);
   };
-  el.querySelector(".acsheet-veu").addEventListener("click", fecha);
-  el.querySelector(".acit.cancelar").addEventListener("click", fecha);
+  // O toque que ABRE a folha gera um "clique fantasma" logo depois: sem
+  // esta trava ele caía no véu (fechando na hora) ou num botão de ação.
+  const nascido = Date.now();
+  const fantasma = function () {
+    return Date.now() - nascido < 400;
+  };
+  el.querySelector(".acsheet-veu").addEventListener("click", function () {
+    if (!fantasma()) fecha();
+  });
+  el.querySelector(".acit.cancelar").addEventListener("click", function () {
+    if (!fantasma()) fecha();
+  });
   el.querySelectorAll(".acit[data-i]").forEach(function (b) {
     b.addEventListener("click", function () {
+      if (fantasma()) return;
       const it = itens.filter(Boolean)[+b.dataset.i];
       fecha();
       // Ação concluída no clique/pointerup (nunca no pointerdown) — §3.6
@@ -7409,6 +7420,7 @@ function wireQuadro() {
       return !!(ed && document.activeElement === ed);
     },
     dragInicio: function (e, alvo, x0, y0) {
+      qMenuCancela(); // virou arraste: o menu pendente não abre
       _gqDrag = null;
       const q = quadroAtual();
       const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
@@ -7477,6 +7489,7 @@ function wireQuadro() {
     longPress: function (alvo, pt) {
       const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
       if (!noEl) return false;
+      qMenuCancela(); // segurou: puxa barbante, não abre menu
       _qArrow = { de: noEl.getAttribute("data-id") };
       _qArrowCur = toWxy(pt.x, pt.y);
       desenhaSetas();
@@ -7533,12 +7546,61 @@ function wireQuadro() {
     tap: function (e, alvo) {
       qTapToque(e, alvo, rel, toW);
     },
+    doubleTap: function (e, alvo) {
+      qDuploToque(alvo);
+    },
   });
 }
 /* ===== Toque nos Quadros: tap com modos guiados ===== */
 let _qConectarDe = null, // conexão guiada: origem escolhida, falta o destino
   _qMoverId = null, // mover guiado: próximo toque diz o novo lugar
-  _qReligar = null; // religar guiado: {i, end}
+  _qReligar = null, // religar guiado: {i, end}
+  _qMenuTimer = null; // menu pendente (esperando um possível 2º toque)
+/* O menu espera 340ms — mais que a janela de toque duplo (320ms) — para
+   que "tocar 2x rápido" abra o editor em vez do menu. */
+function qMenuAgenda(id) {
+  clearTimeout(_qMenuTimer);
+  _qMenuTimer = setTimeout(function () {
+    _qMenuTimer = null;
+    qNoMenu(id);
+  }, 340);
+}
+function qMenuCancela() {
+  clearTimeout(_qMenuTimer);
+  _qMenuTimer = null;
+}
+/* Dois toques no cartão JÁ SELECIONADO: nota/texto abre para escrever;
+   ficha abre a ficha. Nunca abre o menu. */
+function qDuploToque(alvo) {
+  qMenuCancela();
+  const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+  if (!noEl) return;
+  const id = noEl.getAttribute("data-id");
+  if (!_qSelSet.has(id)) {
+    _qSelSet = new Set([id]);
+    markSelDom();
+    return;
+  }
+  const q = quadroAtual();
+  const n = q && q.nodes.find((x) => x.id === id);
+  if (!n) return;
+  if (n.tipo === "texto") qFocarEditor(noEl.querySelector(".qtxt"));
+  else qOpenRef(id);
+}
+/* Foca o editor de texto com o cursor no FIM (o toque não posiciona o
+   cursor sozinho: o gesto chama preventDefault). */
+function qFocarEditor(el) {
+  if (!el) return;
+  try {
+    el.focus();
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  } catch (e) {}
+}
 function qTapToque(e, alvo, rel, toW) {
   const q = quadroAtual();
   const p = toW(rel(e));
@@ -7590,22 +7652,29 @@ function qTapToque(e, alvo, rel, toW) {
     qSetTool("select");
     return;
   }
-  // 3) Tap num cartão: seleciona e abre o menu de ações
+  // 3) Tap num cartão (§toque): 1º toque SELECIONA; tocar de novo no que já
+  // está selecionado abre o menu — com uma pausa, porque dois toques
+  // rápidos no selecionado significam "editar" (ver qDuploToque).
   if (noEl) {
     const id = noEl.getAttribute("data-id");
-    _qSelSet = new Set([id]);
-    markSelDom();
-    qNoMenu(id);
+    if (!(_qSelSet.size === 1 && _qSelSet.has(id))) {
+      _qSelSet = new Set([id]);
+      markSelDom();
+      return;
+    }
+    qMenuAgenda(id);
     return;
   }
-  // 4) Tap numa seta: seleciona e abre o menu do barbante
+  // 4) Tap numa seta: mesma regra — 1º toque seleciona, o 2º abre o menu
   if (setaEl) {
     const i = +setaEl.getAttribute("data-seta");
+    const jaSel = _qSetaSel.size === 1 && _qSetaSel.has(i);
     qSelSeta(i);
-    qSetaMenu(i);
+    if (jaSel) qSetaMenu(i);
     return;
   }
   // 5) Tap no vazio: limpa seleção
+  qMenuCancela();
   _qSelSet = new Set();
   if (_qSetaSel.size) {
     _qSetaSel = new Set();
@@ -7636,10 +7705,9 @@ function qNoMenu(id) {
       : {
           rotulo: "Editar texto",
           fn: function () {
-            const el = document.querySelector(
-              '.qnode[data-id="' + id + '"] .qtxt',
+            qFocarEditor(
+              document.querySelector('.qnode[data-id="' + id + '"] .qtxt'),
             );
-            if (el) el.focus();
           },
         },
     {
