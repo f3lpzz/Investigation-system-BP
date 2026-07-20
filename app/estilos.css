@@ -4644,14 +4644,23 @@ select:focus {
 }
 
 /* ---------- Quadros (cortiça) ---------- */
+/* Cortiça: grânulos irregulares em várias escalas sobre o marrom quente.
+   ORDEM IMPORTA — o gradiente de base vai por ÚLTIMO; antes ele era o
+   primeiro e escondia a textura (nada aparecia na tela). Os tamanhos são
+   propositalmente "quebrados" para o padrão não se repetir de forma óbvia. */
 #teorias {
-  background:
-    radial-gradient(1200px 600px at 50% 0%, #6b4f33, #573e27),
-    repeating-linear-gradient(
-      35deg,
-      rgba(0, 0, 0, 0.06) 0 3px,
-      transparent 3px 7px
-    );
+  background-color: #573e27;
+  /* Grão fino (pontinhos escuros) + manchas claras maiores, os dois de
+     ruído SVG — bolinhas em CSS puro formavam grade visível. O gradiente
+     de base vai por ÚLTIMO: como primeira camada ele cobria a textura. */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.85 0 0 0 -0.26'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23c)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.3' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.86 0 0 0 0 0.73 0 0 0 0 0.52 0.6 0 0 0 -0.34'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23m)'/%3E%3C/svg%3E"),
+    radial-gradient(1200px 600px at 50% 0%, #6b4f33, #573e27);
+  background-size:
+    160px 160px,
+    320px 320px,
+    cover;
 }
 .qbar {
   background: linear-gradient(rgba(23, 18, 9, 0.95), rgba(23, 18, 9, 0.8));
