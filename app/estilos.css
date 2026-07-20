@@ -1645,25 +1645,32 @@ header {
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+/* ---- Barras de rolagem no tema (antes ficaram azuis do tema antigo) ----
+   color-scheme: dark também escurece as barras nativas do celular e os
+   controles do sistema (selects, campos). */
 html {
+  color-scheme: dark;
   scrollbar-width: thin;
-  scrollbar-color: #27508f transparent;
+  scrollbar-color: var(--line-em) transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27508f;
+  background: var(--line-em);
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a6bc0;
+  background: var(--gold);
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 .topbtn,
