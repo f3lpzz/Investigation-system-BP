@@ -6243,11 +6243,9 @@ body.view-conta .filtros-panel {
     border: 1px solid var(--line-em);
     border-radius: 6px;
     background: var(--s3);
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.12) 0 1px,
-      transparent 1px 44px
-    );
+    /* sem fundo listrado: as linhas são as bordas das categorias (abaixo),
+       senão elas não acompanham as linhas de verdade */
+    background-image: none;
   }
   .arqbody.catlist .dirtitle2 {
     display: block;
@@ -6255,10 +6253,14 @@ body.view-conta .filtros-panel {
   .arqbody.catlist .dirbtn2 {
     width: 100%;
     border: 0;
+    border-bottom: 1px solid var(--line);
     border-radius: 4px;
     justify-content: space-between;
     padding: 12px 10px;
     font-size: 12.5px;
+  }
+  .arqbody.catlist .dirbtn2:last-child {
+    border-bottom: 0;
   }
   /* Na grade: botão com a categoria atual (o nome já não repete na faixa) */
   .arqcatbtn {
