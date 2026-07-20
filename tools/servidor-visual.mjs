@@ -79,6 +79,35 @@ const SEED = (vista) => `
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
     // quadro arrastado: prova que a textura do fundo anda com a câmera
     else if (base === "teorias-pan") { setView("teorias"); var _q = quadroAtual(); _q.cam.x = -420; _q.cam.y = -260; aplicaCam(); }
+    // zoom-hit: com a interface ampliada, o ponto clicado ainda cai no
+    // elemento certo? (elementFromPoint usa o mesmo espaço do clientX dos
+    // eventos de ponteiro — se bater com o rect, arrastar/clicar acerta)
+    else if (base === "zoom-hit") {
+      setView("teorias");
+      var _n = qNovoTextoEm(120, 120, "nota");
+      desenhaQuadro();
+      setTimeout(function () {
+        var el = document.querySelector('.qnode[data-id="' + _n.id + '"]');
+        var r = el.getBoundingClientRect();
+        var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var alvo = document.elementFromPoint(cx, cy);
+        var ok = !!(alvo && alvo.closest && alvo.closest('.qnode[data-id="' + _n.id + '"]'));
+        // também confere o Mapa (mesmo teste no primeiro ponto do grafo)
+        setView("mapa"); render();
+        setTimeout(function () {
+          var no = document.querySelector("#svg circle, #svg .node, #svg g");
+          var ok2 = "sem-no";
+          if (no) {
+            var r2 = no.getBoundingClientRect();
+            var a2 = document.elementFromPoint(r2.left + r2.width / 2, r2.top + r2.height / 2);
+            ok2 = a2 && (a2 === no || (a2.closest && a2.closest("svg"))) ? "OK" : "ERRO";
+          }
+          document.title = "ZOOM=" + (getComputedStyle(document.body).zoom || "1") +
+            " | rect=" + Math.round(r.left) + "," + Math.round(r.top) +
+            " | quadro-hit=" + (ok ? "OK" : "ERRO") + " | mapa-hit=" + ok2;
+        }, 300);
+      }, 250);
+    }
     else { setView(base); render(); }
     if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }

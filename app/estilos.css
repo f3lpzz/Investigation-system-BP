@@ -5706,6 +5706,31 @@ select:focus {
   color: #e6cf94;
 }
 
+/* ---------- Telas grandes: a interface inteira cresce ----------
+   O desenho foi feito para ~1300–1400px. Em monitor grande tudo ficava
+   miúdo e sobrava vazio; aqui a interface é ampliada como o zoom do
+   navegador faria. O zoom vai no BODY (no html ele mudaria o viewport
+   e as próprias media queries ligariam/desligariam em loop) e a altura
+   é dividida pelo mesmo fator, senão o rodapé sairia da tela. */
+@media (min-width: 1600px) {
+  body {
+    zoom: 1.15;
+    height: calc(100svh / 1.15);
+  }
+}
+@media (min-width: 1900px) {
+  body {
+    zoom: 1.35;
+    height: calc(100svh / 1.35);
+  }
+}
+@media (min-width: 2400px) {
+  body {
+    zoom: 1.6;
+    height: calc(100svh / 1.6);
+  }
+}
+
 /* ---------- Visibilidade por área ---------- */
 body.view-mapa .topbar,
 body.view-teorias .topbar,
