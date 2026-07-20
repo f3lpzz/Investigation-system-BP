@@ -1054,6 +1054,8 @@ function ligarGestos(el, h) {
 });
 function setView(v, deHistorico) {
   const mudou = state.view !== v;
+  // Entrar no Arquivo recomeça pela lista de categorias (compacto)
+  if (mudou && v === "arquivo") _arqCatsAberto = true;
   state.view = v;
   // Botão Voltar: cada troca de vista vira uma entrada no histórico.
   try {
@@ -6031,9 +6033,23 @@ const CORES_GRUPO_SUGERIDAS = [
   "#3a5a8d",
   "#6a4a8d",
 ];
+/* Salas no compacto: a lista de categorias é a PRIMEIRA tela; escolher uma
+   abre a grade e o botão do topo traz a lista de volta. No desktop a lista
+   fica sempre à esquerda e este estado não muda nada. */
+var _arqCatsAberto = true;
+function arqEscolherCat(c) {
+  state.dirCat = c;
+  _arqCatsAberto = false;
+  renderArquivo();
+}
+function arqAbrirCats() {
+  _arqCatsAberto = true;
+  renderArquivo();
+}
 function setArqTab(t) {
   state.arqTab = t;
   _arqSel = null;
+  if (t === "salas") _arqCatsAberto = true; // volta pela lista de categorias
   renderArquivo();
 }
 function arqAbrir(kind, nome) {
@@ -6250,7 +6266,7 @@ function renderArquivo(soLista) {
       </div>
       ${acao}
     </div>
-    <div class="arqbody${_arqSel ? " com-dossie" : ""}">${corpo}${_arqDossieHTML()}</div>`;
+    <div class="arqbody${_arqSel ? " com-dossie" : ""}${state.arqTab === "salas" && _arqCatsAberto && !q ? " catlist" : ""}">${corpo}${_arqDossieHTML()}</div>`;
   if (soLista || (_arqBuscaAberta && _arqFocarBusca)) {
     _arqFocarBusca = false;
     const inp = document.getElementById("arqBusca");
@@ -6300,7 +6316,7 @@ function _arqSalasHTML(q) {
       const ach = all.filter((s) => s.descoberta !== false).length;
       const oculta = EXTRA.includes(c) && !ach;
       const lab = oculta ? "??????" : c.toUpperCase();
-      return `<button class="dirbtn2${c === state.dirCat ? " active" : ""}${oculta ? " mist" : ""}" onclick="state.dirCat='${c}';renderArquivo()">${lab}${all.length ? `<span class="dirn">${ach}/${all.length}</span>` : ""}</button>`;
+      return `<button class="dirbtn2${c === state.dirCat ? " active" : ""}${oculta ? " mist" : ""}" onclick="arqEscolherCat('${c}')">${lab}${all.length ? `<span class="dirn">${ach}/${all.length}</span>` : ""}</button>`;
     })
     .join("");
   let lista = DADOS.salas
@@ -6331,10 +6347,15 @@ function _arqSalasHTML(q) {
   const all = lista.length,
     ach = lista.filter((s) => s.descoberta !== false).length;
   const head = q
-    ? `<span class="arqfx">BUSCA</span><span class="arqfx-s">${all} sala(s) descobertas com “${esc(q)}”</span>`
+    ? `<span class="arqfx busca">BUSCA</span><span class="arqfx-s">${all} sala(s) descobertas com “${esc(q)}”</span>`
     : `<span class="arqfx">${state.dirCat.toUpperCase()}</span><span class="arqfx-s">${ach} de ${all} descobertas · clique numa sala trancada para marcá-la como descoberta</span>`;
+  // Botão que reabre a lista de categorias (só aparece no compacto; na
+  // busca não faz sentido — os resultados vêm de todas as categorias)
+  const btnCat = q
+    ? ""
+    : `<button class="arqcatbtn" onclick="arqAbrirCats()" aria-label="Escolher outra categoria de salas"><span class="arqcatn">${esc(state.dirCat.toUpperCase())}</span><span class="arqcatx">trocar ▾</span></button>`;
   return `<div class="dirmenu2"><div class="dirtitle2">MOUNT HOLLY<br><b>DIRECTORY</b></div>${menu}</div>
-    <div class="arqmain"><div class="arqfaixa">${head}</div><div class="arqgrid salas">${tiles}</div></div>`;
+    <div class="arqmain">${btnCat}<div class="arqfaixa">${head}</div><div class="arqgrid salas">${tiles}</div></div>`;
 }
 /* ===== CONTA — área própria (sai do modal Gerenciar) ===== */
 function renderConta() {

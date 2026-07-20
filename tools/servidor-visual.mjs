@@ -1,9 +1,10 @@
 /* Servidor do app para captura visual (usado pela skill "verificar-visual"):
    serve a pasta app/ em http://localhost:4599 e, com ?seed=<vista>, injeta
    dados de teste (os mesmos do modelo de design) e entra no app sem login.
-   Vistas: grade · detalhe · teorias · mapa · conta · arquivo-salas ·
-   arquivo-pessoas · dossie-sala · grade-filtros · <vista>-diag (mede
-   vazamento de largura e escreve o resultado no <title>). */
+   Vistas: grade · detalhe · teorias · mapa · conta · arquivo-salas (lista
+   de categorias) · arquivo-grade (salas de uma categoria) · arquivo-pessoas ·
+   dossie-sala · grade-filtros · <vista>-diag (mede vazamento de largura e
+   escreve o resultado no <title>). */
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
@@ -65,6 +66,7 @@ const SEED = (vista) => `
     if (base === "detalhe") { setView("grade"); render(); abrir("f1"); }
     else if (base === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
     else if (base === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
+    else if (base === "arquivo-grade") { setView("arquivo"); arqEscolherCat("Rooms 001-012"); }
     else if (base === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
     else if (base === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
     else if (base === "conta") { setView("conta"); }

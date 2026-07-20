@@ -705,6 +705,42 @@ const entrou = () =>
     g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
   );
 
+  /* Teste 18.4 — Arquivo › Salas: a lista de categorias é a primeira tela
+     e o botão "trocar" traz ela de volta (classe .catlist manda no CSS) */
+  g('setArqTab("salas"); setView("arquivo"); renderArquivo();');
+  ok(
+    "arquivo/salas: abre na LISTA de categorias (.catlist) com o diretório",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return b.classList.contains("catlist") && !!document.querySelector(".dirtitle2") && document.querySelectorAll(".dirbtn2").length>=11;})()',
+    ),
+  );
+  g('arqEscolherCat("Bedrooms")');
+  ok(
+    "arquivo/salas: escolher a categoria abre a grade (sai do .catlist)",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return !b.classList.contains("catlist") && state.dirCat==="Bedrooms" && !!document.querySelector(".arqcatbtn") && !!document.querySelector(".arqgrid.salas");})()',
+    ),
+  );
+  ok(
+    "arquivo/salas: o botão mostra a categoria atual",
+    g(
+      'document.querySelector(".arqcatbtn .arqcatn").textContent === "BEDROOMS"',
+    ),
+  );
+  g("arqAbrirCats()");
+  ok(
+    "arquivo/salas: o botão traz a lista de categorias de volta",
+    g('document.querySelector(".arqbody").classList.contains("catlist")'),
+  );
+  g('arqEscolherCat("Rooms 001-012"); arqBuscaInput("hall");');
+  ok(
+    "arquivo/salas: buscando mostra os resultados (sem lista e sem botão)",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return !b.classList.contains("catlist") && !document.querySelector(".arqcatbtn") && !!document.querySelector(".arqfx.busca");})()',
+    ),
+  );
+  g('arqBuscaFechar(); setArqTab("salas");');
+
   /* Teste 18.5 — Folha de filtros no compacto: fundo escurecido fecha ao
      toque e arrastar a alça para baixo fecha (ehCompacto forçado) */
   g("window._ehcOrig = ehCompacto; ehCompacto = function(){ return true; };");
