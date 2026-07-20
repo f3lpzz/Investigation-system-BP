@@ -84,7 +84,8 @@ body.app-carregando #authLoading {
   background: #ece1c9;
   border: 0;
   border-radius: 5px;
-  padding: 30px 28px;
+  /* topo mais curto: com a lupa ao lado do logo sobrava papel em branco */
+  padding: 20px 28px 30px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   text-align: left;
   position: relative;
@@ -104,8 +105,11 @@ body.app-carregando #authLoading {
 /* carimbo */
 .auth-stamp {
   position: absolute;
-  right: 24px;
-  top: 18px;
+  right: 18px;
+  /* logo ABAIXO da marca (antes ficava solto no alto do papel). Ao lado
+     dela não cabe: em 360px já encosta no subtítulo e some sobre o logo
+     em telas de 320px. */
+  top: 70px;
   font-family: "Special Elite", monospace;
   font-size: 11px;
   color: rgba(184, 69, 46, 0.75);
@@ -116,10 +120,21 @@ body.app-carregando #authLoading {
   letter-spacing: 1.5px;
 }
 
+/* Marca: lupa à ESQUERDA do logo, como no trilho do app */
+.auth-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.auth-marca-tx {
+  min-width: 0;
+}
 .auth-card .emblem {
   width: 44px;
   height: 44px;
-  margin: 0 0 14px;
+  margin: 0;
+  flex: none;
   display: grid;
   place-items: center;
   border: 1.5px solid #8a6c34;
@@ -138,12 +153,20 @@ body.app-carregando #authLoading {
   font-size: 11px;
   color: #6b5f45;
   letter-spacing: 2px;
-  margin: 6px 0 4px;
+  margin: 4px 0 0;
 }
 .auth-sub {
   font-size: 12px;
   color: #6b5f45;
   margin-bottom: 16px;
+}
+/* Telas bem estreitas (≈320px): aperta o subtítulo para ele caber numa
+   linha só — quebrado em duas, ele esbarrava no carimbo. */
+@media (max-width: 380px) {
+  .auth-tag {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+  }
 }
 
 .auth-form {
