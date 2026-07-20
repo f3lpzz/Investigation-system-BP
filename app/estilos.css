@@ -4206,6 +4206,23 @@ select:focus {
   font-size: 10.5px;
   color: var(--hint);
 }
+/* Fio clicável: leva ao mapa com esta ficha em foco */
+.fio.aomapa {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.fio.aomapa:hover {
+  border-color: var(--line-em);
+  background: var(--s2);
+}
+.fio-go {
+  color: var(--hint);
+  font-size: 15px;
+  flex: none;
+  line-height: 1;
+}
 .fio-x {
   color: var(--hint);
   cursor: pointer;

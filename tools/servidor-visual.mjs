@@ -64,6 +64,8 @@ const SEED = (vista) => `
     var v = ${JSON.stringify(vista)};
     var base = v.replace("-diag","");
     if (base === "detalhe") { setView("grade"); render(); abrir("f1"); }
+    // clica DE VERDADE no fio da investigação (prova que ele leva ao mapa)
+    else if (base === "fio-mapa") { setView("grade"); render(); abrir("f1"); setTimeout(function(){ var el = document.querySelector(".fio.aomapa"); if (el) el.click(); }, 50); }
     else if (base === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
     else if (base === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
     else if (base === "arquivo-grade") { setView("arquivo"); arqEscolherCat("Rooms 001-012"); }

@@ -93,6 +93,29 @@ const mockSb = {
   from(table) {
     return makeBuilder(table);
   },
+  // Storage: o app resolve "nuvem:caminho" em URL assinada ao desenhar
+  // imagens (mapa, dossiês). Sem isto, abrir o mapa quebrava no teste.
+  storage: {
+    from() {
+      return {
+        async createSignedUrl(caminho) {
+          return {
+            data: { signedUrl: "https://sb.co/assinada/" + caminho },
+            error: null,
+          };
+        },
+        async upload() {
+          return { data: {}, error: null };
+        },
+        async remove() {
+          return { data: {}, error: null };
+        },
+        getPublicUrl(caminho) {
+          return { data: { publicUrl: "https://sb.co/publica/" + caminho } };
+        },
+      };
+    },
+  },
 };
 
 /* ---------------- Ambiente "sem tela" ---------------- */
@@ -703,6 +726,51 @@ const entrou = () =>
   ok(
     "filtros movidos continuam funcionando (toggle pendentes marca .on)",
     g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
+  );
+
+  /* Teste 18.3 — Fios da investigação levam ao mapa com a ficha em foco.
+     (Este jsdom não executa onclick inline — os scripts são injetados à
+     mão —, então aqui se confere a FIAÇÃO do HTML e o EFEITO da função.) */
+  g(`
+    DADOS.fichas.push(
+      {id:"fFIO1",titulo:"Fio A",sala:"",grupos:[],personagens:["Simon"],conexoes:["fFIO2"],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]},
+      {id:"fFIO2",titulo:"Fio B",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]}
+    );
+    setView("grade"); render(); abrir("fFIO1");
+  `);
+  ok(
+    "fios: as duas linhas (manual e automática) levam ao mapa desta ficha",
+    g(
+      '(function(){var f=document.querySelectorAll(".fio.aomapa");return f.length===2 && [].every.call(f,function(x){return x.getAttribute("onclick")==="focarMapa(\'fFIO1\')" && x.getAttribute("role")==="button" && x.getAttribute("tabindex")==="0";});})()',
+    ),
+  );
+  ok(
+    "fios: no fio manual, o título abre a OUTRA ficha sem disparar o mapa",
+    g(
+      '(function(){var t=document.querySelector(".fio-l.manual").closest(".fio").querySelector(".fio-t").getAttribute("onclick");return t.indexOf("stopPropagation")>=0 && t.indexOf("abrir(\'fFIO2\')")>0;})()',
+    ),
+  );
+  ok(
+    "fios: o ✕ de remover também não dispara o mapa",
+    g(
+      '(function(){var x=document.querySelector(".fio-l.manual").closest(".fio").querySelector(".fio-x").getAttribute("onclick");return x.indexOf("stopPropagation")>=0 && x.indexOf("desligarFicha")>0;})()',
+    ),
+  );
+  g('focarMapa("fFIO1")');
+  ok(
+    "fios: focarMapa abre o MAPA com a ficha em foco (fecha a ficha)",
+    g('state.view === "mapa" && _focus === "fFIO1" && !document.getElementById("drawer").classList.contains("open")'),
+  );
+  g('setView("grade"); render(); _focus=null;');
+  g(
+    'fioTecla({key:"Enter",preventDefault:function(){}}, "fFIO1")',
+  );
+  ok(
+    "fios: Enter no fio faz o mesmo que o clique (teclado)",
+    g('state.view === "mapa" && _focus === "fFIO1"'),
+  );
+  g(
+    'setView("grade"); DADOS.fichas = DADOS.fichas.filter(function(f){return f.id!=="fFIO1" && f.id!=="fFIO2"}); fechar(); render();',
   );
 
   /* Teste 18.4 — Arquivo › Salas: a lista de categorias é a primeira tela

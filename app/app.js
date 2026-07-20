@@ -2657,12 +2657,15 @@ function abrir(id) {
         return `<button class="et grupo" style="background:${corContraste((g && g.cor) || "#8d3030")}" onclick="filtraGrupo('${jsq(gn)}')" title="Filtrar pelo grupo">${esc(gn)}</button>`;
       })
       .join("");
-  // FIOS: manuais (linha vermelha sólida, removível) + automáticas (tracejada)
+  // FIOS: manuais (linha vermelha sólida, removível) + automáticas (tracejada).
+  // Clicar no fio leva ao MAPA com esta ficha em foco (as ligações dela
+  // acesas, o resto esmaecido); o título do fio manual abre a outra ficha.
+  const fioAbre = `onclick="focarMapa('${f.id}')" onkeydown="fioTecla(event,'${f.id}')" role="button" tabindex="0" title="Ver estas conexões no mapa"`;
   const fiosManuais = (f.conexoes || [])
     .map((c) => {
       const o = fichas.find((z) => z.id === c);
       return o
-        ? `<div class="fio"><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="abrir('${c}')">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><button class="fio-x" onclick="desligarFicha('${f.id}','${c}')" title="Remover fio" aria-label="Remover fio com ${esc(o.titulo)}">✕</button></div>`
+        ? `<div class="fio aomapa" ${fioAbre}><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="event.stopPropagation();abrir('${c}')" title="Abrir esta ficha">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><button class="fio-x" onclick="event.stopPropagation();desligarFicha('${f.id}','${c}')" title="Remover fio" aria-label="Remover fio com ${esc(o.titulo)}">✕</button></div>`
         : "";
     })
     .join("");
@@ -2674,7 +2677,7 @@ function abrir(id) {
     .filter(Boolean)
     .join(" · ");
   const fioAuto = autosTxt
-    ? `<div class="fio"><span class="fio-l auto"></span><div class="fio-tx"><div class="fio-t">${autosTxt}</div><div class="fio-s">automáticas · citadas na ficha</div></div></div>`
+    ? `<div class="fio aomapa" ${fioAbre}><span class="fio-l auto"></span><div class="fio-tx"><div class="fio-t">${autosTxt}</div><div class="fio-s">automáticas · citadas na ficha</div></div><span class="fio-go">›</span></div>`
     : "";
   d.innerHTML = `
     <div class="dh">
@@ -6494,6 +6497,13 @@ function focarEnt(kind, nome) {
   const pre =
     kind === "sala" ? "sala::" : kind === "colecao" ? "col::" : "pes::";
   focarMapa(pre + nome);
+}
+/* Fio da investigação no teclado: Enter/Espaço vale como clique */
+function fioTecla(e, id) {
+  if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+    e.preventDefault();
+    focarMapa(id);
+  }
 }
 function focarMapa(id) {
   _focus = id;
