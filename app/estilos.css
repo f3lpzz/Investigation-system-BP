@@ -3411,6 +3411,16 @@ select:focus {
   padding: 0 6px;
   line-height: 16px;
 }
+/* Busca + botão de filtros lado a lado (no desktop fica como antes) */
+.searchrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* No desktop o botão é "Filtros" escrito; o funil só serve ao celular */
+#btnFiltros .fic {
+  display: none;
+}
 .contador {
   display: none;
 }
@@ -5840,15 +5850,49 @@ body.view-conta .filtros-panel {
   .astats {
     display: none;
   }
-  .topbar .search {
+  /* A linha da busca desce inteira, com o filtro à direita dela */
+  .searchrow {
     order: 5;
     width: 100%;
+  }
+  .topbar .search {
+    flex: 1;
+    min-width: 0;
     height: 44px;
     border-radius: 10px;
   }
   .topbtn {
     height: 44px;
     min-width: 44px;
+  }
+  /* Filtro vira botão quadrado de ícone, com o nº num selo no canto */
+  #btnFiltros {
+    position: relative;
+    flex: none;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 10px;
+  }
+  #btnFiltros .fic {
+    display: block;
+  }
+  #btnFiltros .btxt {
+    display: none;
+  }
+  #btnFiltros .fbadge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    box-sizing: border-box;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 3px;
+    border-radius: 9px;
+    line-height: 18px;
+    text-align: center;
+    /* anel por sombra (não mexe no tamanho, como faria uma borda) */
+    box-shadow: 0 0 0 2px var(--s1);
   }
   #btnNova {
     display: none;

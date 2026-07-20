@@ -5798,8 +5798,11 @@ function atualizarBtnFiltros() {
   const b = document.getElementById("btnFiltros");
   if (b) {
     b.classList.toggle("hasfilters", n > 0);
+    // Ícone (só aparece no celular) + rótulo (só no desktop) + contagem
     b.innerHTML =
-      "Filtros" + (n > 0 ? ` <span class="fbadge">${n}</span>` : "");
+      '<svg class="fic" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 3h11.6l-4.5 5.3v4.1l-2.6 1.3V8.3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>' +
+      '<span class="btxt">Filtros</span>' +
+      (n > 0 ? `<span class="fbadge">${n}</span>` : "");
   }
   const bi = document.getElementById("btnInc");
   if (bi) bi.classList.toggle("on", state.incompletas);

@@ -73,6 +73,8 @@ const SEED = (vista) => `
     else if (base === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
     else if (base === "conta") { setView("conta"); }
     else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
+    // filtro aplicado: mostra o selo com a contagem no botão de filtros
+    else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
     else { setView(base); render(); }
     if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }
