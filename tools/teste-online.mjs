@@ -318,6 +318,22 @@ const entrou = () =>
   ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
   g('qSetTool("select")');
 
+  /* Teste 8.5 — Seletor de quadro do celular (lista no lugar das abas) */
+  ok(
+    "quadros: a barra tem o nome da área e o seletor com o quadro atual",
+    g(
+      '(function(){var t=document.querySelector(".qtitulo"),s=document.querySelector(".qsel");return !!t && t.textContent==="Quadros" && !!s && s.textContent.indexOf(quadroAtual().nome)===0;})()',
+    ),
+  );
+  g("qEscolherQuadro()");
+  ok(
+    "quadros: o seletor abre a lista com todos + '＋ Novo quadro'",
+    g(
+      '(function(){var b=document.querySelectorAll(".acsheet .acit[data-i]");return b.length===DADOS.quadros.length+1 && b[0].textContent.indexOf(DADOS.quadros[0].nome)===0 && b[b.length-1].textContent.indexOf("Novo quadro")>=0;})()',
+    ),
+  );
+  g('(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()');
+
   /* Teste 9 — Setas estilo tldraw (Etapa D) */
   ok(
     "seta: geometria corta na BORDA do cartão (não no centro)",

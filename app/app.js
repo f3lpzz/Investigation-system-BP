@@ -6694,7 +6694,9 @@ function renderTeorias() {
     )
     .join("");
   box.innerHTML = `<div class="qbar">
+    <div class="qtitulo">Quadros</div>
     <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
+    <button class="qsel" onclick="qEscolherQuadro()" aria-haspopup="dialog" aria-label="Escolher quadro">${esc(quadroAtual().nome)}<span class="qsel-c">▾</span></button>
     <div class="qtools">
       <span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn qt-t" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">T</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Barbante — arraste de um cartão a outro (A)">↗</button></span>
       <button class="topbtn qfich" onclick="qAddItem()">＋ Ficha do arquivo</button>
@@ -6724,6 +6726,27 @@ function trocarQuadro(i) {
   _qIdx = i;
   _qSelSet = new Set();
   renderTeorias();
+}
+/* Seletor de quadro do celular: a lista substitui as abas (P04) */
+function qEscolherQuadro() {
+  const itens = DADOS.quadros.map(function (q, i) {
+    const n = (q.nodes || []).length;
+    return {
+      rotulo: q.nome,
+      detalhe:
+        (i === _qIdx ? "aberto · " : "") + n + (n === 1 ? " item" : " itens"),
+      fn: function () {
+        trocarQuadro(i);
+      },
+    };
+  });
+  itens.push({
+    rotulo: "＋ Novo quadro",
+    fn: function () {
+      novoQuadro();
+    },
+  });
+  abrirSheetAcoes("Quadros", itens);
 }
 function novoQuadro() {
   DADOS.quadros.push({

@@ -75,6 +75,8 @@ const SEED = (vista) => `
     else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
     // filtro aplicado: mostra o selo com a contagem no botão de filtros
     else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
+    // lista de quadros aberta pelo seletor do celular (2 quadros)
+    else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
     else { setView(base); render(); }
     if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }
