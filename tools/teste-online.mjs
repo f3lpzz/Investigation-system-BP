@@ -318,6 +318,28 @@ const entrou = () =>
   ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
   g('qSetTool("select")');
 
+  /* Teste 8.4 — Fundo do quadro anda e escala junto com a câmera (é o que
+     dá a sensação de superfície infinita, em vez de imagem colada) */
+  g(
+    '(function(){var q=quadroAtual();q.cam.x=-420;q.cam.y=-260;q.cam.s=1;aplicaCam();})()',
+  );
+  ok(
+    "fundo do quadro: a textura acompanha o arraste (position = câmera)",
+    g(
+      '(function(){var p=document.getElementById("qcanvas").style.backgroundPosition.split(" ");return parseFloat(p[0])===-420 && parseFloat(p[1])===-260;})()',
+    ),
+  );
+  g('(function(){var q=quadroAtual();q.cam.s=2;aplicaCam();})()');
+  ok(
+    "fundo do quadro: a textura escala com o zoom (ladrilho de 240px)",
+    g(
+      '(function(){var s=document.getElementById("qcanvas").style.backgroundSize.split(" ");return parseFloat(s[0])===480 && parseFloat(s[1])===480;})()',
+    ),
+  );
+  g(
+    '(function(){var q=quadroAtual();q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();})()',
+  );
+
   /* Teste 8.5 — Seletor de quadro do celular (lista no lugar das abas) */
   ok(
     "quadros: a barra tem o nome da área e o seletor com o quadro atual",

@@ -77,6 +77,8 @@ const SEED = (vista) => `
     else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
+    // quadro arrastado: prova que a textura do fundo anda com a câmera
+    else if (base === "teorias-pan") { setView("teorias"); var _q = quadroAtual(); _q.cam.x = -420; _q.cam.y = -260; aplicaCam(); }
     else { setView(base); render(); }
     if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }

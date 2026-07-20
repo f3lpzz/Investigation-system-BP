@@ -6841,10 +6841,12 @@ function aplicaCam() {
     w.style.transform = `translate(${q.cam.x}px,${q.cam.y}px) scale(${q.cam.s})`;
   const cv = document.getElementById("qcanvas");
   if (cv && q) {
-    const gz = (26 * q.cam.s).toFixed(2) + "px";
-    const pos = q.cam.x.toFixed(1) + "px " + q.cam.y.toFixed(1) + "px";
-    cv.style.backgroundSize = gz + " " + gz + ", " + gz + " " + gz;
-    cv.style.backgroundPosition = pos + ", " + pos;
+    // A textura do fundo acompanha o arraste e o zoom (o ladrilho tem
+    // 240px no zoom 1:1) — é o que dá a sensação de superfície infinita.
+    const tz = (240 * q.cam.s).toFixed(2) + "px";
+    cv.style.backgroundSize = tz + " " + tz;
+    cv.style.backgroundPosition =
+      q.cam.x.toFixed(1) + "px " + q.cam.y.toFixed(1) + "px";
   }
 }
 function nodeEl(id) {

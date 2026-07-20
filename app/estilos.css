@@ -4644,21 +4644,18 @@ select:focus {
 }
 
 /* ---------- Quadros (cortiça) ---------- */
-/* Cortiça: base clara cor de rolha + grânulos ESPARSOS e manchas suaves.
-   ORDEM IMPORTA — o gradiente de base vai por ÚLTIMO (como primeira
-   camada ele cobria a textura e nada aparecia).
-   Calibragem: numOctaves=1 (sem detalhe fractal, que virava chuvisco) e
-   alfa com corte alto, para o grão ser esparso em vez de um véu sujo. */
+/* Fundo do quadro: marrom liso com luz suave no meio e cantos escuros.
+   Esta camada é a ILUMINAÇÃO do ambiente e fica parada; quem anda com a
+   câmera é a textura do .qcanvas (aplicaCam), senão o fundo parece um
+   papel de parede colado na tela. */
 #teorias {
-  background-color: #9a7549;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.26' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.34 0 0 0 0 0.23 0 0 0 0 0.12 1 0 0 0 -0.4'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23c)'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.16' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.92 0 0 0 0 0.82 0 0 0 0 0.64 0.2 0 0 0 -0.09'/%3E%3C/filter%3E%3Crect width='420' height='420' filter='url(%23m)'/%3E%3C/svg%3E"),
-    radial-gradient(1200px 700px at 50% 0%, #a37e50, #8a6841);
-  background-size:
-    220px 220px,
-    420px 420px,
-    cover;
+  background-color: #4a3729;
+  background-image: radial-gradient(
+    130% 95% at 50% 38%,
+    #614936 0%,
+    #4d3a2b 52%,
+    #3a2c20 100%
+  );
 }
 .qbar {
   background: linear-gradient(rgba(23, 18, 9, 0.95), rgba(23, 18, 9, 0.8));
@@ -4743,10 +4740,15 @@ select:focus {
   pointer-events: none;
   z-index: 5;
 }
+/* Textura que ANDA com a câmera (o aplicaCam mexe em size/position):
+   manchas largas e de contraste bem baixo — dão a sensação de superfície
+   se movendo ao arrastar, sem virar padrão visível parado. */
 .qcanvas {
   position: relative;
   background: none;
-  background-image: none;
+  /* baseFrequency × lado do ladrilho tem de dar um INTEIRO (0.025×240=6),
+     senão o stitchTiles não emenda e aparecem quadrados no fundo. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.025' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 0.93 0 0 0 0 0.82 0.1 0 0 0 -0.035'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23s)'/%3E%3C/svg%3E");
 }
 .qsvg,
 .qworld {
