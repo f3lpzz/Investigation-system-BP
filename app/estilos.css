@@ -4651,10 +4651,11 @@ select:focus {
 #teorias {
   background-color: #4a3729;
   background-image: radial-gradient(
-    130% 95% at 50% 38%,
-    #614936 0%,
-    #4d3a2b 52%,
-    #3a2c20 100%
+    115% 88% at 48% 44%,
+    #67503b 0%,
+    #533f2e 45%,
+    #402f22 75%,
+    #32251b 100%
   );
 }
 .qbar {
@@ -4740,15 +4741,11 @@ select:focus {
   pointer-events: none;
   z-index: 5;
 }
-/* Textura que ANDA com a câmera (o aplicaCam mexe em size/position):
-   manchas largas e de contraste bem baixo — dão a sensação de superfície
-   se movendo ao arrastar, sem virar padrão visível parado. */
+/* Sem textura no canvas: o fundo é só o degradê liso do #teorias. */
 .qcanvas {
   position: relative;
   background: none;
-  /* baseFrequency × lado do ladrilho tem de dar um INTEIRO (0.025×240=6),
-     senão o stitchTiles não emenda e aparecem quadrados no fundo. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.025' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 0.93 0 0 0 0 0.82 0.1 0 0 0 -0.035'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23s)'/%3E%3C/svg%3E");
+  background-image: none;
 }
 .qsvg,
 .qworld {

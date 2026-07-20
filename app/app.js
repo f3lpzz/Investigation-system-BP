@@ -6839,15 +6839,7 @@ function aplicaCam() {
   const w = document.getElementById("qworld");
   if (w && q)
     w.style.transform = `translate(${q.cam.x}px,${q.cam.y}px) scale(${q.cam.s})`;
-  const cv = document.getElementById("qcanvas");
-  if (cv && q) {
-    // A textura do fundo acompanha o arraste e o zoom (o ladrilho tem
-    // 240px no zoom 1:1) — é o que dá a sensação de superfície infinita.
-    const tz = (240 * q.cam.s).toFixed(2) + "px";
-    cv.style.backgroundSize = tz + " " + tz;
-    cv.style.backgroundPosition =
-      q.cam.x.toFixed(1) + "px " + q.cam.y.toFixed(1) + "px";
-  }
+  // O fundo do quadro é um degradê liso e parado — nada a mover aqui.
 }
 function nodeEl(id) {
   return document.querySelector(

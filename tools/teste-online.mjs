@@ -318,22 +318,21 @@ const entrou = () =>
   ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
   g('qSetTool("select")');
 
-  /* Teste 8.4 — Fundo do quadro anda e escala junto com a câmera (é o que
-     dá a sensação de superfície infinita, em vez de imagem colada) */
+  /* Teste 8.4 — Câmera do quadro: o mundo é que se move (o fundo é liso
+     e parado; nada de textura acompanhando a câmera) */
   g(
-    '(function(){var q=quadroAtual();q.cam.x=-420;q.cam.y=-260;q.cam.s=1;aplicaCam();})()',
+    '(function(){var q=quadroAtual();q.cam.x=-420;q.cam.y=-260;q.cam.s=2;aplicaCam();})()',
   );
   ok(
-    "fundo do quadro: a textura acompanha o arraste (position = câmera)",
+    "câmera do quadro: o mundo recebe o transform do arraste e do zoom",
     g(
-      '(function(){var p=document.getElementById("qcanvas").style.backgroundPosition.split(" ");return parseFloat(p[0])===-420 && parseFloat(p[1])===-260;})()',
+      '(function(){var t=document.getElementById("qworld").style.transform;return t.indexOf("translate(-420px,-260px)")>=0 && t.indexOf("scale(2)")>0;})()',
     ),
   );
-  g('(function(){var q=quadroAtual();q.cam.s=2;aplicaCam();})()');
   ok(
-    "fundo do quadro: a textura escala com o zoom (ladrilho de 240px)",
+    "fundo do quadro: continua liso (sem imagem/textura no canvas)",
     g(
-      '(function(){var s=document.getElementById("qcanvas").style.backgroundSize.split(" ");return parseFloat(s[0])===480 && parseFloat(s[1])===480;})()',
+      '(function(){var cv=document.getElementById("qcanvas");return !cv.style.backgroundImage && !cv.style.backgroundSize;})()',
     ),
   );
   g(
