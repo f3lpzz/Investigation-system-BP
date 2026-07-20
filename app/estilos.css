@@ -3624,6 +3624,10 @@ select:focus {
   grid-template-columns: repeat(auto-fill, minmax(218px, 1fr));
   gap: 18px;
   align-content: start;
+  /* Cada linha cresce com o conteúdo dela. Sem isto as linhas dividiam a
+     altura da tela e o card (que tem overflow: hidden) era cortado no
+     meio — título pela metade, foto fatiada, rodapé sumindo. */
+  grid-auto-rows: max-content;
   padding: 18px 24px 24px;
   overflow: auto;
 }
@@ -3747,10 +3751,12 @@ select:focus {
   overflow: hidden;
   min-height: 18px;
 }
+/* Carimbo no canto de baixo, ao lado do rodapé. Antes ficava a 56px do
+   fundo — com o card de altura variável, caía em cima do resumo. */
 .stamp {
   position: absolute;
-  right: 10px;
-  bottom: 56px;
+  right: 12px;
+  bottom: 12px;
   font-family: var(--font-type);
   font-size: 11px;
   border: 2px solid;
@@ -3782,6 +3788,9 @@ select:focus {
   align-items: center;
   flex-wrap: wrap;
   font-size: 11px;
+  /* espaço reservado para o carimbo, que fica neste canto */
+  padding-right: 86px;
+  min-height: 20px;
 }
 .cgrupo {
   display: inline-flex;
@@ -5088,6 +5097,8 @@ select:focus {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
   align-content: start;
+  /* mesma proteção da grade de fichas: linha cresce com o conteúdo */
+  grid-auto-rows: max-content;
 }
 .com-dossie .arqgrid.salas {
   grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));

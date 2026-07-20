@@ -75,6 +75,21 @@ const SEED = (vista) => `
     else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
     // filtro aplicado: mostra o selo com a contagem no botão de filtros
     else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
+    // grade cheia: 28 fichas com títulos de 1 a 3 linhas (reproduz a
+    // responsividade real do Felipe, que o seed pequeno não mostra)
+    else if (base === "grade-cheia") {
+      var _ts = ["Pista importada 14/07/2026 - 11/11", "Carta aos editores - rejeicao ao livro", "Mineracao - Ultimo equipamento para a nova mina", "Aviso ao pessoal - Ala Oeste fechada (Lady Clara Epson)", "Peca de xadrez - Peao (Parlor)", "Carta Vermelha 4"];
+      var _bs = DADOS.fichas.slice();
+      for (var i = 0; i < 28; i++) {
+        var b = _bs[i % _bs.length];
+        DADOS.fichas.push(Object.assign({}, b, {
+          id: "fx" + i,
+          titulo: _ts[i % _ts.length],
+          paginas: b.paginas.map(function (p) { return Object.assign({}, p); }),
+        }));
+      }
+      setView("grade"); render();
+    }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
     // quadro arrastado: prova que a textura do fundo anda com a câmera
