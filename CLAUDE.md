@@ -58,15 +58,19 @@ tokens. O passo a passo e as pegadinhas estão nelas — não duplique aqui.
 4. **Segurança:** a chave `service_role` (e qualquer segredo) **NUNCA** vai para
    o frontend nem para o git — só a `anon` (pública). Quem protege é o **RLS**.
    Segredos são manuseados pelo Felipe; o Claude não precisa vê-los.
-5. **Fluxo de mudança:** branch `feature/…` (nome curto, ≤ ~20 letras — limite
-   de 28 do endereço de preview do Cloudflare) → skill `fechar-etapa` (termina
-   abrindo **Pull Request** para a `online`) → Felipe confere o **preview** e
-   clica ele mesmo em **Merge** no PR (o GitHub apaga a branch remota sozinho).
+5. **Fluxo de mudança — só quando for ALTERAR o repositório** (criar, editar
+   ou excluir qualquer arquivo versionado). Tarefa só de leitura, análise ou
+   planejamento **não** dispara nada disto: nada de faxina, branch ou PR —
+   responda e pronto.
+   Quando FOR alterar: **antes de começar, faça a faxina pós-merge**
+   (`git checkout online && git pull && git fetch --prune` e apague branches
+   locais já mescladas com `git branch -d …` — o merge é do Felipe e acontece
+   entre sessões; quem chega para alterar é que limpa) → branch `feature/…`
+   (nome curto, ≤ ~20 letras — limite de 28 do endereço de preview do
+   Cloudflare) → skill `fechar-etapa` (termina abrindo **Pull Request** para
+   a `online`) → Felipe confere o **preview** e clica ele mesmo em **Merge**
+   no PR (o GitHub apaga a branch remota sozinho).
    ⛔ A IA nunca mergeia na `online` — o botão de produção é do Felipe.
-   **Ao INICIAR qualquer tarefa, faça a faxina pós-merge:** `git checkout
-   online && git pull && git fetch --prune` e apague branches locais já
-   mescladas (`git branch -d …`) — o merge é do Felipe e acontece entre
-   sessões; quem chega depois é que limpa.
 6. **Mudança visual só está pronta depois da skill `verificar-visual`** — teste
    verde e HTTP 200 não provam que a tela está certa.
 
