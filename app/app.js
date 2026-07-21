@@ -2759,6 +2759,16 @@ function addAoQuadro(id) {
 function field(lab, val) {
   return `<div class="field"><div class="lab">${lab}</div><div class="val">${val}</div></div>`;
 }
+/* Descrição de personagem gerada pela IA: começa com um resumo (1ª linha) e
+   segue com bullets "• F-010 - fato". Cards e listas compactas mostram só o
+   resumo; o dossiê completo mostra tudo (com as quebras preservadas). */
+function descResumo(d) {
+  const linhas = String(d || "")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return linhas[0] || "";
+}
 /* ===== Abertura/fechamento CENTRAL do detalhe (drawer) =====
    Todo caminho que abre o painel passa por drawerAbrir(); todo caminho que
    fecha passa por fechar(). Isso garante que a tabbar e o FAB voltam
@@ -5317,7 +5327,7 @@ function abrirEntidade(kind, nome) {
     </div>
     <div class="db">
       ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" alt="${esc(nome)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
-      ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
+      ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", `<div class="desc-topicos">${esc(e.descricao)}</div>`) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
       ${pessoalHtml}
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
@@ -5472,7 +5482,7 @@ function renderMundo() {
           .sort((a, b) => (a.nome < b.nome ? -1 : 1))
           .map((e) => {
             const n = pistasQueCitam(kind, e.nome).length;
-            const resumo = e.descricao || (e.fatos && e.fatos[0]) || "";
+            const resumo = descResumo(e.descricao) || (e.fatos && e.fatos[0]) || "";
             return `<div class="card" style="border-left-color:${corKind(kind)}" onclick="abrirEntidade('${kind}','${jsq(e.nome)}')">
         ${e.imagem ? `<div class="thumbwrap"><img class="thumb" src="${esc(e.imagem)}" onerror="var w=this.closest('.thumbwrap');if(w)w.remove()"></div>` : ""}
         <h3>${esc(e.nome)}</h3>
@@ -6238,7 +6248,7 @@ function renderArquivo(soLista) {
         const nFa = (e.fatos || []).length;
         return `<div class="pcard${_arqSel && _arqSel.kind === "pessoa" && _arqSel.nome === e.nome ? " on" : ""}" onclick="arqAbrir('pessoa','${jsq(e.nome)}')">
           <div class="pcard-h"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="pcard-n">${esc(e.nome)}</div><button class="pcard-m" onclick="event.stopPropagation();arqRenomear('pessoa','${jsq(e.nome)}')" title="Renomear" aria-label="Renomear ${esc(e.nome)}">···</button></div>
-          ${e.descricao ? `<div class="pcard-d">${esc(e.descricao)}</div>` : ""}
+          ${e.descricao ? `<div class="pcard-d">${esc(descResumo(e.descricao))}</div>` : ""}
           <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span><span>${nFa} fato${nFa === 1 ? "" : "s"}</span></div>
         </div>`;
       })

@@ -46,7 +46,9 @@ const SEED = (vista) => `
       {id:"f2",titulo:"Retrato da fundadora",sala:"Drawing Room",grupos:[],personagens:["Mary"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"A placa tem data ilegível. Alguém raspou o último algarismo.",explica:"",rotulo:""}]},
       {id:"f6",titulo:"Chave sem fechadura",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"Uma chave pequena de latão, sem indicação de onde usar.",explica:"",rotulo:""}]}
     );
-    D.personagens.push({nome:"Simon",imagem:"",descricao:"Correspondente frequente.",fatos:["Escrevia de dentro da casa."],notas:"",aliases:[]},{nome:"Mary",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]},{nome:"Herbert",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]});
+    // Simon tem a descrição no formato novo da IA: resumo (1ª linha) +
+    // linha em branco + bullets "• F-nnn - fato" — para verificar o pre-wrap.
+    D.personagens.push({nome:"Simon",imagem:"",descricao:"Correspondente frequente das cartas vermelhas, ativo dentro da casa.\\n\\n• F-001 - Escreveu metade de um bilhete encontrado atrás do relógio de pé\\n• F-001 - Segundo o bilhete, a caligrafia é a mesma das cartas vermelhas\\n• F-005 - Assinou a terceira carta da série, com o selo partido",fatos:["Escrevia de dentro da casa."],notas:"",aliases:[]},{nome:"Mary",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]},{nome:"Herbert",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]});
     D.grupos.push({nome:"Cartas Vermelhas",cor:"#8d3030",imagem:"",descricao:"",fatos:[],notas:""});
     D.salas.length = 0;
     D.salas.push(
@@ -70,6 +72,10 @@ const SEED = (vista) => `
     else if (base === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
     else if (base === "arquivo-grade") { setView("arquivo"); arqEscolherCat("Rooms 001-012"); }
     else if (base === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
+    // dossiê completo do personagem (drawer com a Descrição em bullets)
+    else if (base === "dossie-pessoa") { setView("grade"); render(); abrirEntidade("pessoa","Simon"); }
+    // dossiê rápido do Arquivo (painel lateral .dosdesc)
+    else if (base === "arquivo-pessoa-dossie") { state.arqTab = "pessoas"; setView("arquivo"); arqAbrir("pessoa","Simon"); }
     else if (base === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
     else if (base === "conta") { setView("conta"); }
     else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }

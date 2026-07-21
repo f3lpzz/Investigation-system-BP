@@ -818,6 +818,12 @@ main {
   line-height: 1.5;
   color: var(--ink);
 }
+/* Descrição de personagem (resumo + bullets "• F-010 - fato"): as quebras de
+   linha fazem parte do formato — preserva SÓ aqui, sem tocar no .val genérico. */
+.desc-topicos {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 /* Características da sala: "tabela invisível" — até 3 itens por coluna,
    depois segue na coluna ao lado. Espaço confortável para leitura. */
 .sala-caract {
@@ -5384,6 +5390,9 @@ select:focus {
   font-size: 12px;
   color: var(--ink-soft);
   line-height: 1.5;
+  /* descrição em resumo + bullets: preservar as quebras de linha */
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .dosswatch {
   width: 26px;
