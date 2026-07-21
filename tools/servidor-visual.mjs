@@ -1,9 +1,10 @@
 /* Servidor do app para captura visual (usado pela skill "verificar-visual"):
    serve a pasta app/ em http://localhost:4599 e, com ?seed=<vista>, injeta
    dados de teste (os mesmos do modelo de design) e entra no app sem login.
-   Vistas: grade · detalhe · teorias · mapa · conta · arquivo-salas ·
-   arquivo-pessoas · dossie-sala · grade-filtros · <vista>-diag (mede
-   vazamento de largura e escreve o resultado no <title>). */
+   Vistas: grade · detalhe · teorias · mapa · conta · arquivo-salas (lista
+   de categorias) · arquivo-grade (salas de uma categoria) · arquivo-pessoas ·
+   dossie-sala · grade-filtros · <vista>-diag (mede vazamento de largura e
+   escreve o resultado no <title>). */
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
@@ -15,6 +16,7 @@ const MIME = {
   ".js": "text/javascript; charset=utf-8",
   ".woff2": "font/woff2",
   ".png": "image/png",
+  ".svg": "image/svg+xml",
   ".json": "application/json",
 };
 const SEED = (vista) => `
@@ -23,12 +25,21 @@ const SEED = (vista) => `
   // sem nuvem: o app roda em modo local para a captura
   window.MODO_ONLINE = false; window.IA_ATIVA = true;
   function entra(){
+    if (${JSON.stringify(vista)}.indexOf("login") === 0) {
+      document.body.classList.remove("app-carregando");
+      document.body.classList.add("pre-login");
+      if (${JSON.stringify(vista)} === "login-erro") {
+        var mm = document.getElementById("authMsg");
+        if (mm) { mm.textContent = "E-mail ou senha incorretos."; mm.className = "auth-msg show erro"; }
+      }
+      return;
+    }
     document.body.classList.remove("pre-login","app-carregando");
     var a = document.getElementById("authScreen"); if (a) a.style.display="none";
     var D = (typeof DADOS !== "undefined") ? DADOS : null; if (!D || typeof setView !== "function") return setTimeout(entra, 60);
     if (D.fichas.length) return; // já semeado
     D.fichas.push(
-      {id:"f1",titulo:"Bilhete rasgado no salão",sala:"Entrance Hall",grupos:["Cartas Vermelhas"],personagens:["Simon"],conexoes:["f5"],notas:"Procurar a outra metade atrás dos móveis do salão.",pendente:false,fav:true,status:"",paginas:[{imagem:"",original:"I found half a note behind the grandfather clock.",traducao:"Encontrei metade de um bilhete atrás do relógio de pé. A caligrafia parece a mesma das cartas vermelhas. A outra metade deve estar em algum lugar do salão.",explica:"Liga o salão de entrada à série de cartas vermelhas.",rotulo:""}]},
+      {id:"f1",titulo:"Bilhete rasgado no salão — jornal sobre o sumiço de Mary Matthew Jones na ala oeste",sala:"Entrance Hall",grupos:["Cartas Vermelhas"],personagens:["Simon"],conexoes:["f5"],notas:"Procurar a outra metade atrás dos móveis do salão.",pendente:true,fav:true,status:"",paginas:[{imagem:"imagens/ficha-01.png",original:"I found half a note behind the grandfather clock.",traducao:"Encontrei metade de um bilhete atrás do relógio de pé. A caligrafia parece a mesma das cartas vermelhas. A outra metade deve estar em algum lugar do salão.",explica:"Liga o salão de entrada à série de cartas vermelhas.",rotulo:""}]},
       {id:"f3",titulo:"Nota do despenseiro",sala:"Pantry",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"Lista de compras com um item circulado três vezes. Falta transcrever a foto.",explica:"",rotulo:""}]},
       {id:"f4",titulo:"Mapa antigo da propriedade",sala:"Study",grupos:[],personagens:["Herbert"],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"Old map pinned inside the desk drawer. Someone marked the east wing…",traducao:"",explica:"",rotulo:""}]},
       {id:"f5",titulo:"Carta com selo partido",sala:"Library",grupos:["Cartas Vermelhas"],personagens:["Simon","Mary"],conexoes:["f1"],notas:"",pendente:false,fav:true,status:"resolvida",paginas:[{imagem:"",original:"The third letter of the series.",traducao:"A terceira carta da série. O selo combina com o anel do retrato do corredor.",explica:"",rotulo:""}]},
@@ -51,14 +62,74 @@ const SEED = (vista) => `
     );
     if (typeof rebuildFilters === "function") rebuildFilters();
     var v = ${JSON.stringify(vista)};
-    if (v === "detalhe") { setView("grade"); render(); abrir("f1"); }
-    else if (v === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("diretorio"); abrirEntidade("sala","Entrance Hall"); }
-    else if (v === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("diretorio"); }
-    else if (v === "arquivo-pessoas") { setArqTab("personagens"); }
-    else if (v === "conta") { setView("grade"); render(); abrirConta(); }
-    else if (v === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
-    else { setView(v.replace("-diag",""), render()); render(); }
-    if (v.indexOf("-diag") > 0) { setTimeout(function(){ __diag(); }, 400); }
+    var base = v.replace("-diag","");
+    if (base === "detalhe") { setView("grade"); render(); abrir("f1"); }
+    // clica DE VERDADE no fio da investigação (prova que ele leva ao mapa)
+    else if (base === "fio-mapa") { setView("grade"); render(); abrir("f1"); setTimeout(function(){ var el = document.querySelector(".fio.aomapa"); if (el) el.click(); }, 50); }
+    else if (base === "dossie-sala") { state.dirCat = "Rooms 001-012"; setView("arquivo"); arqAbrir("sala","Entrance Hall"); }
+    else if (base === "arquivo-salas") { state.dirCat = "Rooms 001-012"; setView("arquivo"); }
+    else if (base === "arquivo-grade") { setView("arquivo"); arqEscolherCat("Rooms 001-012"); }
+    else if (base === "arquivo-pessoas") { state.arqTab = "pessoas"; setView("arquivo"); }
+    else if (base === "arquivo-grupos") { state.arqTab = "grupos"; setView("arquivo"); }
+    else if (base === "conta") { setView("conta"); }
+    else if (base === "grade-filtros") { setView("grade"); render(); toggleFiltros(); }
+    // filtro aplicado: mostra o selo com a contagem no botão de filtros
+    else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
+    // grade cheia: 28 fichas com títulos de 1 a 3 linhas (reproduz a
+    // responsividade real do Felipe, que o seed pequeno não mostra)
+    else if (base.indexOf("grade-cheia") === 0) {
+      var _ts = ["Pista importada 14/07/2026 - 11/11", "Carta aos editores - rejeicao ao livro", "Mineracao - Ultimo equipamento para a nova mina", "Aviso ao pessoal - Ala Oeste fechada (Lady Clara Epson)", "Peca de xadrez - Peao (Parlor)", "Carta Vermelha 4"];
+      var _bs = DADOS.fichas.slice();
+      for (var i = 0; i < 28; i++) {
+        var b = _bs[i % _bs.length];
+        DADOS.fichas.push(Object.assign({}, b, {
+          id: "fx" + i,
+          titulo: _ts[i % _ts.length],
+          paginas: b.paginas.map(function (p) { return Object.assign({}, p); }),
+        }));
+      }
+      setView("grade"); render();
+      // "-rolada": mostra o topo da lista durante a rolagem (o corte rente
+      // ao cabeçalho só aparece com a grade fora do início)
+      if (v.indexOf("rolada") > 0) setTimeout(function () {
+        document.getElementById("grade").scrollTop = 260;
+      }, 200);
+    }
+    // lista de quadros aberta pelo seletor do celular (2 quadros)
+    else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
+    // quadro arrastado: prova que a textura do fundo anda com a câmera
+    else if (base === "teorias-pan") { setView("teorias"); var _q = quadroAtual(); _q.cam.x = -420; _q.cam.y = -260; aplicaCam(); }
+    // zoom-hit: com a interface ampliada, o ponto clicado ainda cai no
+    // elemento certo? (elementFromPoint usa o mesmo espaço do clientX dos
+    // eventos de ponteiro — se bater com o rect, arrastar/clicar acerta)
+    else if (base === "zoom-hit") {
+      setView("teorias");
+      var _n = qNovoTextoEm(120, 120, "nota");
+      desenhaQuadro();
+      setTimeout(function () {
+        var el = document.querySelector('.qnode[data-id="' + _n.id + '"]');
+        var r = el.getBoundingClientRect();
+        var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var alvo = document.elementFromPoint(cx, cy);
+        var ok = !!(alvo && alvo.closest && alvo.closest('.qnode[data-id="' + _n.id + '"]'));
+        // também confere o Mapa (mesmo teste no primeiro ponto do grafo)
+        setView("mapa"); render();
+        setTimeout(function () {
+          var no = document.querySelector("#svg circle, #svg .node, #svg g");
+          var ok2 = "sem-no";
+          if (no) {
+            var r2 = no.getBoundingClientRect();
+            var a2 = document.elementFromPoint(r2.left + r2.width / 2, r2.top + r2.height / 2);
+            ok2 = a2 && (a2 === no || (a2.closest && a2.closest("svg"))) ? "OK" : "ERRO";
+          }
+          document.title = "ZOOM=" + (getComputedStyle(document.body).zoom || "1") +
+            " | rect=" + Math.round(r.left) + "," + Math.round(r.top) +
+            " | quadro-hit=" + (ok ? "OK" : "ERRO") + " | mapa-hit=" + ok2;
+        }, 300);
+      }, 250);
+    }
+    else { setView(base); render(); }
+    if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }
   function __diag(){
     var vw = document.documentElement.clientWidth, pior = [];
@@ -67,7 +138,21 @@ const SEED = (vista) => `
       if (r.right > vw + 1 && r.width > 0) pior.push([Math.round(r.right), Math.round(r.width), el.tagName + "." + (el.className && el.className.baseVal === undefined ? String(el.className).split(" ").join(".") : "")]);
     });
     pior.sort(function(a,b){ return b[0]-a[0]; });
-    document.title = "VW=" + vw + " SCROLLW=" + document.documentElement.scrollWidth + " || " + pior.slice(0,6).map(function(p){ return p[2] + " right=" + p[0] + " w=" + p[1]; }).join(" | ");
+    // Rolagem vertical: quem é o dono e se o conteúdo é alcançável.
+    var donos = [];
+    ["#grade", ".arqbody", ".arqgrid", "#conta", "#teorias", "#drawer", ".db", ".contawrap"].forEach(function(sel){
+      document.querySelectorAll(sel).forEach(function(el){
+        var cs = getComputedStyle(el);
+        if (cs.display === "none" || !el.clientHeight) return;
+        var rola = /(auto|scroll)/.test(cs.overflowY);
+        if (el.scrollHeight > el.clientHeight + 1 || rola)
+          donos.push(sel + " sh=" + el.scrollHeight + " ch=" + el.clientHeight + (rola ? " ROLA" : " PRESO"));
+      });
+    });
+    document.title = "VW=" + vw + " SCROLLW=" + document.documentElement.scrollWidth +
+      " BODYH=" + document.documentElement.clientHeight + " SCROLLH=" + document.documentElement.scrollHeight +
+      " || " + pior.slice(0,6).map(function(p){ return p[2] + " right=" + p[0] + " w=" + p[1]; }).join(" | ") +
+      " ||V|| " + donos.join(" | ");
   }
   if (document.readyState === "complete") setTimeout(entra, 120);
   else window.addEventListener("load", function(){ setTimeout(entra, 120); });
@@ -78,6 +163,18 @@ createServer((req, res) => {
     const [path, qs] = req.url.split("?");
     let p = decodeURIComponent(path);
     if (p === "/" || p === "/painel") p = "/painel.html";
+    // /moldura.html?w=412&h=880&seed=grade — iframe com viewport CSS exato
+    // (o Chrome headless do Windows não desce de ~500px de janela; o iframe
+    // dá o layout real de celular estreito lá dentro).
+    if (p === "/moldura.html") {
+      const q = new URLSearchParams(qs || "");
+      const w = +(q.get("w") || 412), h = +(q.get("h") || 880);
+      const seed = q.get("seed") || "grade";
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#333}</style></head>
+<body><iframe src="/painel.html?seed=${encodeURIComponent(seed)}" style="width:${w}px;height:${h}px;border:0;display:block"></iframe></body></html>`);
+      return;
+    }
     const file = join(DIR, p);
     let body = readFileSync(file);
     const seed = new URLSearchParams(qs || "").get("seed");

@@ -1,10 +1,10 @@
 function getCss(v) {
   return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 }
-const COR_SALA = "#5ec8ff",
-  COR_PESSOA = "#ff7e9a",
-  COR_LIVRO = "#ffb05c",
-  COR_MANUAL = "#a98bff";
+const COR_SALA = "#6fa8c0",
+  COR_PESSOA = "#cf7f70",
+  COR_LIVRO = "#b07a2e",
+  COR_MANUAL = "#b8452e";
 const mapLayers = {
   pessoa: true,
   sala: true,
@@ -21,11 +21,11 @@ const SALAS_OFICIAIS = {
   },
 };
 const TIPOS_PADRAO = [
-  { id: "sala", nome: "Sala", cor: "#5ec8ff" },
-  { id: "pista", nome: "Pista", cor: "#ffd35e" },
-  { id: "carta", nome: "Carta/Doc", cor: "#a98bff" },
-  { id: "pessoa", nome: "Pessoa", cor: "#ff7e9a" },
-  { id: "mecanica", nome: "Mecânica", cor: "#5effc0" },
+  { id: "sala", nome: "Sala", cor: "#6fa8c0" },
+  { id: "pista", nome: "Pista", cor: "#c9a35c" },
+  { id: "carta", nome: "Carta/Doc", cor: "#b07a2e" },
+  { id: "pessoa", nome: "Pessoa", cor: "#cf7f70" },
+  { id: "mecanica", nome: "Mecânica", cor: "#7a9c6e" },
 ];
 var SCHEMA_VERSION = 6,
   DADOS_BROKEN = false;
@@ -511,6 +511,8 @@ document.addEventListener("keydown", (e) => {
     }
   }
   if (e.key === "Escape") {
+    // Fecha o overlay do topo da pilha (modal, sheet, popover, detalhe…)
+    if (typeof overlayFecharTopo === "function" && overlayFecharTopo()) return;
     const om = document.querySelector(".modal.open");
     if (om) {
       om.classList.remove("open");
@@ -525,19 +527,571 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-document.getElementById("vGrade").onclick = () => setView("grade");
-document.getElementById("vTeorias").onclick = () => setView("teorias");
-document.getElementById("vMapa").onclick = () => setView("mapa");
-document.getElementById("vMundo").onclick = () => setView("mundo");
-document.getElementById("vDir").onclick = () => setView("diretorio");
-function setView(v) {
+/* ===== Modo compacto (mobile) — a MESMA definição do CSS =====
+   CSS e JS compartilham esta media query (regra do plano mobile §3.5).
+   Capacidade de entrada (toque × mouse) é uma dimensão separada. */
+const MQ_COMPACTO = window.matchMedia
+  ? window.matchMedia("(max-width: 720px), (max-height: 500px)")
+  : null;
+const MQ_TOQUE = window.matchMedia
+  ? window.matchMedia("(pointer: coarse)")
+  : null;
+function ehCompacto() {
+  return !!(MQ_COMPACTO && MQ_COMPACTO.matches);
+}
+function ehToque() {
+  return !!(MQ_TOQUE && MQ_TOQUE.matches);
+}
+// Rotação/resize que muda o modo: re-renderiza a vista SEM trocar o que
+// está aberto (drawer, filtros etc. permanecem como estão).
+if (MQ_COMPACTO && MQ_COMPACTO.addEventListener) {
+  MQ_COMPACTO.addEventListener("change", function () {
+    try {
+      render();
+    } catch (e) {}
+  });
+}
+
+/* ===== Navegação com estado + botão Voltar (History API) =====
+   Ordem do Voltar: fechar overlay aberto → voltar de vista → sair do app.
+   Cada overlay aberto registra um fechador; o popstate fecha o do topo. */
+const _ovStack = []; // pilha de overlays abertos: {id, fechar}
+let _navPopSilencioso = false; // history.back() interno (não fechar de novo)
+function navPushOverlay(id, fecharFn) {
+  if (_ovStack.some((o) => o.id === id)) return;
+  _ovStack.push({ id: id, fechar: fecharFn });
+  try {
+    if (history.pushState) history.pushState({ bpOv: id }, "");
+  } catch (e) {}
+}
+function navOverlayFechado(id) {
+  const i = _ovStack.findIndex((o) => o.id === id);
+  if (i < 0) return;
+  _ovStack.splice(i, 1);
+  // Fechou pelo botão/Escape: recua a entrada do histórico que o abriu.
+  try {
+    if (history.state && history.state.bpOv === id) {
+      _navPopSilencioso = true;
+      history.back();
+    }
+  } catch (e) {}
+}
+window.addEventListener("popstate", function (e) {
+  if (_navPopSilencioso) {
+    _navPopSilencioso = false;
+    return;
+  }
+  // 1) Overlay aberto? Fecha o do topo (o history já recuou sozinho).
+  const topo = _ovStack.pop();
+  if (topo) {
+    try {
+      topo.fechar();
+    } catch (err) {}
+    return;
+  }
+  // 2) Sem overlay: volta de vista, se o estado guardar uma.
+  const st = e.state;
+  if (st && st.bpView) setView(st.bpView, true);
+});
+
+/* ===== Controlador de overlays (plano mobile §5.4) =====
+   Um caminho só para modal, bottom sheet, detalhe full-screen, popover e
+   lightbox: foco inicial, armadilha de Tab, fundo inert, fechar por botão/
+   Escape/Voltar, devolução de foco e semântica de diálogo. */
+const _ovInfo = {}; // id -> {el, opts, acionador, trap}
+function _ovFocaveis(el) {
+  const sel =
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.prototype.filter.call(el.querySelectorAll(sel), function (x) {
+    return x.offsetParent !== null || x === document.activeElement;
+  });
+}
+function _ovRecalculaInert() {
+  // Fundo inerte = há modal aberto que não contém o alvo (nem é contido).
+  const modais = Object.keys(_ovInfo)
+    .map((k) => _ovInfo[k])
+    .filter((i) => i.opts.modal);
+  const alvos = document.querySelectorAll(
+    ".side, .tabbar, .fab, .topbar, .filtros-pills, .selbar, main > *",
+  );
+  alvos.forEach(function (alvo) {
+    const deveInert = modais.some(
+      (i) => !i.el.contains(alvo) && !alvo.contains(i.el),
+    );
+    try {
+      alvo.inert = deveInert;
+    } catch (e) {}
+  });
+}
+function overlayAbrir(el, opts) {
+  opts = opts || {};
+  const id = opts.id || el.id;
+  if (!el || !id || _ovInfo[id]) return;
+  const info = {
+    el: el,
+    opts: opts,
+    acionador:
+      document.activeElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null,
+  };
+  _ovInfo[id] = info;
+  if (!opts.jaAberto) el.classList.add("open");
+  if (opts.modal) {
+    if (!el.getAttribute("role")) el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    info.trap = function (e) {
+      if (e.key !== "Tab") return;
+      const f = _ovFocaveis(el);
+      if (!f.length) {
+        e.preventDefault();
+        return;
+      }
+      const first = f[0],
+        last = f[f.length - 1];
+      if (
+        e.shiftKey &&
+        (document.activeElement === first || !el.contains(document.activeElement))
+      ) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    el.addEventListener("keydown", info.trap);
+    _ovRecalculaInert();
+  }
+  // Foco inicial: [autofocus] > primeiro focável > o próprio overlay.
+  const foco =
+    el.querySelector("[autofocus]") ||
+    (opts.focoEm && el.querySelector(opts.focoEm)) ||
+    _ovFocaveis(el)[0];
+  try {
+    if (foco) foco.focus();
+    else {
+      el.tabIndex = -1;
+      el.focus();
+    }
+  } catch (e) {}
+  navPushOverlay(id, function () {
+    _ovDesfaz(id); // fechamento vindo do Voltar (popstate)
+  });
+  return id;
+}
+function overlayFechar(id) {
+  // Fechamento por botão/Escape: desfaz e recua a entrada do histórico.
+  if (!_ovInfo[id]) return;
+  _ovDesfaz(id);
+  navOverlayFechado(id);
+}
+function _ovDesfaz(id) {
+  const info = _ovInfo[id];
+  if (!info) return;
+  delete _ovInfo[id];
+  if (info.trap) info.el.removeEventListener("keydown", info.trap);
+  if (info.opts.modal) {
+    info.el.removeAttribute("aria-modal");
+    _ovRecalculaInert();
+  }
+  if (info.opts.fechar) info.opts.fechar();
+  else info.el.classList.remove("open");
+  if (info.acionador && document.contains(info.acionador)) {
+    try {
+      info.acionador.focus();
+    } catch (e) {}
+  }
+}
+function overlayFecharTopo() {
+  const topo = _ovStack[_ovStack.length - 1];
+  if (!topo) return false;
+  if (_ovInfo[topo.id]) overlayFechar(topo.id);
+  else {
+    try {
+      topo.fechar(); // legado (drawer): o próprio fechar avisa a pilha
+    } catch (e) {}
+  }
+  return true;
+}
+/* Qualquer .modal (ou .lightbox) que ganhe/perca .open entra/sai da pilha
+   automaticamente — cobre também os modais da camada de IA (ia.js). */
+if (window.MutationObserver) {
+  new MutationObserver(function (muts) {
+    muts.forEach(function (mu) {
+      const el = mu.target;
+      if (
+        !el.classList ||
+        !(el.classList.contains("modal") || el.classList.contains("lightbox"))
+      )
+        return;
+      const aberto = el.classList.contains("open");
+      if (!el.id) el.id = "ov-" + Math.random().toString(36).slice(2);
+      if (aberto && !_ovInfo[el.id])
+        overlayAbrir(el, { id: el.id, modal: true, jaAberto: true });
+      else if (!aberto && _ovInfo[el.id]) overlayFechar(el.id);
+    });
+  }).observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class"],
+    subtree: true,
+  });
+}
+
+/* ===== Folha de ações contextual (plano mobile §5.6) =====
+   Tap seleciona; as ações do item aparecem aqui (menu/bottom sheet modal).
+   Nenhuma ação fica só no hover ou no duplo clique; excluir vem separado. */
+function abrirSheetAcoes(titulo, itens, opts) {
+  opts = opts || {};
+  const el = document.createElement("div");
+  el.className = "acsheet";
+  el.id = "acsheet-" + Date.now();
+  const botoes = itens
+    .filter(Boolean)
+    .map(function (it, i) {
+      return (
+        '<button class="acit' +
+        (it.perigo ? " perigo" : "") +
+        '" data-i="' +
+        i +
+        '"' +
+        (it.desativado ? " disabled" : "") +
+        ">" +
+        (it.icone ? '<span class="acic">' + it.icone + "</span>" : "") +
+        esc(it.rotulo) +
+        (it.detalhe ? '<span class="acdet">' + esc(it.detalhe) + "</span>" : "") +
+        "</button>"
+      );
+    })
+    .join("");
+  el.innerHTML =
+    '<div class="acsheet-veu"></div>' +
+    '<div class="acsheet-caixa" role="document">' +
+    '<div class="sheet-grip"></div>' +
+    (titulo ? '<div class="acsheet-tit">' + esc(titulo) + "</div>" : "") +
+    botoes +
+    '<button class="acit cancelar">Cancelar</button>' +
+    "</div>";
+  document.body.appendChild(el);
+  el.setAttribute("aria-label", titulo || "Ações");
+  const fecha = function () {
+    overlayFechar(el.id);
+  };
+  // O toque que ABRE a folha gera um "clique fantasma" logo depois: sem
+  // esta trava ele caía no véu (fechando na hora) ou num botão de ação.
+  const nascido = Date.now();
+  const fantasma = function () {
+    return Date.now() - nascido < 400;
+  };
+  el.querySelector(".acsheet-veu").addEventListener("click", function () {
+    if (!fantasma()) fecha();
+  });
+  el.querySelector(".acit.cancelar").addEventListener("click", function () {
+    if (!fantasma()) fecha();
+  });
+  el.querySelectorAll(".acit[data-i]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (fantasma()) return;
+      const it = itens.filter(Boolean)[+b.dataset.i];
+      fecha();
+      // Ação concluída no clique/pointerup (nunca no pointerdown) — §3.6
+      if (it && it.fn) setTimeout(it.fn, 0);
+    });
+  });
+  overlayAbrir(el, {
+    id: el.id,
+    modal: true,
+    jaAberto: true,
+    fechar: function () {
+      el.remove();
+    },
+  });
+  return el.id;
+}
+/* Variante do sheet para conteúdo informativo (ajuda, legenda). */
+function abrirSheetHTML(titulo, html) {
+  const el = document.createElement("div");
+  el.className = "acsheet";
+  el.id = "acsheet-" + Date.now();
+  el.innerHTML =
+    '<div class="acsheet-veu"></div>' +
+    '<div class="acsheet-caixa" role="document">' +
+    '<div class="sheet-grip"></div>' +
+    '<div class="acsheet-tit">' +
+    esc(titulo) +
+    "</div>" +
+    '<div class="acsheet-html">' +
+    html +
+    "</div>" +
+    '<button class="acit cancelar">Fechar</button>' +
+    "</div>";
+  document.body.appendChild(el);
+  el.setAttribute("aria-label", titulo);
+  const fecha = function () {
+    overlayFechar(el.id);
+  };
+  el.querySelector(".acsheet-veu").addEventListener("click", fecha);
+  el.querySelector(".acit.cancelar").addEventListener("click", fecha);
+  overlayAbrir(el, {
+    id: el.id,
+    modal: true,
+    jaAberto: true,
+    fechar: function () {
+      el.remove();
+    },
+  });
+  return el.id;
+}
+
+/* ===== Título do card no compacto: segurar mostra o nome inteiro =====
+   O título fica em até 2 linhas com "…"; um toque LONGO (450ms) solta o
+   corte e revela o texto completo; soltar volta ao normal — sem disparar
+   o clique do card. */
+let _titTimer = null,
+  _titSegurou = false;
+document.addEventListener(
+  "pointerdown",
+  function (e) {
+    const t = e.target.closest && e.target.closest(".ctit");
+    if (!t || !ehCompacto()) return;
+    _titSegurou = false;
+    clearTimeout(_titTimer);
+    _titTimer = setTimeout(function () {
+      if (t.scrollHeight - t.clientHeight > 4) {
+        _titSegurou = true;
+        t.classList.add("rolando");
+      }
+    }, 450);
+  },
+  true,
+);
+["pointerup", "pointercancel"].forEach(function (ev) {
+  document.addEventListener(
+    ev,
+    function () {
+      clearTimeout(_titTimer);
+      document.querySelectorAll(".ctit.rolando").forEach(function (t) {
+        t.classList.remove("rolando");
+      });
+    },
+    true,
+  );
+});
+// Depois do toque longo, o clique que o navegador dispara não deve abrir o card.
+document.addEventListener(
+  "click",
+  function (e) {
+    if (_titSegurou && e.target.closest && e.target.closest(".card")) {
+      _titSegurou = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  },
+  true,
+);
+// O menu de contexto do navegador não deve interromper o toque longo no título.
+document.addEventListener("contextmenu", function (e) {
+  if (e.target.closest && e.target.closest(".ctit") && ehCompacto())
+    e.preventDefault();
+});
+
+/* ===== Gestos de ponteiro compartilhados (plano mobile §5.5) =====
+   Mapa, Quadros e lightbox usam o mesmo controlador: tap × arraste com
+   limiar, pan, pinch, captura de ponteiro, pointercancel e conclusão de
+   ações no pointerup. Mouse e teclado continuam com os caminhos atuais. */
+function ligarGestos(el, h) {
+  const pts = new Map(); // pointerId -> {x, y, x0, y0}
+  let modo = null; // null | aguarda | drag | pinch | long
+  let t0 = 0,
+    ultTap = 0,
+    pinchBase = null,
+    alvo0 = null,
+    lpTimer = null; // segurar o toque parado -> h.longPress
+  const LIMIAR = 8; // px de movimento antes de virar arraste
+  function pAtual() {
+    const arr = [...pts.values()];
+    if (arr.length < 2) return null;
+    const dx = arr[1].x - arr[0].x,
+      dy = arr[1].y - arr[0].y;
+    return {
+      d: Math.hypot(dx, dy) || 1,
+      cx: (arr[0].x + arr[1].x) / 2,
+      cy: (arr[0].y + arr[1].y) / 2,
+    };
+  }
+  function down(e) {
+    if (h.ignorar && h.ignorar(e)) return;
+    if (e.pointerType === "mouse" && h.mouseProprio) return; // mouse: fluxo atual
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    pts.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      x0: e.clientX,
+      y0: e.clientY,
+    });
+    if (pts.size === 1) {
+      modo = "aguarda";
+      t0 = Date.now();
+      alvo0 = e.target;
+      if (h.longPress) {
+        clearTimeout(lpTimer);
+        const alvoLp = e.target,
+          px = e.clientX,
+          py = e.clientY;
+        lpTimer = setTimeout(function () {
+          if (
+            modo === "aguarda" &&
+            pts.size === 1 &&
+            h.longPress(alvoLp, { x: px, y: py })
+          )
+            modo = "long";
+        }, 450);
+      }
+      if (h.inicio) h.inicio(e);
+    } else if (pts.size === 2) {
+      clearTimeout(lpTimer);
+      if (modo === "drag" && h.dragCancela) h.dragCancela(e);
+      if (modo === "long" && h.cancelar) h.cancelar(e);
+      modo = "pinch";
+      pinchBase = pAtual();
+      if (h.pinchInicio) h.pinchInicio(pinchBase);
+    }
+    if (e.pointerType !== "mouse") e.preventDefault();
+  }
+  function move(e) {
+    const p = pts.get(e.pointerId);
+    if (!p) return;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (modo === "aguarda") {
+      if (Math.hypot(p.x - p.x0, p.y - p.y0) > LIMIAR) {
+        clearTimeout(lpTimer);
+        modo = "drag";
+        if (h.dragInicio) h.dragInicio(e, alvo0, p.x0, p.y0);
+      }
+    }
+    if (modo === "long" && h.longDrag) h.longDrag(e);
+    else if (modo === "drag" && h.drag) h.drag(e, p.x - p.x0, p.y - p.y0);
+    else if (modo === "pinch" && pinchBase) {
+      const agora = pAtual();
+      if (!agora) return;
+      if (h.pinch)
+        h.pinch({
+          fator: agora.d / pinchBase.d,
+          cx: agora.cx,
+          cy: agora.cy,
+          dx: agora.cx - pinchBase.cx,
+          dy: agora.cy - pinchBase.cy,
+        });
+      pinchBase = agora;
+    }
+  }
+  function up(e) {
+    const p = pts.get(e.pointerId);
+    if (!p) return;
+    pts.delete(e.pointerId);
+    clearTimeout(lpTimer);
+    if (modo === "long") {
+      if (h.longFim) h.longFim(e);
+      modo = null;
+      pinchBase = null;
+      return;
+    }
+    if (modo === "aguarda" && Date.now() - t0 < 600) {
+      const agora = Date.now();
+      if (h.doubleTap && agora - ultTap < 320) {
+        ultTap = 0;
+        h.doubleTap(e, alvo0);
+      } else {
+        ultTap = agora;
+        if (h.tap) h.tap(e, alvo0);
+      }
+    } else if (modo === "drag" && h.dragFim) h.dragFim(e);
+    else if (modo === "pinch" && h.pinchFim) h.pinchFim(e);
+    modo = pts.size === 1 ? "drag" : pts.size ? modo : null;
+    if (pts.size === 1) {
+      // sobrou um dedo do pinch: recomeça o arraste do zero
+      const resto = [...pts.values()][0];
+      resto.x0 = resto.x;
+      resto.y0 = resto.y;
+      if (h.dragInicio) h.dragInicio(e, null, resto.x, resto.y);
+    }
+    if (!pts.size) pinchBase = null;
+  }
+  function cancel(e) {
+    // Gesto cancelado pelo sistema: NENHUMA ação dispara (§P03/P11).
+    clearTimeout(lpTimer);
+    pts.delete(e.pointerId);
+    modo = null;
+    pinchBase = null;
+    if (h.cancelar) h.cancelar(e);
+  }
+  el.addEventListener("pointerdown", down);
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", cancel);
+  return {
+    destruir: function () {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", cancel);
+    },
+  };
+}
+
+[
+  ["vGrade", "grade"],
+  ["vMapa", "mapa"],
+  ["vTeorias", "teorias"],
+  ["vArquivo", "arquivo"],
+  ["vConta", "conta"],
+].forEach(([id, v]) => {
+  const b = document.getElementById(id);
+  if (b) b.onclick = () => setView(v);
+});
+function setView(v, deHistorico) {
+  const mudou = state.view !== v;
+  // Entrar no Arquivo recomeça pela lista de categorias (compacto)
+  if (mudou && v === "arquivo") _arqCatsAberto = true;
   state.view = v;
-  document.getElementById("vGrade").classList.toggle("active", v === "grade");
-  document.getElementById("vMapa").classList.toggle("active", v === "mapa");
-  document.getElementById("vMundo").classList.toggle("active", v === "mundo");
-  document.getElementById("vDir").classList.toggle("active", v === "diretorio");
-  const vt = document.getElementById("vTeorias");
-  if (vt) vt.classList.toggle("active", v === "teorias");
+  // Botão Voltar: cada troca de vista vira uma entrada no histórico.
+  try {
+    if (!deHistorico && history.pushState) {
+      if (mudou && history.state && history.state.bpView)
+        history.pushState({ bpView: v }, "");
+      else history.replaceState({ bpView: v }, "");
+    }
+  } catch (e) {}
+  // Trilho: item ativo (mundo/diretorio são legado dos testes — acendem Arquivo)
+  const ativo = {
+    grade: "vGrade",
+    mapa: "vMapa",
+    teorias: "vTeorias",
+    arquivo: "vArquivo",
+    mundo: "vArquivo",
+    diretorio: "vArquivo",
+    conta: "vConta",
+  }[v];
+  ["vGrade", "vMapa", "vTeorias", "vArquivo", "vConta"].forEach((id) => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle("active", id === ativo);
+  });
+  // Barra inferior (mobile)
+  document.querySelectorAll("#tabbar .tbit").forEach((b) => {
+    const ativoTab =
+      b.dataset.view === v ||
+      (b.dataset.view === "arquivo" && (v === "mundo" || v === "diretorio"));
+    b.classList.toggle("active", ativoTab);
+    if (ativoTab) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  document.body.className = document.body.className
+    .replace(/\bview-[a-z]+\b/g, "")
+    .trim();
+  document.body.classList.add("view-" + v);
   document.getElementById("grade").style.display =
     v === "grade" ? "grid" : "none";
   document.getElementById("mapa").style.display =
@@ -548,8 +1102,47 @@ function setView(v) {
     v === "diretorio" ? "block" : "none";
   const td = document.getElementById("teorias");
   if (td) td.style.display = v === "teorias" ? "flex" : "none";
+  const ar = document.getElementById("arquivo");
+  if (ar) ar.style.display = v === "arquivo" ? "flex" : "none";
+  const ct = document.getElementById("conta");
+  if (ct) ct.style.display = v === "conta" ? "block" : "none";
+  // O ＋ (FAB) muda de papel por vista: nova ficha × adicionar ao quadro.
+  const fabEl = document.getElementById("fab");
+  if (fabEl) {
+    const rot = v === "teorias" ? "Adicionar ao quadro" : "Nova ficha";
+    fabEl.title = rot;
+    fabEl.setAttribute("aria-label", rot);
+  }
   render();
 }
+/* FAB por vista: em Quadros abre a folha de criação; nas demais, nova ficha. */
+function fabAcao() {
+  if (state.view === "teorias") {
+    abrirSheetAcoes("Adicionar ao quadro", [
+      { rotulo: "Ficha do arquivo", icone: "🗂", fn: qAddItem },
+      { rotulo: "Nota adesiva", icone: "🗒", fn: qAddNota },
+      { rotulo: "Caixa de texto", icone: "T", fn: qAddTexto },
+    ]);
+    return;
+  }
+  novaFicha();
+}
+/* Menu ··· (ações raras: idioma, seleção, ordenar, desfazer/refazer) */
+function toggleMore(force) {
+  const m = document.getElementById("moreMenu");
+  if (!m) return;
+  const abrir = typeof force === "boolean" ? force : !m.classList.contains("open");
+  if (abrir) overlayAbrir(m, { id: "moreMenu", modal: false });
+  else overlayFechar("moreMenu");
+}
+document.addEventListener("click", function (e) {
+  const m = document.getElementById("moreMenu");
+  if (!m || !m.classList.contains("open")) return;
+  if (m.contains(e.target)) return;
+  const b = document.getElementById("btnMore");
+  if (b && b.contains(e.target)) return;
+  overlayFechar("moreMenu");
+});
 
 /* ---- filtro ---- */
 function fichaIncompleta(f) {
@@ -619,52 +1212,87 @@ function renderGrade() {
   const vis = ordenarFichas(fichas.filter(passa));
   if (!vis.length) {
     const temFiltro =
-      state.busca ||
       state.sala ||
       state.pessoa ||
       state.grupo ||
-      state.incompletas;
-    box.innerHTML = temFiltro
-      ? `<div class="empty"><div class="emoji">🔍</div><div>Nenhuma ficha corresponde aos filtros atuais.</div><button class="topbtn" onclick="limparFiltros()">Limpar filtros</button></div>`
-      : `<div class="empty"><div class="emoji">🧩</div><div>Ainda não há fichas.<br>Clique em <b>➕ Nova</b> ou me envie uma foto no chat.</div></div>`;
+      state.incompletas ||
+      state.pendentes ||
+      state.orfas ||
+      state.favoritas;
+    const lupa = `<svg width="56" height="56" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="#948669" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="#948669" stroke-width="1.8" stroke-linecap="round"></line></svg>`;
+    if (state.busca) {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nada encontrado</div><div class="etxt">Nenhuma ficha, sala ou pessoa para <b>“${esc(state.busca)}”</b>.</div><button class="topbtn ghost" onclick="limparBusca()">Limpar busca</button></div>`;
+    } else if (temFiltro) {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nada encontrado</div><div class="etxt">Nenhuma ficha corresponde aos filtros atuais.</div><button class="topbtn ghost" onclick="limparFiltros()">Limpar filtros</button></div>`;
+    } else {
+      box.innerHTML = `<div class="empty"><div class="eic">${lupa}</div><div class="etit">Nenhuma ficha ainda</div><div class="etxt">Comece registrando a primeira evidência da sua investigação.</div><button class="topbtn primary" onclick="novaFicha()">＋ Nova ficha</button></div>`;
+    }
     return;
   }
-  box.insertAdjacentHTML("beforeend", dashboardHTML());
   vis.forEach((f) => {
     const c = document.createElement("div");
     c.className = "card";
-    c.style.borderLeftColor = corGrupo(f);
     if (state.sel.has(f.id)) c.classList.add("selected");
+    const falta = fichaIncompleta(f);
+    const soTrad = falta.length === 1 && falta[0] === "tradução";
+    const img = pg0(f).imagem;
+    const resumo = esc(
+      state.idioma === "original"
+        ? pg0(f).original || pg0(f).traducao || pg0(f).explica || ""
+        : pg0(f).traducao || pg0(f).explica || pg0(f).original || "",
+    );
+    // Rodapé: grupo (bolinha na cor) · personagens; sem nada = "sem conexões ainda"
+    const rGrupos = (f.grupos || [])
+      .map((gn) => {
+        var g = grupoObj(gn);
+        return `<span class="cgrupo" onclick="event.stopPropagation();filtraGrupo('${jsq(gn)}')"><span class="gdot" style="background:${(g && g.cor) || "#8d3030"}"></span>${esc(gn)}</span>`;
+      })
+      .join("");
+    const rPess = (f.personagens || []).length
+      ? `<span class="cpess">${(f.grupos || []).length ? "· " : ""}${esc(f.personagens.join(", "))}</span>`
+      : "";
+    let rodape = rGrupos + rPess;
+    if (soTrad)
+      rodape =
+        `<span class="cfalta" title="Falta tradução">falta tradução</span>` +
+        (rPess ? " " + rPess : "");
+    else if (falta.length && !rodape) {
+      // "falta imagem" não entra no rodapé — sem conexões, vale "sem conexões ainda"
+      const faltaTxt = falta.filter((x) => x !== "imagem");
+      if (faltaTxt.length)
+        rodape = `<span class="cfalta" title="Falta: ${faltaTxt.join(", ")}">falta ${faltaTxt.join(", ")}</span>`;
+    }
+    if (!rodape) rodape = `<span class="cvazio">sem conexões ainda</span>`;
+    // Carimbos datilografados no lugar de badges
+    let stamp = "";
+    if (f.status === "resolvida")
+      stamp = `<span class="stamp res">RESOLVIDA</span>`;
+    else if (f.pendente)
+      stamp = `<span class="stamp pend" title="Ainda não processada">PENDENTE</span>`;
+    else if (f.status === "importante")
+      stamp = `<span class="stamp imp">IMPORTANTE</span>`;
+    // Identificador no estilo do carimbo do design: f3 → F-003
+    const idVis = String(f.id).replace(
+      /^([a-z]+)(\d+)$/i,
+      (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
+    );
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
-      <div class="starbtn${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</div>
-      <div class="tag">${f.sala ? `🚪 ${f.sala}` : "—"}</div>
-      ${(() => {
-        const m = fichaIncompleta(f);
-        return m.length
-          ? `<div class="badge-inc" title="Falta: ${m.join(", ")}">⚠ falta ${m.join(", ")}</div>`
-          : "";
-      })()}
-      ${f.pendente ? `<div class="badge-pend" title="Adicionada por você; ainda não processada pela skill">⏳ não processada</div>` : ""}
-      ${f.status ? `<div class="badge-st st-${f.status}">${f.status === "resolvida" ? "✔ resolvida" : "★ importante"}</div>` : ""}
-      ${(f.grupos || [])
-        .map((gn) => {
-          var g = grupoObj(gn);
-          return (
-            '<span class="grouptag" style="background:' +
-            corContraste((g && g.cor) || "#5b6b86") +
-            '">📦 ' +
-            esc(gn) +
-            "</span>"
-          );
-        })
-        .join("")}
-      <h3><span class="idref">${esc(f.id)}</span> ${esc(f.titulo)}</h3>
-      <div class="thumbwrap"><span class="ph"><b>🖼</b>sem imagem</span>${pg0(f).imagem ? `<img class="thumb" src="${esc(pg0(f).imagem)}" onerror="this.remove()">` : ""}${pgs(f).length > 1 ? `<span class="pgcount">📄 ${pgs(f).length}</span>` : ""}</div>
-      <div class="excerpt">${esc(state.idioma === "original" ? pg0(f).original || pg0(f).traducao || pg0(f).explica || "" : pg0(f).traducao || pg0(f).explica || pg0(f).original || "")}</div>
-      <div class="meta">
-        ${(f.personagens || []).map((p) => `<span class="pill">👤 ${esc(p)}</span>`).join("")}
-      </div>`;
+      <span class="pin${f.fav ? " fav" : ""}"></span>
+      <div class="chead">
+        <span class="cid">${esc(idVis)}</span>
+        <span class="csala">${f.sala ? esc(f.sala) : "—"}</span>
+        <span class="cstar${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</span>
+      </div>
+      <h3 class="ctit">${esc(f.titulo)}</h3>
+      <div class="cthumb">${
+        img
+          ? `<img class="thumb" loading="lazy" src="${esc(img)}" onerror="this.remove()">`
+          : `<span class="cph">foto da ficha</span>`
+      }${pgs(f).length > 1 ? `<span class="pgcount">${pgs(f).length} págs.</span>` : ""}</div>
+      <div class="cexc">${resumo}</div>
+      ${stamp}
+      <div class="cfoot">${rodape}</div>`;
     c.onclick = () => {
       if (state.selMode) {
         toggleSel(f.id);
@@ -1130,6 +1758,18 @@ function fitCamera(redraw) {
   cam.y = _viewH / 2 - ((bb.minY + bb.maxY) / 2) * cam.s;
   if (redraw) camRedraw();
 }
+/* Zoom por botão (+/−): âncora no centro da tela — alternativa simples ao
+   gesto de pinça (P03/§3.2). */
+function zoomMapaEm(sx, sy, f) {
+  const w = s2w(sx, sy);
+  cam.s = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * f));
+  cam.x = sx - w.x * cam.s;
+  cam.y = sy - w.y * cam.s;
+  aplicaCamMapa();
+}
+function zoomMapa(f) {
+  zoomMapaEm(_viewW / 2, _viewH / 2, f);
+}
 // Zoom 100% mantendo o ponto do centro da tela fixo (Shift+0).
 function zoom100Mapa() {
   const c = s2w(_viewW / 2, _viewH / 2);
@@ -1196,16 +1836,10 @@ function draw(svg) {
       const a = nmap(l.s),
         b = nmap(l.t);
       if (!a || !b) return "";
-      const col =
-        l.kind === "manual"
-          ? "#a98bff"
-          : l.kind === "pessoa"
-            ? "#ff7e9a"
-            : l.kind === "colecao" || l.kind === "grupo"
-              ? "#ffb05c"
-              : "#5ec8ff";
-      const dash = l.kind === "manual" ? "" : "4 4";
-      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-opacity="${_focus && l.s !== _focus && l.t !== _focus ? 0.06 : 0.5}" stroke-width="${l.kind === "manual" ? 2 : 1.3}" stroke-dasharray="${dash}"/>`;
+      // Fio manual = barbante vermelho sólido; ligações automáticas = tracejadas
+      const col = l.kind === "manual" ? COR_MANUAL : "#6f6046";
+      const dash = l.kind === "manual" ? "" : "5 5";
+      return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-opacity="${_focus && l.s !== _focus && l.t !== _focus ? 0.06 : l.kind === "manual" ? 0.95 : 0.8}" stroke-width="${l.kind === "manual" ? 2.4 : 1.4}" stroke-dasharray="${dash}"/>`;
     })
     .join("");
   const _q = (state.busca || "").toLowerCase();
@@ -1241,17 +1875,20 @@ function draw(svg) {
             );
           })());
       const seld = _selMap && _selMap.has(n.id);
+      // Halo de toque (48px na tela): área interativa maior que o ponto (P12)
+      const haloR = Math.max(n.r + 6, 24 / (cam.s || 1));
       return `<g class="gn" data-id="${n.id}" data-kind="${n.kind}" data-full="${esc(n.label)}" data-trunc="${wl.trunc ? 1 : 0}" style="cursor:pointer;opacity:${dim ? 0.18 : 1}">
-      ${seld ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none" stroke="#e3c074" stroke-width="1.6" stroke-dasharray="3 3"/>` : ""}<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.cor}" stroke="${seld ? "#e3c074" : hl ? "#ffd35e" : "#0b1c3a"}" stroke-width="${seld || hl ? 4 : 2}"/>
-      <text font-size="11" text-anchor="middle" paint-order="stroke" stroke="#0a1428" stroke-width="2.6" stroke-linejoin="round" fill="#eaf0fb">${tsp}</text>
+      <circle class="halo" cx="${n.x}" cy="${n.y}" r="${haloR}" data-base="${n.r + 6}" fill="transparent"/>
+      ${seld ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none" stroke="#c9a35c" stroke-width="1.6" stroke-dasharray="3 3"/>` : ""}<circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.cor}" stroke="${seld || hl ? "#c9a35c" : "#14100b"}" stroke-width="${seld || hl ? 2.5 : 3}"/>
+      <text font-size="11" text-anchor="middle" paint-order="stroke" stroke="#14100b" stroke-width="3" stroke-linejoin="round" fill="#ede4d3">${tsp}</text>
     </g>`;
     })
     .join("");
   nodes.forEach((n) => {
     posCache[n.id] = { x: n.x, y: n.y };
   });
-  const grid =
-    '<defs><pattern id="mgrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(120,170,255,.05)" stroke-width="1"/></pattern></defs><rect id="mgridRect" x="-6000" y="-6000" width="12000" height="12000" fill="url(#mgrid)"/>';
+  // O design do mapa é limpo (fundo radial noir), sem grade azulada
+  const grid = '<rect id="mgridRect" x="-6000" y="-6000" width="12000" height="12000" fill="none"/>';
   svg.innerHTML = `<g id="mapworld" transform="translate(${cam.x},${cam.y}) scale(${cam.s})">${grid}${lh + nh}</g>`;
   aplicaCamMapa();
   drawMini();
@@ -1261,10 +1898,19 @@ function draw(svg) {
    (alinhada aos 40px do padrão, para as linhas não "nadarem"). */
 const MAPA_ZOOM_MIN = 0.1,
   MAPA_ZOOM_MAX = 8;
+let _ultHaloS = null;
 function aplicaCamMapa() {
   const g = document.getElementById("mapworld");
   if (!g) return;
   g.setAttribute("transform", `translate(${cam.x},${cam.y}) scale(${cam.s})`);
+  // Mantém o halo de toque com ~48px na TELA em qualquer zoom.
+  if (_ultHaloS !== cam.s) {
+    _ultHaloS = cam.s;
+    const minR = 24 / (cam.s || 1);
+    g.querySelectorAll(".gn .halo").forEach(function (c) {
+      c.setAttribute("r", Math.max(+c.dataset.base || 0, minR));
+    });
+  }
   const r = document.getElementById("mgridRect");
   if (r) {
     const tl = s2w(0, 0),
@@ -1288,7 +1934,18 @@ function camRedraw() {
 }
 // Anima a câmera até (tx,ty,ts) com easing — usada pelo "centralizar no nó".
 let _camAnim = null;
+const MQ_MENOS_MOVIMENTO = window.matchMedia
+  ? window.matchMedia("(prefers-reduced-motion: reduce)")
+  : null;
 function animarCamera(tx, ty, ts, ms) {
+  // Movimento reduzido: pula a animação espacial e vai direto ao destino.
+  if (MQ_MENOS_MOVIMENTO && MQ_MENOS_MOVIMENTO.matches) {
+    cam.x = tx;
+    cam.y = ty;
+    cam.s = ts;
+    camRedraw();
+    return;
+  }
   if (_camAnim) cancelAnimationFrame(_camAnim);
   const x0 = cam.x,
     y0 = cam.y,
@@ -1328,7 +1985,7 @@ function drawMini() {
     .join("");
   const tl = s2w(0, 0),
     br = s2w(_viewW, _viewH);
-  const rect = `<rect id="miniview" x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="#5b8def22" stroke="#9fc0ff" stroke-width="1.2"/>`;
+  const rect = `<rect id="miniview" x="${tl.x * s + ox}" y="${tl.y * s + oy}" width="${(br.x - tl.x) * s}" height="${(br.y - tl.y) * s}" fill="rgba(201,163,92,.08)" stroke="#c9a35c" stroke-width="1"/>`;
   mini.innerHTML = dots + rect;
 }
 // Atualiza só o retângulo de viewport do minimapa (barato; roda a cada pan/zoom).
@@ -1518,19 +2175,251 @@ function wireMap(svg) {
         wy = (e.clientY - r.top - _miniT.oy) / _miniT.s;
       animarCamera(_viewW / 2 - wx * cam.s, _viewH / 2 - wy * cam.s, cam.s, 200);
     });
+  // ===== Toque (P03/§3.2): um dedo move o canvas, pinça dá zoom, tap
+  // seleciona e mantém o detalhe num bottom sheet. Mouse segue o fluxo
+  // original (mouseProprio) — os dois convivem em aparelhos híbridos.
+  let _gpan = null;
+  ligarGestos(svg, {
+    mouseProprio: true,
+    dragInicio: function () {
+      _gpan = { x: cam.x, y: cam.y };
+    },
+    drag: function (e, dx, dy) {
+      if (!_gpan) return;
+      cam.x = _gpan.x + dx;
+      cam.y = _gpan.y + dy;
+      aplicaCamMapa();
+    },
+    dragFim: function () {
+      _gpan = null;
+    },
+    dragCancela: function () {
+      _gpan = null;
+    },
+    cancelar: function () {
+      _gpan = null;
+    },
+    pinch: function (p) {
+      const r = svg.getBoundingClientRect();
+      const cx = p.cx - r.left,
+        cy = p.cy - r.top;
+      const w = s2w(cx, cy);
+      const ns = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * p.fator));
+      cam.x = cx - w.x * ns + p.dx;
+      cam.y = cy - w.y * ns + p.dy;
+      cam.s = ns;
+      aplicaCamMapa();
+    },
+    tap: function (e, alvo) {
+      const gEl = alvo && alvo.closest ? alvo.closest(".gn") : null;
+      if (gEl) mapaTapNo(gEl.dataset);
+      else {
+        if (_mapSelModo) return; // no modo seleção, tap no vazio não limpa
+        _selMap = new Set();
+        _focus = null;
+        draw(svg);
+        mapaFecharSheet();
+      }
+    },
+    doubleTap: function (e) {
+      const r = svg.getBoundingClientRect();
+      zoomMapaEm(e.clientX - r.left, e.clientY - r.top, 1.6);
+    },
+  });
+}
+/* ===== Bottom sheet do ponto selecionado (não modal, persiste) ===== */
+let _mapSelModo = false;
+function _mapNoInfo(d) {
+  if (d.kind === "ficha") {
+    const f = fichas.find((x) => x.id === d.id);
+    return {
+      titulo: f ? f.titulo : d.id,
+      sub: f && f.sala ? f.sala : "Ficha",
+      abrir: function () {
+        abrir(d.id);
+      },
+    };
+  }
+  const nome =
+    d.kind === "sala" ? d.id.slice(6) : d.id.slice(5);
+  return {
+    titulo: nome,
+    sub: rotKind(d.kind),
+    abrir: function () {
+      abrirEntidade(d.kind === "colecao" ? "colecao" : d.kind, nome);
+    },
+  };
+}
+function mapaTapNo(d) {
+  const svg = document.getElementById("svg");
+  if (_mapSelModo) {
+    if (_selMap.has(d.id)) _selMap.delete(d.id);
+    else _selMap.add(d.id);
+    draw(svg);
+    mapaAtualizaSheetSel();
+    return;
+  }
+  _selMap = new Set([d.id]);
+  draw(svg);
+  mapaAbrirSheet(d);
+}
+function mapaAbrirSheet(d) {
+  const mapa = document.getElementById("mapa");
+  if (!mapa) return;
+  let sh = document.getElementById("mapsheet");
+  if (!sh) {
+    sh = document.createElement("div");
+    sh.id = "mapsheet";
+    sh.setAttribute("role", "region");
+    sh.setAttribute("aria-label", "Ponto selecionado do mapa");
+    mapa.appendChild(sh);
+  }
+  const info = _mapNoInfo(d);
+  sh.innerHTML =
+    '<div class="ms-grip"></div>' +
+    '<div class="ms-linha"><div class="ms-tx"><div class="ms-tit">' +
+    esc(info.titulo) +
+    '</div><div class="ms-sub">' +
+    esc(info.sub) +
+    "</div></div>" +
+    '<button class="ms-x" onclick="mapaFecharSheet()" aria-label="Fechar detalhe do ponto">✕</button></div>' +
+    '<div class="ms-acoes">' +
+    '<button class="dbtn primary" id="msAbrir">Abrir</button>' +
+    '<button class="dbtn" id="msCentrar">Centralizar</button>' +
+    '<button class="dbtn" id="msSel">Selecionar vários</button>' +
+    "</div>";
+  sh.classList.add("open");
+  document.getElementById("msAbrir").onclick = info.abrir;
+  document.getElementById("msCentrar").onclick = function () {
+    centralizarNo(d.id);
+  };
+  document.getElementById("msSel").onclick = function () {
+    _mapSelModo = true;
+    mapaAtualizaSheetSel();
+  };
+  navPushOverlay("mapsheet", mapaFecharSheet);
+}
+function mapaAtualizaSheetSel() {
+  const sh = document.getElementById("mapsheet");
+  if (!sh) return;
+  const n = _selMap.size;
+  sh.innerHTML =
+    '<div class="ms-grip"></div>' +
+    '<div class="ms-linha"><div class="ms-tx"><div class="ms-tit">' +
+    n +
+    " selecionado" +
+    (n === 1 ? "" : "s") +
+    '</div><div class="ms-sub">toque nos pontos para marcar/desmarcar</div></div>' +
+    '<button class="ms-x" onclick="mapaFecharSheet()" aria-label="Sair da seleção">✕</button></div>' +
+    '<div class="ms-acoes">' +
+    '<button class="dbtn primary" onclick="mapaSelConcluir()">Concluir</button>' +
+    '<button class="dbtn" onclick="mapaSelLimpar()">Limpar seleção</button>' +
+    "</div>";
+  sh.classList.add("open");
+}
+function mapaSelLimpar() {
+  _selMap = new Set();
+  const svg = document.getElementById("svg");
+  if (svg) draw(svg);
+  mapaAtualizaSheetSel();
+}
+function mapaSelConcluir() {
+  _mapSelModo = false;
+  mapaFecharSheet();
+}
+function mapaFecharSheet() {
+  _mapSelModo = false;
+  const sh = document.getElementById("mapsheet");
+  if (sh) sh.classList.remove("open");
+  navOverlayFechado("mapsheet");
+}
+/* Camadas: no toque/compacto abre em sheet; no desktop, painel flutuante. */
+function toggleCamadas() {
+  if (ehCompacto() || ehToque()) {
+    const defs = [
+      ["pessoa", "Personagens"],
+      ["sala", "Salas"],
+      ["grupo", "Grupos"],
+      ["manual", "Fios manuais"],
+    ];
+    abrirSheetAcoes(
+      "Camadas do mapa",
+      defs.map(function (dd) {
+        return {
+          rotulo: dd[1],
+          detalhe: mapLayers[dd[0]] ? "visível ✓" : "oculto",
+          fn: function () {
+            mapLayers[dd[0]] = !mapLayers[dd[0]];
+            mapaSoftRefresh();
+          },
+        };
+      }),
+    );
+    return;
+  }
+  const mt = document.getElementById("maptoggles");
+  if (mt) mt.classList.toggle("open");
+}
+/* Alternativa por LISTA aos gestos do mapa (P03): toca num item, o mapa
+   centraliza e abre o detalhe. */
+function mapaLista() {
+  if (!nodes.length) {
+    toast("O mapa ainda não tem pontos.");
+    return;
+  }
+  abrirSheetAcoes(
+    "Pontos do mapa",
+    nodes.slice(0, 60).map(function (n) {
+      return {
+        rotulo: n.label,
+        detalhe: rotKind(n.kind),
+        fn: function () {
+          _selMap = new Set([n.id]);
+          centralizarNo(n.id);
+          const svg = document.getElementById("svg");
+          if (svg) draw(svg);
+          mapaAbrirSheet({ id: n.id, kind: n.kind });
+        },
+      };
+    }),
+  );
+}
+/* Ajuda + legenda numa folha (mobile): não cobre o grafo por padrão (P17). */
+function mapaAjuda() {
+  const box = document.createElement("div");
+  buildLegendIn(box);
+  abrirSheetHTML(
+    "Como usar o mapa",
+    '<div class="mh-body">' +
+      (ehToque()
+        ? "<div class='row'>Arraste com um dedo: navegar</div>" +
+          "<div class='row'>Pinça com dois dedos: zoom</div>" +
+          "<div class='row'>Toque num ponto: selecionar</div>" +
+          "<div class='row'>Botões ＋/−/⤢: zoom e enquadrar</div>"
+        : "<div class='row'>Arraste o fundo: navegar</div>" +
+          "<div class='row'>Roda do mouse: zoom</div>" +
+          "<div class='row'>Arraste um ponto: reposicionar</div>" +
+          "<div class='row'><b>Shift+1</b>: enquadrar · <b>Shift+0</b>: 100%</div>") +
+      "</div>" +
+      box.innerHTML,
+  );
 }
 
-function buildLegend() {
+function buildLegendIn(el) {
   // Legenda fiel ao que o mapa desenha HOJE: pista (cor = grupo), sala,
   // personagem, grupo (cor própria), linha sólida = conexão manual,
   // tracejada = ligação automática. ("Coleção"/"tipo" eram do sistema antigo.)
-  document.getElementById("legend").innerHTML = `
-    <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
+  if (!el) return;
+  el.innerHTML = `
+    <div class="ltit">LEGENDA</div>
     <div class="row"><span class="dot" style="background:${COR_SALA}"></span>Sala</div>
-    <div class="row"><span class="dot" style="background:${COR_LIVRO}"></span>Grupo (cor do grupo)</div>
-    <div class="row"><span class="dot" style="background:#5b6b86"></span>Pista (cor = grupo)</div>
-    <div class="row"><span style="width:18px;border-top:2px solid ${COR_MANUAL}"></span>Conexão manual</div>
-    <div class="row"><span style="width:18px;border-top:2px dashed ${COR_SALA}"></span>Ligação automática</div>`;
+    <div class="row"><span class="dot" style="background:${COR_PESSOA}"></span>Personagem</div>
+    <div class="row"><span class="dot" style="background:#8d3030"></span>Ficha (cor do grupo)</div>
+    <div class="row"><span style="width:16px;border-top:2px solid ${COR_MANUAL}"></span>Fio manual</div>
+    <div class="row"><span style="width:16px;border-top:2px dashed #6b5f45"></span>Ligação automática</div>`;
+}
+function buildLegend() {
+  buildLegendIn(document.getElementById("legend"));
   buildMapHelp();
 }
 /* Menu "Como usar" do mapa (fica acima da legenda). Recolhível; a escolha
@@ -1546,17 +2435,24 @@ function buildMapHelp() {
       _mapHelpAberto = true;
     }
   }
-  box.innerHTML =
-    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">🧭 Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
-    (_mapHelpAberto
-      ? `<div class="mh-body">
-      <div class="row"><span class="mh-ic">🖱️</span>Arraste o fundo: navegar</div>
-      <div class="row"><span class="mh-ic">🎡</span>Roda do mouse: zoom</div>
-      <div class="row"><span class="mh-ic">✋</span>Arraste um ponto: reposicionar</div>
-      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+1</b>: enquadrar tudo</div>
-      <div class="row"><span class="mh-ic">⌨️</span><b>Shift+0</b>: zoom 100%</div>
+  // As instruções seguem a capacidade de entrada (toque × mouse) — P17.
+  const corpo = ehToque()
+    ? `<div class="mh-body">
+      <div class="row">Arraste com um dedo: navegar</div>
+      <div class="row">Pinça: zoom</div>
+      <div class="row">Toque num ponto: selecionar</div>
+      <div class="row">Botões ＋/−/⤢: zoom e enquadrar</div>
     </div>`
-      : "");
+    : `<div class="mh-body">
+      <div class="row">Arraste o fundo: navegar</div>
+      <div class="row">Roda do mouse: zoom</div>
+      <div class="row">Arraste um ponto: reposicionar</div>
+      <div class="row"><b>Shift+1</b>&nbsp;: enquadrar tudo</div>
+      <div class="row"><b>Shift+0</b>&nbsp;: zoom 100%</div>
+    </div>`;
+  box.innerHTML =
+    `<button class="mh-head" onclick="toggleMapHelp()" title="Mostrar/ocultar como usar o mapa">Como usar<span class="mh-arrow">${_mapHelpAberto ? "▾" : "▸"}</span></button>` +
+    (_mapHelpAberto ? corpo : "");
 }
 function toggleMapHelp() {
   _mapHelpAberto = !_mapHelpAberto;
@@ -1587,7 +2483,11 @@ function abrirLightbox(src) {
     m.id = "lightbox";
     m.className = "lightbox";
     m.innerHTML =
-      '<button class="lbclose" title="Fechar (Esc)">✕</button><div class="lbhint">Roda do mouse: zoom · arraste: mover · duplo-clique: reset</div><img class="lbimg" alt="">';
+      '<button class="lbclose" title="Fechar (Esc)" aria-label="Fechar imagem">✕</button><div class="lbhint">' +
+      (ehToque()
+        ? "Pinça: zoom · arraste: mover · toque duplo: reset"
+        : "Roda do mouse: zoom · arraste: mover · duplo-clique: reset") +
+      '</div><img class="lbimg" alt="Imagem ampliada">';
     document.body.appendChild(m);
     const img = m.querySelector(".lbimg");
     m.addEventListener("mousedown", (e) => {
@@ -1644,6 +2544,54 @@ function abrirLightbox(src) {
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && m.classList.contains("open")) fecharLightbox();
     });
+    // Toque (P13): mesmo controlador de gestos do Mapa/Quadros.
+    let _lbPan = null;
+    ligarGestos(m, {
+      mouseProprio: true,
+      ignorar: function (e) {
+        return !!(e.target.closest && e.target.closest(".lbclose"));
+      },
+      dragInicio: function () {
+        _lbPan = { x: _lb.x, y: _lb.y };
+      },
+      drag: function (e, dx, dy) {
+        if (!_lbPan) return;
+        _lb.x = _lbPan.x + dx;
+        _lb.y = _lbPan.y + dy;
+        aplicaLB();
+      },
+      dragFim: function () {
+        _lbPan = null;
+      },
+      dragCancela: function () {
+        _lbPan = null;
+      },
+      cancelar: function () {
+        _lbPan = null;
+      },
+      pinch: function (p) {
+        const ns = Math.max(0.15, Math.min(10, _lb.s * p.fator));
+        const r = ns / _lb.s;
+        const ox = window.innerWidth / 2,
+          oy = window.innerHeight / 2,
+          ux = p.cx - ox,
+          uy = p.cy - oy;
+        _lb.x = ux - (ux - _lb.x) * r + p.dx;
+        _lb.y = uy - (uy - _lb.y) * r + p.dy;
+        _lb.s = ns;
+        aplicaLB();
+      },
+      tap: function (e, alvo) {
+        // Toque fora da imagem fecha (equivalente ao clique no fundo).
+        if (alvo === m) fecharLightbox();
+      },
+      doubleTap: function () {
+        _lb.s = 1;
+        _lb.x = 0;
+        _lb.y = 0;
+        aplicaLB();
+      },
+    });
   }
   _lb = { s: 1, x: 0, y: 0, drag: null };
   m.querySelector(".lbimg").src = src;
@@ -1672,10 +2620,14 @@ function renderPaginaDetalhe() {
   const panel = document.getElementById("pgpanel");
   if (!panel) return;
   const _orig = state.idioma === "original";
-  panel.innerHTML = `${p.imagem ? `<img class="dimg" src="${esc(p.imagem)}" onerror="this.style.display='none'" onclick="abrirLightbox(this.src)" title="Clique para ampliar">` : ""}
-    ${p.explica ? field("O que explica", esc(p.explica)) : ""}
-    <div class="field"><div class="lab transc-head"><span>Transcrição</span><span class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></span></div>
-      <div class="transc">${esc((_orig ? p.original || p.traducao : p.traducao || p.original) || "—")}</div></div>
+  panel.innerHTML = `${
+    p.imagem
+      ? `<img class="dimg" src="${esc(p.imagem)}" onerror="this.style.display='none'" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`
+      : `<div class="dph">foto da ficha</div>`
+  }
+    <div class="transc-head"><span class="plab">TRANSCRIÇÃO</span><button class="langsw" onclick="toggleIdioma();renderPaginaDetalhe()" title="Trocar idioma (PT/EN)" aria-label="Trocar idioma da transcrição (PT/EN)"><span class="${_orig ? "" : "on"}">PT</span><span class="${_orig ? "on" : ""}">EN</span></button></div>
+    <div class="transc">${esc((_orig ? p.original || p.traducao : p.traducao || p.original) || "—")}</div>
+    ${p.explica ? `<div class="dexpl"><span class="plab">O QUE EXPLICA</span><div class="dexpl-tx">${esc(p.explica)}</div></div>` : ""}
     `;
 }
 function setPagDetalhe(i) {
@@ -1688,71 +2640,175 @@ function abrir(id) {
   _fichaAberta = id;
   _pgIdx = 0;
   const d = document.getElementById("drawer");
+  // ETIQUETAS: sala (azul), personagens (rosa), grupos (cor sólida)
+  const etiquetas =
+    (f.sala
+      ? `<button class="et sala" onclick="filtraSala('${esc(f.sala)}')" title="Filtrar pela sala">${esc(f.sala)}</button>`
+      : "") +
+    (f.personagens || [])
+      .map(
+        (p) =>
+          `<button class="et pessoa" onclick="filtraPessoa('${esc(p)}')" title="Filtrar pelo personagem">${esc(p)}</button>`,
+      )
+      .join("") +
+    (f.grupos || [])
+      .map((gn) => {
+        var g = grupoObj(gn);
+        return `<button class="et grupo" style="background:${corContraste((g && g.cor) || "#8d3030")}" onclick="filtraGrupo('${jsq(gn)}')" title="Filtrar pelo grupo">${esc(gn)}</button>`;
+      })
+      .join("");
+  // FIOS: manuais (linha vermelha sólida, removível) + automáticas (tracejada).
+  // Clicar no fio leva ao MAPA com esta ficha em foco (as ligações dela
+  // acesas, o resto esmaecido); o título do fio manual abre a outra ficha.
+  const fioAbre = `onclick="focarMapa('${f.id}')" onkeydown="fioTecla(event,'${f.id}')" role="button" tabindex="0" title="Ver estas conexões no mapa"`;
+  const fiosManuais = (f.conexoes || [])
+    .map((c) => {
+      const o = fichas.find((z) => z.id === c);
+      return o
+        ? `<div class="fio aomapa" ${fioAbre}><span class="fio-l manual"></span><div class="fio-tx"><div class="fio-t" onclick="event.stopPropagation();abrir('${c}')" title="Abrir esta ficha">${esc(o.titulo)}</div><div class="fio-s">manual · ${esc(c)}</div></div><button class="fio-x" onclick="event.stopPropagation();desligarFicha('${f.id}','${c}')" title="Remover fio" aria-label="Remover fio com ${esc(o.titulo)}">✕</button></div>`
+        : "";
+    })
+    .join("");
+  const autosTxt = [
+    f.sala ? esc(f.sala) : "",
+    ...(f.personagens || []).map(esc),
+    ...(f.grupos || []).map(esc),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const fioAuto = autosTxt
+    ? `<div class="fio aomapa" ${fioAbre}><span class="fio-l auto"></span><div class="fio-tx"><div class="fio-t">${autosTxt}</div><div class="fio-s">automáticas · citadas na ficha</div></div><span class="fio-go">›</span></div>`
+    : "";
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="fechar()">✕</button>
-      <h2><span class="idref idref-lg">${esc(f.id)}</span> ${esc(f.titulo)}</h2>
-      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">✏️ Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">🎯 Focar no mapa</button>${window.IA_ATIVA && f.pendente ? `<button class="dbtn" onclick="iaProcessarPista('${f.id}')" title="A IA transcreve, traduz e preenche a ficha — você revisa antes de aplicar">✨ Processar com IA</button>` : ""}<button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button></div>
+      <div class="dh-top">
+        <span class="did">${esc(f.id)}</span>
+        <span class="dsala">${f.sala ? esc(f.sala) : "—"}</span>
+        <div class="dgrow"></div>
+        <button class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar">★</button>
+        <button class="close" onclick="fechar()" title="Fechar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(f.titulo)}</h2>
+      <div class="dactions"><button class="dbtn" onclick="editarFicha('${f.id}')">Editar</button><button class="dbtn" onclick="focarMapa('${f.id}')">Ver no mapa</button><button class="dbtn" onclick="addAoQuadro('${f.id}')">Add ao quadro</button>${window.IA_ATIVA && f.pendente ? `<button class="dbtn" onclick="iaProcessarPista('${f.id}')" title="A IA transcreve, traduz e preenche a ficha — você revisa antes de aplicar">Processar com IA</button>` : ""}<button class="dbtn del" onclick="excluirFicha('${f.id}')">Excluir</button></div>
     </div>
     <div class="db">
       <div id="pgtabs" class="pgtabs"></div>
-      <div id="pgpanel"></div>
-      ${f.sala ? field("Sala de origem", `<span class="taglist"><span class="t sala" onclick="filtraSala('${esc(f.sala)}')">🚪 ${esc(f.sala)}</span></span>`) : ""}
-      ${
-        (f.grupos || []).length
-          ? field(
-              "Grupos",
-              `<span class="taglist">` +
-                (f.grupos || [])
-                  .map((gn) => {
-                    var g = grupoObj(gn);
-                    return (
-                      '<span class="t" style="background:' +
-                      corContraste((g && g.cor) || "#5b6b86") +
-                      ';color:#fff;cursor:pointer" onclick="filtraGrupo(\'' +
-                      jsq(gn) +
-                      "')\">📦 " +
-                      esc(gn) +
-                      "</span>"
-                    );
-                  })
-                  .join("") +
-                `</span>`,
-            )
-          : ""
-      }
-      ${
-        (f.personagens || []).length
-          ? field(
-              "Personagens citados",
-              `<span class="taglist">${f.personagens.map((p) => `<span class="t pessoa" onclick="filtraPessoa('${esc(p)}')">👤 ${esc(p)}</span>`).join("")}</span>`,
-            )
-          : ""
-      }
-      ${field("Conexões automáticas (" + autoCount(f) + ")", autosFichaHTML(f))}
-      ${field(
-        "Conexões manuais (" + (f.conexoes || []).length + ")",
-        `<span class="taglist">${
-          (f.conexoes || [])
-            .map((c) => {
-              const o = fichas.find((z) => z.id === c);
-              return o
-                ? `<span class="t conx">🔗 <span style="cursor:pointer" onclick="abrir('${c}')">${esc(o.titulo)}</span> <b style="cursor:pointer" onclick="desligarFicha('${f.id}','${c}')">✕</b></span>`
-                : "";
-            })
-            .join("") || "<span class='gvazio'>(nenhuma)</span>"
-        } <button class="dbtn" style="padding:3px 9px" onclick="ligarFichaUI('${f.id}')">＋ Ligar</button></span>`,
-      )}
-      ${f.notas ? field("Notas", esc(f.notas)) : ""}
+      <div id="pgpanel" class="paper"></div>
+      <div class="dsec">
+        <span class="dlab">ETIQUETAS</span>
+        <div class="taglist">${etiquetas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      </div>
+      <div class="dsec">
+        <div class="dlab-row"><span class="dlab">FIOS DA INVESTIGAÇÃO</span><span class="dlab-sub">conexões</span><button class="dlink" onclick="ligarFichaUI('${f.id}')">＋ ligar ficha</button></div>
+        ${fiosManuais}${fioAuto}
+        ${!fiosManuais && !fioAuto ? "<span class='gvazio'>sem conexões ainda</span>" : ""}
+      </div>
+      ${f.notas ? `<div class="dsec"><span class="dlab">NOTAS DO DETETIVE</span><div class="postit">${esc(f.notas)}</div></div>` : ""}
+    </div>
+    <div class="dfoot">
+      <button class="dbtn primary" onclick="editarFicha('${f.id}')">Editar</button>
+      <button class="dbtn" onclick="focarMapa('${f.id}')">Ver no mapa</button>
+      <button class="dbtn" onclick="fichaMais('${f.id}')" aria-haspopup="dialog">Mais ▾</button>
     </div>`;
-  d.classList.add("open");
+  drawerAbrir();
   renderPaginaDetalhe();
+}
+/* Mobile: as ações do detalhe que não cabem no rodapé vão para a folha de
+   ações — nada some em relação ao desktop (P07). */
+function fichaMais(id) {
+  const f = fichas.find((x) => x.id === id);
+  if (!f) return;
+  abrirSheetAcoes(f.titulo, [
+    { rotulo: "Adicionar ao quadro", fn: () => addAoQuadro(id) },
+    { rotulo: "Ligar a outra ficha", fn: () => ligarFichaUI(id) },
+    window.IA_ATIVA && f.pendente
+      ? { rotulo: "Processar com IA", fn: () => iaProcessarPista(id) }
+      : null,
+    {
+      rotulo: f.fav ? "Tirar de favoritas" : "Favoritar",
+      fn: () => {
+        toggleFav(id);
+        abrir(id);
+      },
+    },
+    { rotulo: "Excluir ficha", perigo: true, fn: () => excluirFicha(id) },
+  ]);
+}
+/* Adiciona a ficha ao quadro atual (sem sair da tela) */
+function addAoQuadro(id) {
+  if (!DADOS.quadros || !DADOS.quadros.length)
+    DADOS.quadros = [
+      { nome: "Quadro 1", cam: { x: 40, y: 40, s: 1 }, nodes: [], setas: [] },
+    ];
+  const q = DADOS.quadros[_qIdx] || DADOS.quadros[0];
+  if ((q.nodes || []).some((n) => n.tipo === "ref" && n.ref === id)) {
+    toast("Esta ficha já está no quadro " + q.nome);
+    return;
+  }
+  q.nodes.push({
+    id: "n" + Date.now() + Math.floor(Math.random() * 999),
+    tipo: "ref",
+    kind: "pista",
+    ref: id,
+    x: 120 + Math.random() * 160,
+    y: 120 + Math.random() * 120,
+  });
+  marcarAlterado();
+  toast("Ficha adicionada ao " + q.nome);
 }
 function field(lab, val) {
   return `<div class="field"><div class="lab">${lab}</div><div class="val">${val}</div></div>`;
 }
+/* ===== Abertura/fechamento CENTRAL do detalhe (drawer) =====
+   Todo caminho que abre o painel passa por drawerAbrir(); todo caminho que
+   fecha passa por fechar(). Isso garante que a tabbar e o FAB voltam
+   (body.drawer-aberta), o foco retorna ao acionador e o Voltar funciona. */
+function drawerAbrir() {
+  const d = document.getElementById("drawer");
+  if (!d) return;
+  try {
+    d.inert = false; // fechado, o painel fica fora do foco/leitor de tela
+  } catch (e) {}
+  if (!d.classList.contains("open")) {
+    d.classList.add("open");
+    document.body.classList.add("drawer-aberta");
+    // Overlay central: foco, inert (só no compacto, onde é página cheia),
+    // Escape/Voltar e devolução de foco ao acionador.
+    overlayAbrir(d, {
+      id: "drawer",
+      modal: ehCompacto(),
+      jaAberto: true,
+      fechar: function () {
+        d.classList.remove("open");
+        document.body.classList.remove("drawer-aberta");
+        _fichaAberta = null;
+        try {
+          d.inert = true;
+        } catch (e) {}
+      },
+    });
+  }
+  d.scrollTop = 0;
+}
+// Estado inicial: o drawer começa fechado e inerte (invisível ao foco).
+(function () {
+  const d0 = document.getElementById("drawer");
+  if (d0 && !d0.classList.contains("open")) {
+    try {
+      d0.inert = true;
+    } catch (e) {}
+  }
+})();
 function fechar() {
-  document.getElementById("drawer").classList.remove("open");
+  if (_ovInfo["drawer"]) {
+    overlayFechar("drawer");
+    return;
+  }
+  // Segurança: fecha mesmo se o registro se perdeu.
+  const d = document.getElementById("drawer");
+  if (d) d.classList.remove("open");
+  document.body.classList.remove("drawer-aberta");
+  _fichaAberta = null;
 }
 function filtraPessoa(p) {
   p = nomeCanon(p);
@@ -1894,19 +2950,36 @@ function updateSaveStatus(st) {
     b = document.getElementById("btnSalvar");
   // No modo online o salvamento é na nuvem (não há "pasta"/fileHandle); a camada online cuida do status.
   if (!window.MODO_ONLINE && !fileHandle && !DADOS_BROKEN) st = "nohandle";
+  // O ícone virou uma bolinha colorida (CSS via st-*); só o rótulo muda.
   var M = {
-    saving: ["☁", "Salvando…", "info"],
-    pending: ["☁", "Salvando…", "info"],
-    saved: ["☁ ✓", "Tudo salvo", "ok"],
-    nohandle: ["⚠", "Sem pasta", "warn"],
+    saving: ["", "Salvando…", "info"],
+    pending: ["", "Salvando…", "info"],
+    saved: ["", "Tudo salvo", "ok"],
+    nohandle: ["", "Sem pasta", "warn"],
   };
   var m = M[st] || M.saved;
-  if (ic) ic.textContent = m[0];
+  if (ic) ic.textContent = "";
   if (lb) lb.textContent = m[1];
   if (b) {
     b.classList.remove("st-ok", "st-info", "st-warn");
     b.classList.add("st-" + m[2]);
   }
+  // Mobile: o status aparece na aba Conta da tabbar (bolinha colorida)...
+  var tc = document.querySelector('#tabbar .tbit[data-view="conta"]');
+  if (tc) {
+    tc.classList.remove("st-ok", "st-info", "st-warn");
+    tc.classList.add("st-" + m[2]);
+  }
+  // ...e é anunciado para leitores de tela quando muda.
+  anunciarStatus(m[1]);
+}
+/* Região viva (aria-live) — anuncia salvando/salvo/erro sem roubar o foco. */
+var _srUltimo = "";
+function anunciarStatus(txt) {
+  var r = document.getElementById("srlive");
+  if (!r || txt === _srUltimo) return;
+  _srUltimo = txt;
+  r.textContent = txt;
 }
 
 function rebuildFilters() {
@@ -1933,13 +3006,13 @@ function rebuildFilters() {
 }
 
 function edCampo(lab, key, val) {
-  return `<div class="field"><div class="lab">${lab}</div><input id="ed-${key}" class="edinput" value="${esc(val || "")}"></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><input id="ed-${key}" class="edinput" value="${esc(val || "")}"></div>`;
 }
 function edArea(lab, key, val) {
-  return `<div class="field"><div class="lab">${lab}</div><textarea id="ed-${key}" class="edinput edarea">${esc(val || "")}</textarea></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><textarea id="ed-${key}" class="edinput edarea">${esc(val || "")}</textarea></div>`;
 }
 function edCampoL(lab, key, val, list) {
-  return `<div class="field"><div class="lab">${lab}</div><input id="ed-${key}" class="edinput" list="${list}" value="${esc(val || "")}"></div>`;
+  return `<div class="field"><label class="lab" for="ed-${key}">${lab}</label><input id="ed-${key}" class="edinput" list="${list}" value="${esc(val || "")}"></div>`;
 }
 function chipField(lab, key, vals, pool) {
   return `<div class="field"><div class="lab">${lab}</div><div class="chipfield" data-pool="${pool}"><input type="hidden" id="ed-${key}" value="${esc((vals || []).join(", "))}"></div></div>`;
@@ -2747,9 +3820,12 @@ function editarFicha(id) {
   const d = document.getElementById("drawer");
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="abrir('${f.id}')">✕</button>
-      <div class="tipo">✏️ Editando ficha</div>
-      <h2>${esc(f.titulo)}</h2>
+      <div class="dh-top">
+        <span class="plab">EDITANDO FICHA</span>
+        <div class="dgrow"></div>
+        <button class="close" onclick="abrir('${f.id}')" title="Voltar sem salvar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(f.titulo)}</h2>
     </div>
     <div class="db">
       ${edCampo("Título", "titulo", f.titulo)}
@@ -2762,9 +3838,10 @@ function editarFicha(id) {
       <div id="pgedtabs" class="pgtabs"></div>
       <div id="pgedpanel"></div>
       <div class="editbtns">
-        <button class="dbtn save" onclick="salvarFichaEdit('${f.id}')">✓ Aplicar</button>
-        <button class="dbtn" onclick="abrir('${f.id}')">Cancelar</button>
-        <button class="dbtn del" onclick="excluirFicha('${f.id}')">🗑 Excluir</button>
+        <button class="dbtn cancel" onclick="abrir('${f.id}')">Cancelar</button>
+        <span class="dgrow"></span>
+        <button class="dbtn del" onclick="excluirFicha('${f.id}')">Excluir</button>
+        <button class="dbtn save" onclick="salvarFichaEdit('${f.id}')">Salvar ficha</button>
       </div>
       <datalist id="dl-salas">${nomesDe(DADOS.salas)
         .map((s) => `<option value="${esc(s)}">`)
@@ -2773,7 +3850,7 @@ function editarFicha(id) {
         .map((g) => `<option value="${esc(g)}">`)
         .join("")}</datalist>
     </div>`;
-  d.classList.add("open");
+  drawerAbrir();
   renderPagEdit();
   initChipFields();
 }
@@ -3184,6 +4261,8 @@ function toast(msg, ms) {
   if (!t) {
     t = document.createElement("div");
     t.id = "toast";
+    t.setAttribute("role", "status");
+    t.setAttribute("aria-live", "polite");
     document.body.appendChild(t);
   }
   t.textContent = msg;
@@ -4047,17 +5126,15 @@ function autoCount(f) {
 }
 function autoChip(kind, ic, nome, fid, cls, cor) {
   const style = cor ? ` style="background:${cor};color:#fff"` : "";
-  return `<span class="t auto ${cls || ""}"${style}>${ic} <span style="cursor:pointer" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</span> <b title="Remover vínculo" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</b></span>`;
+  return `<span class="t auto ${cls || ""}"${style}>${ic}<button class="t-abrir" onclick="abrirEntidade('${kind}','${jsq(nome)}')">${esc(nome)}</button> <button class="t-x" title="Remover vínculo" aria-label="Remover vínculo com ${esc(nome)}" onclick="desautoFicha('${fid}','${kind}','${jsq(nome)}')">✕</button></span>`;
 }
 function autosFichaHTML(f) {
   const chips = [];
-  if (f.sala) chips.push(autoChip("sala", "🚪", f.sala, f.id, "sala"));
+  if (f.sala) chips.push(autoChip("sala","",f.sala,f.id,"sala"));
   (f.grupos || []).forEach(function (gn) {
     var g = grupoObj(gn);
     chips.push(
-      autoChip(
-        "grupo",
-        "📦",
+      autoChip("grupo","",
         gn,
         f.id,
         "",
@@ -4066,7 +5143,7 @@ function autosFichaHTML(f) {
     );
   });
   (f.personagens || []).forEach(function (pp) {
-    chips.push(autoChip("pessoa", "👤", pp, f.id, "pessoa"));
+    chips.push(autoChip("pessoa","",pp,f.id,"pessoa"));
   });
   return chips.length
     ? '<span class="taglist">' + chips.join("") + "</span>"
@@ -4106,7 +5183,7 @@ function tagPistasAuto(arr, kind, nome) {
         arr
           .map(function (f) {
             return (
-              '<span class="t conx auto">🔗 <span style="cursor:pointer" onclick="abrir(\'' +
+              '<span class="t conx auto"><span style="cursor:pointer" onclick="abrir(\'' +
               f.id +
               "')\">" +
               esc(f.titulo) +
@@ -4153,7 +5230,7 @@ function desautoEnt(fid, kind, nomeEnt) {
 }
 function tagPistas(arr) {
   return arr.length
-    ? `<span class="taglist">${arr.map((f) => `<span class="t conx" onclick="abrir('${f.id}')">🔗 ${esc(f.titulo)}${f.sala && f.sala !== "" ? ` <small style="opacity:.6">· ${esc(f.sala)}</small>` : ""}</span>`).join("")}</span>`
+    ? `<span class="taglist">${arr.map((f) => `<span class="t conx" onclick="abrir('${f.id}')">${esc(f.titulo)}${f.sala && f.sala !== "" ? ` <small style="opacity:.6">· ${esc(f.sala)}</small>` : ""}</span>`).join("")}</span>`
     : "<span class='gvazio'>(nenhuma)</span>";
 }
 // Dossiê de uma SALA: mostra os dados do JOGO (compartilhados), com EN e PT.
@@ -4217,11 +5294,11 @@ function abrirEntidade(kind, nome) {
   // Salas do diretório: sem "Editar dossiê" nem "Excluir" (não se apaga sala).
   const ehSala = kind === "sala";
   const acoesHtml =
-    (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">✏️ Editar dossiê</button>`) +
-    `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">🎯 Focar no mapa</button>` +
-    (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">📖 Folhear</button>` : "") +
-    (kind === "pessoa" && window.IA && window.IA.personasProcessar && pistasQueCitam("pessoa", nome).length ? `<button class="dbtn" onclick="window.IA.personasProcessar(['${jsq(nome)}'], true)" title="A IA (re)escreve a Descrição a partir de todas as pistas que citam este personagem">✨ Gerar descrição</button>` : "") +
-    (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">🔒 Re-bloquear</button>` : "");
+    (ehSala ? "" : `<button class="dbtn" onclick="editarEntidade()">Editar dossiê</button>`) +
+    `<button class="dbtn" onclick="focarEnt('${kind}','${jsq(nome)}')">Ver no mapa</button>` +
+    (kind === "colecao" && e.ordenada ? `<button class="dbtn" onclick="abrirLeitor('${jsq(nome)}')">Folhear</button>` : "") +
+    (kind === "pessoa" && window.IA && window.IA.personasProcessar && pistasQueCitam("pessoa", nome).length ? `<button class="dbtn" onclick="window.IA.personasProcessar(['${jsq(nome)}'], true)" title="A IA (re)escreve a Descrição a partir de todas as pistas que citam este personagem">Gerar descrição (IA)</button>` : "") +
+    (ehSala ? `<button class="dbtn" onclick="rebloquearSala('${jsq(nome)}')" title="Voltar esta sala para o estado desconhecido">Re-bloquear</button>` : "");
   // Sala: fatos e notas EDITÁVEIS direto no dossiê (sem tela de edição separada).
   const pessoalHtml = ehSala
     ? `<div class="field"><div class="lab">Fatos conhecidos <small style="opacity:.55">(um por linha)</small></div><textarea id="sala-fatos" class="edinput edarea" placeholder="Anote fatos desta sala…" onchange="salaEditInline()">${esc((e.fatos || []).join("\n"))}</textarea></div>
@@ -4230,20 +5307,58 @@ function abrirEntidade(kind, nome) {
       (e.notas ? field("Notas", esc(e.notas)) : "");
   d.innerHTML = `
     <div class="dh">
-      <button class="close" onclick="fechar()">✕</button>
-      <div class="tipo" style="color:${corKind(kind)}">${iconKind(kind)} ${rotKind(kind)} (dossiê)</div>
-      <h2>${esc(nome)}</h2>
+      <div class="dh-top">
+        <span class="doskicker" style="color:${corKind(kind)}">DOSSIÊ · ${rotKind(kind).toUpperCase()}</span>
+        <div class="dgrow"></div>
+        <button class="close" onclick="fechar()" title="Fechar">✕</button>
+      </div>
+      <h2 class="dtit">${esc(nome)}</h2>
       <div class="dactions">${acoesHtml}</div>
     </div>
     <div class="db">
-      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
+      ${e.imagem ? `<img src="${esc(ehSala ? thumbSala(e.imagem, 640) : e.imagem)}" alt="${esc(nome)}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(e.imagem)}'}">` : ""}
       ${ehSala ? salaDossieJogo(e) : e.descricao ? field("Descrição", esc(e.descricao)) : ""}
       ${kind === "pessoa" && (e.aliases || []).length ? field("Também conhecido como", '<span class="taglist">' + (e.aliases || []).map((a) => '<span class=\"t pessoa\">' + esc(a) + "</span>").join("") + "</span>") : ""}
       ${pessoalHtml}
       ${field(rotDiretas(kind) + " (" + diretas.length + ")", tagPistasAuto(diretas, kind, nome))}
       ${field("Mencionam em outro lugar (" + mencoes.length + ")", tagPistas(mencoes))}
+    </div>
+    <div class="dfoot">
+      ${ehSala ? "" : `<button class="dbtn primary" onclick="editarEntidade()">Editar</button>`}
+      <button class="dbtn${ehSala ? " primary" : ""}" onclick="focarEnt('${kind}','${jsq(nome)}')">Ver no mapa</button>
+      <button class="dbtn" onclick="entMais()" aria-haspopup="dialog">Mais ▾</button>
     </div>`;
-  d.classList.add("open");
+  drawerAbrir();
+}
+/* Mobile: ações extras do dossiê (Folhear, IA, Re-bloquear…) na folha de
+   ações — o rodapé mostra só as frequentes. */
+function entMais() {
+  if (!_entAtual) return;
+  const kind = _entAtual.kind,
+    nome = _entAtual.nome;
+  const e = acharEnt(entListaDe(kind), nome);
+  if (!e) return;
+  abrirSheetAcoes(nome, [
+    kind === "colecao" && e.ordenada
+      ? { rotulo: "Folhear", fn: () => abrirLeitor(nome) }
+      : null,
+    kind === "pessoa" &&
+    window.IA &&
+    window.IA.personasProcessar &&
+    pistasQueCitam("pessoa", nome).length
+      ? {
+          rotulo: "Gerar descrição (IA)",
+          fn: () => window.IA.personasProcessar([nome], true),
+        }
+      : null,
+    kind === "sala"
+      ? {
+          rotulo: "Re-bloquear sala",
+          perigo: true,
+          fn: () => rebloquearSala(nome),
+        }
+      : null,
+  ].filter(Boolean));
 }
 function reabrirEnt() {
   if (_entAtual) abrirEntidade(_entAtual.kind, _entAtual.nome);
@@ -4276,7 +5391,7 @@ function editarEntidade() {
         <button class="dbtn del" onclick="excluirEntPainel()">🗑 Excluir</button>
       </div>
     </div>`;
-  d.classList.add("open");
+  drawerAbrir();
   initChipFields();
 }
 function salvarEntidade() {
@@ -4386,19 +5501,26 @@ function buildMapToggles() {
   if (!box) return;
   const defs = [
     ["pessoa", "Personagens", COR_PESSOA],
-    ["sala", "Salas", COR_SALA],
-    ["grupo", "Grupos", COR_LIVRO],
-    ["manual", "Conexões", COR_MANUAL],
+    ["sala", "Salas", "#6fa8c0"],
+    ["grupo", "Grupos", "#c9a35c"],
+    ["manual", "Fios manuais", COR_MANUAL],
   ];
   box.innerHTML = "";
   defs.forEach(function (dd) {
     const k = dd[0],
       lab = dd[1],
       cor = dd[2];
-    const c = document.createElement("div");
+    const c = document.createElement("button");
+    c.type = "button";
     c.className = "mtog" + (mapLayers[k] ? " on" : "");
     c.title = "Mostrar/ocultar " + lab + " no mapa";
-    c.innerHTML = `<span class="dot" style="background:${cor}"></span>${lab}`;
+    c.setAttribute("aria-pressed", mapLayers[k] ? "true" : "false");
+    c.innerHTML =
+      (k === "manual"
+        ? `<span class="ln" style="border-top:2px solid ${cor}"></span>`
+        : `<span class="dot" style="background:${cor}"></span>`) +
+      lab +
+      `<span class="chk">✓</span>`;
     c.onclick = () => {
       mapLayers[k] = !mapLayers[k];
       mapaSoftRefresh();
@@ -4408,7 +5530,110 @@ function buildMapToggles() {
 }
 function toggleFiltros() {
   const pn = document.getElementById("filtrosPanel");
-  if (pn) pn.classList.toggle("open");
+  if (!pn) return;
+  // No compacto vira bottom sheet MODAL (fundo inerte, foco preso, Voltar
+  // fecha) que sobe animado, desce arrastando pela alça e fecha tocando no
+  // fundo escurecido; no desktop segue como painel inline (Escape/Voltar).
+  if (pn.classList.contains("open")) {
+    overlayFechar("filtrosPanel");
+    return;
+  }
+  fSheetWire(pn);
+  if (ehCompacto()) fSheetFundo(true);
+  overlayAbrir(pn, {
+    id: "filtrosPanel",
+    modal: ehCompacto(),
+    focoEm: "#fsala",
+    fechar: function () {
+      fSheetFechaAnim(pn);
+    },
+  });
+}
+/* Fundo escurecido da folha de filtros: tocar nele fecha a folha */
+function fSheetFundo(liga) {
+  let bd = document.getElementById("sheetFundo");
+  if (!bd) {
+    if (!liga) return;
+    bd = document.createElement("div");
+    bd.id = "sheetFundo";
+    bd.className = "sheet-fundo";
+    bd.onclick = function () {
+      overlayFechar("filtrosPanel");
+    };
+    document.body.appendChild(bd);
+  }
+  if (liga)
+    requestAnimationFrame(function () {
+      bd.classList.add("on");
+    });
+  else bd.classList.remove("on");
+}
+/* Fecha a folha DESCENDO — vale para Aplicar, Voltar, Escape e toque fora */
+function fSheetFechaAnim(pn) {
+  fSheetFundo(false);
+  if (!ehCompacto()) {
+    pn.classList.remove("open");
+    return;
+  }
+  pn.style.transition = "transform 0.22s ease-in";
+  pn.style.transform = "translateY(110%)";
+  setTimeout(function () {
+    pn.classList.remove("open");
+    pn.style.transition = "";
+    pn.style.transform = "";
+  }, 230);
+}
+/* Arrastar a folha pela alça/cabeçalho: segue o dedo; soltar longe (ou
+   rápido) fecha, soltar perto volta com mola */
+function fSheetWire(pn) {
+  if (pn._sheetWired) return;
+  pn._sheetWired = true;
+  let st = null;
+  function volta() {
+    pn.style.transition = "transform 0.2s ease";
+    pn.style.transform = "";
+    setTimeout(function () {
+      pn.style.transition = "";
+    }, 220);
+  }
+  function down(e) {
+    if (!ehCompacto() || !pn.classList.contains("open")) return;
+    // Toque nos botões do cabeçalho (limpar) segue o fluxo normal
+    if (e.target.closest && e.target.closest("button")) return;
+    st = { y0: e.clientY, t0: Date.now(), dy: 0 };
+    pn.style.transition = "none";
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    e.preventDefault();
+  }
+  function move(e) {
+    if (!st) return;
+    st.dy = Math.max(0, e.clientY - st.y0);
+    pn.style.transform = st.dy ? "translateY(" + st.dy + "px)" : "";
+  }
+  function up() {
+    if (!st) return;
+    const rapido = st.dy / Math.max(1, Date.now() - st.t0) > 0.5;
+    const fecha = st.dy > 110 || (st.dy > 30 && rapido);
+    st = null;
+    pn.style.transition = "";
+    if (fecha) overlayFechar("filtrosPanel");
+    else volta();
+  }
+  function cancel() {
+    if (!st) return;
+    st = null;
+    volta();
+  }
+  [".sheet-grip", ".sheet-head"].forEach(function (s) {
+    const el = pn.querySelector(s);
+    if (!el) return;
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", cancel);
+  });
 }
 function toggleSelMode() {
   state.selMode = !state.selMode;
@@ -4486,14 +5711,22 @@ function atualizarSelBar() {
     vis = fichas.filter(passa).length;
   const btnIA =
     window.IA && window.IA.processarLote && n > 0
-      ? `<button class="topbtn" onclick="iaLoteSelecionadas()">✨ Processar selecionadas</button>`
+      ? `<button class="topbtn" onclick="iaLoteSelecionadas()">Processar selecionadas</button>`
       : "";
-  bar.innerHTML = `<span class="cnt">${n} selecionada(s)</span>
+  bar.innerHTML = `<span class="selchk">✓</span><span class="cnt">${n} selecionada${n === 1 ? "" : "s"}</span>
     <button class="topbtn" onclick="selecionarVisiveis()">Selecionar visíveis (${vis})</button>
     <span class="grow"></span>
     ${btnIA}
-    <button class="seldel" onclick="excluirSelecionadas()">🗑 Excluir selecionadas</button>
-    <button class="topbtn" onclick="toggleSelMode()">Cancelar</button>`;
+    ${n > 0 ? `<button class="topbtn" onclick="selAddAoQuadro()">Adicionar ao quadro</button>` : ""}
+    <button class="seldel" onclick="excluirSelecionadas()">Excluir</button>
+    <button class="topbtn plain" onclick="toggleSelMode()">Cancelar</button>`;
+}
+/* Seleção múltipla → manda todas para o quadro atual */
+function selAddAoQuadro() {
+  const ids = [...state.sel];
+  if (!ids.length) return;
+  ids.forEach((id) => addAoQuadro(id));
+  toggleSelMode();
 }
 function limparBusca() {
   const i = document.getElementById("busca");
@@ -4522,9 +5755,36 @@ function limparFiltros() {
 }
 function atualizarContador() {
   const el = document.getElementById("contador");
-  if (!el) return;
   const n = fichas.filter(passa).length;
-  el.textContent = n + (n === 1 ? " ficha" : " fichas");
+  if (el) el.textContent = n + (n === 1 ? " ficha" : " fichas");
+  // Estatísticas viram filtros clicáveis no cabeçalho (decisão do handoff)
+  const st = document.getElementById("areaStats");
+  if (!st) return;
+  const pend = fichas.filter((f) => f.pendente).length;
+  const inc = fichas.filter((f) => fichaIncompleta(f).length).length;
+  const orf = fichas.filter(
+    (f) =>
+      (f.conexoes || []).length === 0 &&
+      !f.sala &&
+      !(f.personagens || []).length &&
+      !(f.grupos || []).length,
+  ).length;
+  const tot = fichas.length;
+  const parte = [];
+  parte.push(tot + (tot === 1 ? " ficha" : " fichas"));
+  if (pend)
+    parte.push(
+      `<span class="stat-link gold" onclick="state.pendentes=true;render()">${pend} pendente${pend > 1 ? "s" : ""}</span>`,
+    );
+  if (inc)
+    parte.push(
+      `<span class="stat-link red" onclick="state.incompletas=true;render()">${inc} incompleta${inc > 1 ? "s" : ""}</span>`,
+    );
+  if (orf)
+    parte.push(
+      `<span class="stat-link" onclick="state.orfas=true;render()">${orf} sem conexão</span>`,
+    );
+  st.innerHTML = parte.join(" · ");
 }
 function atualizarBtnFiltros() {
   const n =
@@ -4538,7 +5798,11 @@ function atualizarBtnFiltros() {
   const b = document.getElementById("btnFiltros");
   if (b) {
     b.classList.toggle("hasfilters", n > 0);
-    b.textContent = "⛃ Filtros" + (n > 0 ? " (" + n + ")" : "");
+    // Ícone (só aparece no celular) + rótulo (só no desktop) + contagem
+    b.innerHTML =
+      '<svg class="fic" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 3h11.6l-4.5 5.3v4.1l-2.6 1.3V8.3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>' +
+      '<span class="btxt">Filtros</span>' +
+      (n > 0 ? `<span class="fbadge">${n}</span>` : "");
   }
   const bi = document.getElementById("btnInc");
   if (bi) bi.classList.toggle("on", state.incompletas);
@@ -4662,8 +5926,9 @@ function thumbSala(url, w) {
   var i = url.indexOf(marca);
   if (i < 0) return url;
   var lado = w || 240;
-  // IMPORTANTE: sem resize=contain o Supabase distorce (ex.: 200x512). Com
-  // width+height+contain a imagem fica proporcional (ex.: 240x240) e leve.
+  // Quadrado com resize=cover: o Supabase recorta o excesso mantendo a
+  // proporção (sem distorcer). As artes das salas são bem altas — proporção
+  // original deixava o card gigante; contain deixava faixas vazias.
   return (
     url.slice(0, i) +
     "/storage/v1/render/image/public/" +
@@ -4672,7 +5937,7 @@ function thumbSala(url, w) {
     lado +
     "&height=" +
     lado +
-    "&resize=contain&quality=60"
+    "&resize=cover&quality=60"
   );
 }
 // Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
@@ -4760,6 +6025,394 @@ function renderDiretorio() {
     <div class="dircontent"><div class="dirhead">${catLabel(state.dirCat)} — ${achadas}/${total} descobertas</div><div class="dirgrid">${tiles}</div></div>
   </div>`;
 }
+/* ===== ARQUIVO (Salas · Personagens · Grupos) — área nova do redesign =====
+   Une Mundo + Diretório + Gerenciar num só lugar, com dossiê lateral
+   persistente. A lógica de dados é a mesma das funções legadas
+   (renomearEnt, excluirEnt, mesclarPessoas, confirmarDescobrir…). */
+if (!state.arqTab) state.arqTab = "salas";
+var _arqSel = null; // {kind:'sala'|'pessoa'|'grupo', nome} — dossiê aberto
+var _arqBusca = "";
+const CORES_GRUPO_SUGERIDAS = [
+  "#8d3030",
+  "#b07a2e",
+  "#2e7a54",
+  "#3a5a8d",
+  "#6a4a8d",
+];
+/* Salas no compacto: a lista de categorias é a PRIMEIRA tela; escolher uma
+   abre a grade e o botão do topo traz a lista de volta. No desktop a lista
+   fica sempre à esquerda e este estado não muda nada. */
+var _arqCatsAberto = true;
+function arqEscolherCat(c) {
+  state.dirCat = c;
+  _arqCatsAberto = false;
+  renderArquivo();
+}
+function arqAbrirCats() {
+  _arqCatsAberto = true;
+  renderArquivo();
+}
+function setArqTab(t) {
+  state.arqTab = t;
+  _arqSel = null;
+  if (t === "salas") _arqCatsAberto = true; // volta pela lista de categorias
+  renderArquivo();
+}
+function arqAbrir(kind, nome) {
+  _arqSel = { kind: kind, nome: nome };
+  // No modo compacto o dossiê vira página cheia (mesma definição do CSS)
+  if (ehCompacto()) {
+    abrirEntidade(kind, nome);
+    return;
+  }
+  renderArquivo();
+}
+function arqFecharDossie() {
+  _arqSel = null;
+  renderArquivo();
+}
+function arqBuscaInput(v) {
+  _arqBusca = v || "";
+  renderArquivo(true);
+}
+function novoEntArq(kind) {
+  const nome = (prompt(kind === "grupo" ? "Nome do novo grupo:" : "Nome do novo personagem:") || "").trim();
+  if (!nome) return;
+  const arr = kind === "grupo" ? DADOS.grupos : DADOS.personagens;
+  if (arr.some((e) => e.nome.toLowerCase() === nome.toLowerCase())) {
+    toast("Já existe: " + nome);
+    return;
+  }
+  arr.push(
+    kind === "grupo" ? { nome: nome, cor: _corHash(nome) } : { nome: nome },
+  );
+  marcarAlterado();
+  _arqSel = { kind: kind === "grupo" ? "grupo" : "pessoa", nome: nome };
+  renderArquivo();
+}
+function arqRenomear(kind, nome) {
+  const arr = entListaDe(kind);
+  const o = acharEnt(arr, nome);
+  if (!o) return;
+  const nv = (prompt("Novo nome para “" + nome + "”:", nome) || "").trim();
+  if (!nv || nv === nome) return;
+  renomearEnt(kind, o, nv);
+  _arqSel = { kind: kind, nome: nv };
+  renderArquivo();
+}
+function arqExcluir(kind, nome) {
+  const arr = entListaDe(kind);
+  const o = acharEnt(arr, nome);
+  if (!o) return;
+  excluirEnt(kind, o);
+  _arqSel = null;
+  renderArquivo();
+}
+function arqCorGrupo(nome, cor) {
+  const g = acharEnt(DADOS.grupos, nome);
+  if (!g) return;
+  g.cor = cor;
+  marcarAlterado();
+  renderArquivo();
+}
+function arqMesclar(nome) {
+  // Reusa a ferramenta testada do modal Gerenciar: preenche os selects e chama
+  const sec = (prompt(
+    "“" + nome + "” é a mesma pessoa que… (digite o outro nome exatamente)",
+  ) || "").trim();
+  if (!sec) return;
+  const outro = acharEnt(DADOS.personagens, sec);
+  if (!outro) {
+    toast("Personagem não encontrado: " + sec);
+    return;
+  }
+  const modo = confirm(
+    "OK = JUNTAR (citações de “" +
+      sec +
+      "” são reescritas para “" +
+      nome +
+      "” e “" +
+      sec +
+      "” deixa de existir).\nCancelar = tornar “" +
+      sec +
+      "” um PSEUDÔNIMO de “" +
+      nome +
+      "”.",
+  )
+    ? "full"
+    : "alias";
+  fillMescla();
+  const p = document.getElementById("mesclaPrin"),
+    s = document.getElementById("mesclaSec");
+  if (!p || !s) return;
+  p.value = nome;
+  s.value = outro.nome;
+  mesclarPessoas(modo);
+  _arqSel = { kind: "pessoa", nome: nome };
+  renderArquivo();
+}
+function _arqFichasDe(kind, nome) {
+  return pistasQueCitam(kind, nome);
+}
+function _arqDossieHTML() {
+  if (!_arqSel) return "";
+  const kind = _arqSel.kind,
+    nome = _arqSel.nome;
+  const arr = entListaDe(kind);
+  const e = acharEnt(arr, nome);
+  if (!e) return "";
+  const fichasDe = _arqFichasDe(kind, nome);
+  const rowsFichas = fichasDe
+    .slice(0, 8)
+    .map(
+      (f) =>
+        `<div class="dosrow" onclick="abrir('${f.id}')"><span class="doscod">${esc(f.id)}</span><span class="dostit">${esc(f.titulo)}</span><span class="dosgo">›</span></div>`,
+    )
+    .join("");
+  const fatos =
+    e.fatos && e.fatos.length
+      ? `<div class="dossec"><div class="doslab">FATOS ANOTADOS (${e.fatos.length})</div><div class="dosfatos">${e.fatos.map((x) => "· " + esc(x)).join("<br>")}</div></div>`
+      : "";
+  if (kind === "sala") {
+    const desc = e.descoberta !== false;
+    return `<aside class="arqdossie">
+      <div class="doshead"><span class="doskicker">DOSSIÊ</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
+      <div><div class="dosnome">${esc(e.nome)}</div><div class="dosmeta">${e.num ? "Nº " + String(e.num).padStart(3, "0") + " · " : ""}${desc ? "descoberta" : "não descoberta"}</div></div>
+      <div class="dosimg">${e.imagem ? `<img loading="lazy" src="${esc(thumbSala(e.imagem, 330))}" onerror="this.style.display='none'">` : `<span>planta / captura da sala</span>`}</div>
+      <div class="dossec"><div class="doslab">FICHAS DESTA SALA (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      ${fatos}
+      <button class="dosbtn ghost" onclick="abrirEntidade('sala','${jsq(e.nome)}')">Abrir dossiê completo</button>
+      <button class="dosbtn gold" onclick="focarEnt('sala','${jsq(e.nome)}')">Ver no mapa de conexões</button>
+    </aside>`;
+  }
+  if (kind === "pessoa") {
+    return `<aside class="arqdossie">
+      <div class="doshead"><span class="doskicker rosa">DOSSIÊ · PERSONAGEM</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
+      <div class="dosid"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('pessoa','${jsq(e.nome)}')">renomear</button></div>
+      ${e.descricao ? `<div class="dosdesc">${esc(e.descricao)}</div>` : ""}
+      <div class="dossec"><div class="doslab">FICHAS QUE CITAM (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+      ${fatos}
+      <button class="dosbtn ghost" onclick="abrirEntidade('pessoa','${jsq(e.nome)}')">Abrir dossiê completo</button>
+      <button class="dosbtn dashed" onclick="arqMesclar('${jsq(e.nome)}')">É a mesma pessoa que… (mesclar)</button>
+    </aside>`;
+  }
+  // grupo
+  const cor = e.cor || "#8d3030";
+  const sw = CORES_GRUPO_SUGERIDAS.map(
+    (c) =>
+      `<span class="dossw${c === cor ? " on" : ""}" style="background:${c}" onclick="arqCorGrupo('${jsq(e.nome)}','${c}')"></span>`,
+  ).join("");
+  return `<aside class="arqdossie">
+    <div class="doshead"><span class="doskicker">DOSSIÊ · GRUPO</span><button class="dosx" onclick="arqFecharDossie()" aria-label="Fechar dossiê">✕</button></div>
+    <div class="dosid"><span class="dosswatch" style="background:${esc(cor)}"></span><div class="dosnome">${esc(e.nome)}</div><button class="dosren" onclick="arqRenomear('grupo','${jsq(e.nome)}')">renomear</button></div>
+    <div class="dossec"><div class="doslab">COR DO GRUPO</div><div class="dossws">${sw}<label class="dossw custom" title="Cor personalizada" style="background:${esc(cor)}"><input type="color" value="${esc(hex6(cor))}" oninput="arqCorGrupo('${jsq(e.nome)}',this.value)">✎</label></div></div>
+    <div class="dossec"><div class="doslab">FICHAS DO GRUPO (${fichasDe.length})</div>${rowsFichas || "<span class='gvazio'>(nenhuma)</span>"}</div>
+    <button class="dosbtn danger" onclick="arqExcluir('grupo','${jsq(e.nome)}')">Excluir grupo…</button>
+    <button class="dosbtn gold" onclick="focarEnt('grupo','${jsq(e.nome)}')">Ver no mapa de conexões</button>
+  </aside>`;
+}
+function renderArquivo(soLista) {
+  const box = document.getElementById("arquivo");
+  if (!box) return;
+  const q = _arqBusca.toLowerCase();
+  const salasDesc = DADOS.salas.filter((s) => s.descoberta !== false).length;
+  const pessoasVis = DADOS.personagens.filter((e) => !ehAliasPessoa(e.nome));
+  const tab = (id, lab, n) =>
+    `<button class="seg${state.arqTab === id ? " active" : ""}"${state.arqTab === id ? ' aria-current="true"' : ""} onclick="setArqTab('${id}')">${lab} <span class="segn">${n}</span></button>`;
+  const tabs = `<div class="segtabs">${tab("salas", "Salas", salasDesc + "/" + totalSalas())}${tab("pessoas", "Personagens", pessoasVis.length)}${tab("grupos", "Grupos", DADOS.grupos.length)}</div>`;
+  let acao = "";
+  if (state.arqTab === "pessoas")
+    acao = `<button class="topbtn primary" onclick="novoEntArq('pessoa')">＋ Novo personagem</button>`;
+  else if (state.arqTab === "grupos")
+    acao = `<button class="topbtn primary" onclick="novoEntArq('grupo')">＋ Novo grupo</button>`;
+  let corpo = "";
+  if (state.arqTab === "salas") {
+    corpo = _arqSalasHTML(q);
+  } else if (state.arqTab === "pessoas") {
+    const lista = pessoasVis
+      .filter((e) => !q || e.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.nome < b.nome ? -1 : 1));
+    const cards = lista
+      .map((e) => {
+        const nF = _arqFichasDe("pessoa", e.nome).length;
+        const nFa = (e.fatos || []).length;
+        return `<div class="pcard${_arqSel && _arqSel.kind === "pessoa" && _arqSel.nome === e.nome ? " on" : ""}" onclick="arqAbrir('pessoa','${jsq(e.nome)}')">
+          <div class="pcard-h"><span class="avatar-p">${esc((e.nome || "?")[0].toUpperCase())}</span><div class="pcard-n">${esc(e.nome)}</div><button class="pcard-m" onclick="event.stopPropagation();arqRenomear('pessoa','${jsq(e.nome)}')" title="Renomear" aria-label="Renomear ${esc(e.nome)}">···</button></div>
+          ${e.descricao ? `<div class="pcard-d">${esc(e.descricao)}</div>` : ""}
+          <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span><span>${nFa} fato${nFa === 1 ? "" : "s"}</span></div>
+        </div>`;
+      })
+      .join("");
+    corpo = `<div class="arqgrid pess">${cards}<div class="pcard novo" onclick="novoEntArq('pessoa')">＋ Novo personagem</div></div>`;
+  } else {
+    const lista = DADOS.grupos
+      .filter((e) => !q || e.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.nome < b.nome ? -1 : 1));
+    const cards = lista
+      .map((e) => {
+        const nF = _arqFichasDe("grupo", e.nome).length;
+        const cor = e.cor || "#8d3030";
+        return `<div class="pcard grp${_arqSel && _arqSel.kind === "grupo" && _arqSel.nome === e.nome ? " on" : ""}" style="border-left-color:${esc(cor)}" onclick="arqAbrir('grupo','${jsq(e.nome)}')">
+          <div class="pcard-h"><span class="gsw" style="background:${esc(cor)}" title="mudar cor"></span><div class="pcard-n">${esc(e.nome)}</div><button class="pcard-m" onclick="event.stopPropagation();arqRenomear('grupo','${jsq(e.nome)}')" title="Renomear" aria-label="Renomear ${esc(e.nome)}">···</button></div>
+          <div class="pcard-f"><span>${nF} ficha${nF === 1 ? "" : "s"}</span></div>
+        </div>`;
+      })
+      .join("");
+    corpo = `<div class="arqgrid grps">${cards}<div class="pcard novo" onclick="novoEntArq('grupo')">＋ Novo grupo</div></div>`;
+  }
+  box.innerHTML = `
+    <div class="arqhead">
+      <h3>Arquivo</h3>
+      ${tabs}
+      <div class="topgrow"></div>
+      <div class="search arqsearch${_arqBuscaAberta ? " aberta" : ""}">
+        <button type="button" class="arqlupa" onclick="arqBuscaAbrir()" aria-label="Buscar no arquivo"><svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg></button>
+        <input id="arqBusca" type="search" enterkeyhint="search" aria-label="Buscar no arquivo" placeholder="Buscar no arquivo…" value="${esc(_arqBusca)}" oninput="arqBuscaInput(this.value)">
+        <button type="button" class="arqx" onclick="arqBuscaFechar()" aria-label="Limpar e fechar a busca">✕</button>
+      </div>
+      ${acao}
+    </div>
+    <div class="arqbody${_arqSel ? " com-dossie" : ""}${state.arqTab === "salas" && _arqCatsAberto && !q ? " catlist" : ""}">${corpo}${_arqDossieHTML()}</div>`;
+  if (soLista || (_arqBuscaAberta && _arqFocarBusca)) {
+    _arqFocarBusca = false;
+    const inp = document.getElementById("arqBusca");
+    if (inp) {
+      inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+    }
+  }
+}
+/* Busca do Arquivo no compacto: a lupa é um botão real que expande o campo,
+   foca e oferece limpar/fechar (P06). */
+let _arqBuscaAberta = false,
+  _arqFocarBusca = false;
+function arqBuscaAbrir() {
+  _arqBuscaAberta = true;
+  _arqFocarBusca = true;
+  renderArquivo();
+}
+function arqBuscaFechar() {
+  _arqBuscaAberta = false;
+  _arqBusca = "";
+  renderArquivo();
+}
+function totalSalas() {
+  return DADOS.salas.length;
+}
+function _arqSalasHTML(q) {
+  // Mesmas faixas do Diretório legado, com contagem X/Y por faixa
+  const cats = [
+    "Rooms 001-012",
+    "Rooms 013-024",
+    "Rooms 025-036",
+    "Rooms 037-046",
+    "Bedrooms",
+    "Hallways",
+    "Green Rooms",
+    "Shops",
+    "Red Rooms",
+    "Found Floorplans",
+    "Outer Rooms",
+  ];
+  const EXTRA = ["Found Floorplans", "Outer Rooms"];
+  if (!state.dirCat) state.dirCat = cats[0];
+  const menu = cats
+    .map((c) => {
+      const all = DADOS.salas.filter((s) => s.diretorio === c);
+      const ach = all.filter((s) => s.descoberta !== false).length;
+      const oculta = EXTRA.includes(c) && !ach;
+      const lab = oculta ? "??????" : c.toUpperCase();
+      return `<button class="dirbtn2${c === state.dirCat ? " active" : ""}${oculta ? " mist" : ""}" onclick="arqEscolherCat('${c}')">${lab}${all.length ? `<span class="dirn">${ach}/${all.length}</span>` : ""}</button>`;
+    })
+    .join("");
+  let lista = DADOS.salas
+    .filter((s) => s.diretorio === state.dirCat)
+    .sort(
+      (a, b) => (a.num || 999) - (b.num || 999) || (a.nome < b.nome ? -1 : 1),
+    );
+  if (q)
+    lista = DADOS.salas
+      .filter((s) => s.descoberta !== false && s.nome.toLowerCase().includes(q))
+      .sort((a, b) => (a.num || 999) - (b.num || 999));
+  const tiles =
+    lista
+      .map((s) => {
+        if (s.descoberta !== false) {
+          const nF = fichas.filter((f) => f.sala === s.nome).length;
+          const thumb = s.imagem
+            ? `<img loading="lazy" decoding="async" src="${esc(thumbSala(s.imagem, 200))}" onerror="if(this.dataset.f){this.style.display='none'}else{this.dataset.f=1;this.src='${jsq(s.imagem)}'}">`
+            : "";
+          return `<div class="rtile${_arqSel && _arqSel.kind === "sala" && _arqSel.nome === s.nome ? " on" : ""}" onclick="arqAbrir('sala','${jsq(s.nome)}')" title="${esc(s.nome)}">
+        <div class="rthumb">${thumb}</div>
+        <div class="rname">${esc(s.nome)}</div>
+        <div class="rmeta">${s.num ? "Nº " + String(s.num).padStart(3, "0") : "—"} · ${nF} ficha${nF === 1 ? "" : "s"}</div></div>`;
+        }
+        return `<div class="rtile locked" title="Clique para marcá-la como descoberta" onclick="confirmarDescobrir('${jsq(s.nome)}')"><div class="rlk"><div class="rlknum">${s.num ? String(s.num).padStart(3, "0") : "?"}</div><div class="rlktxt">não descoberta</div></div></div>`;
+      })
+      .join("") || '<div class="gvazio">(sem salas nesta faixa)</div>';
+  const all = lista.length,
+    ach = lista.filter((s) => s.descoberta !== false).length;
+  const head = q
+    ? `<span class="arqfx busca">BUSCA</span><span class="arqfx-s">${all} sala(s) descobertas com “${esc(q)}”</span>`
+    : `<span class="arqfx">${state.dirCat.toUpperCase()}</span><span class="arqfx-s">${ach} de ${all} descobertas · clique numa sala trancada para marcá-la como descoberta</span>`;
+  // Botão que reabre a lista de categorias (só aparece no compacto; na
+  // busca não faz sentido — os resultados vêm de todas as categorias)
+  const btnCat = q
+    ? ""
+    : `<button class="arqcatbtn" onclick="arqAbrirCats()" aria-label="Escolher outra categoria de salas"><span class="arqcatn">${esc(state.dirCat.toUpperCase())}</span><span class="arqcatx">trocar ▾</span></button>`;
+  return `<div class="dirmenu2"><div class="dirtitle2">MOUNT HOLLY<br><b>DIRECTORY</b></div>${menu}</div>
+    <div class="arqmain">${btnCat}<div class="arqfaixa">${head}</div><div class="arqgrid salas">${tiles}</div></div>`;
+}
+/* ===== CONTA — área própria (sai do modal Gerenciar) ===== */
+function renderConta() {
+  const box = document.getElementById("conta");
+  if (!box) return;
+  const email =
+    (window.USUARIO && (window.USUARIO.email || window.USUARIO.user_metadata?.email)) ||
+    "";
+  const ini = email ? email.slice(0, 2).toUpperCase() : "·";
+  const podeApagar = !!window.APAGAR_CONTA_ATIVO && !!window.apagarConta;
+  const online = !!window.MODO_ONLINE;
+  box.innerHTML = `
+  <div class="contawrap">
+    <div class="contacard">
+      <div class="conta-id">
+        <span class="avatar-lg">${esc(ini)}</span>
+        <div><div class="conta-tit">Conta</div><div class="conta-mail">${esc(email || "modo local (sem conta)")}</div></div>
+        ${online ? `<button class="dbtn" onclick="if(window.sairComConfirmacao)window.sairComConfirmacao()">Sair</button>` : ""}
+      </div>
+      <div class="conta-save">
+        <span class="save-dot2" id="contaSaveDot"></span>
+        <div class="conta-save-tx"><div id="contaSaveTit">Tudo salvo${online ? " na nuvem" : ""}</div><div class="conta-save-sub" id="contaSaveSub">salvamento automático ativo</div></div>
+        <button class="conta-link" onclick="salvarTudo()">Salvar agora</button>
+      </div>
+      <div class="conta-sec">
+        <div class="doslab">SEUS DADOS</div>
+        <div class="conta-row" onclick="exportarBackup()">
+          <div><div class="cr-t">Exportar backup</div><div class="cr-s">baixa uma cópia de tudo em um arquivo</div></div><span class="dosgo">›</span>
+        </div>
+        <div class="conta-row" onclick="importarDados()">
+          <div><div class="cr-t">Restaurar / importar</div><div class="cr-s">carrega dados de um arquivo de backup</div></div><span class="dosgo">›</span>
+        </div>
+      </div>
+      <div class="conta-sec">
+        <div class="doslab">PREFERÊNCIAS</div>
+        <div class="conta-row noclick">
+          <div><div class="cr-t">Idioma padrão dos cards</div><div class="cr-s">transcrições exibidas em PT ou EN</div></div>
+          <button class="langsw" onclick="toggleIdioma();renderConta()" aria-label="Trocar idioma padrão dos cards (PT/EN)"><span class="${state.idioma === "original" ? "" : "on"}">PT</span><span class="${state.idioma === "original" ? "on" : ""}">EN</span></button>
+        </div>
+      </div>
+      ${
+        podeApagar
+          ? `<div class="conta-danger">
+        <div><div class="cr-t">Apagar conta e dados</div><div class="cr-s">remove tudo para sempre — pede confirmação dupla</div></div>
+        <button class="dosbtn danger slim" onclick="window.apagarConta()">Apagar…</button>
+      </div>`
+          : ""
+      }
+    </div>
+  </div>`;
+}
 /* ===== Ferramentas extras ===== */
 let _focus = null,
   _leitor = { col: "", i: 0 };
@@ -4772,7 +6425,7 @@ function ligarFichaUI(id) {
     m.className = "modal";
     document.body.appendChild(m);
   }
-  m.innerHTML = `<div class="modalbox" style="max-width:520px"><div class="modalhd"><h2>🔗 Ligar a outra ficha</h2><button class="close" onclick="fecharLink()">✕</button></div><div class="savehelp"><input id="linkBusca" class="edinput" placeholder="Buscar ficha pelo título..." oninput="renderLink('${id}',this.value)"><div id="linkLista" class="linklista"></div></div></div>`;
+  m.innerHTML = `<div class="modalbox" style="max-width:520px"><div class="modalhd"><h2>Ligar a outra ficha</h2><button class="close" onclick="fecharLink()">✕</button></div><div class="savehelp"><input id="linkBusca" class="edinput" placeholder="Buscar ficha pelo título..." oninput="renderLink('${id}',this.value)"><div id="linkLista" class="linklista"></div></div></div>`;
   m.classList.add("open");
   renderLink(id, "");
   setTimeout(() => {
@@ -4838,8 +6491,8 @@ function toggleFavoritas() {
 }
 function toggleIdioma() {
   state.idioma = state.idioma === "traducao" ? "original" : "traducao";
-  const b = document.getElementById("btnIdioma");
-  if (b) b.textContent = state.idioma === "original" ? "🌐 EN" : "🌐 PT";
+  const b = document.getElementById("mmIdioma");
+  if (b) b.textContent = state.idioma === "original" ? "EN" : "PT";
   render();
 }
 /* -- Foco no mapa -- */
@@ -4847,6 +6500,13 @@ function focarEnt(kind, nome) {
   const pre =
     kind === "sala" ? "sala::" : kind === "colecao" ? "col::" : "pes::";
   focarMapa(pre + nome);
+}
+/* Fio da investigação no teclado: Enter/Espaço vale como clique */
+function fioTecla(e, id) {
+  if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+    e.preventDefault();
+    focarMapa(id);
+  }
 }
 function focarMapa(id) {
   _focus = id;
@@ -5030,14 +6690,34 @@ function renderTeorias() {
   const tabs = DADOS.quadros
     .map(
       (q, i) =>
-        `<button class="qtab${i === _qIdx ? " active" : ""}" ondblclick="renomearQuadro(${i})" onclick="trocarQuadro(${i})" title="Clique para abrir · 2 cliques para renomear">${esc(q.nome)}</button>`,
+        `<button class="qtab${i === _qIdx ? " active" : ""}"${i === _qIdx ? ' aria-current="true"' : ""} ondblclick="renomearQuadro(${i})" onclick="trocarQuadro(${i})" title="Clique para abrir · 2 cliques para renomear">${esc(q.nome)}</button>`,
     )
     .join("");
   box.innerHTML = `<div class="qbar">
+    <div class="qtitulo">Quadros</div>
     <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
-    <div class="qtools"><span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">🅣</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Seta — arraste de um cartão a outro (A)">↗</button></span><button class="topbtn" onclick="qAddItem()">➕ Item</button><button class="topbtn" onclick="qAddTexto()">📝 Texto</button><button class="topbtn" onclick="qAddNota()">🗒 Nota</button><button class="topbtn" onclick="excluirQuadro()" title="Excluir este quadro">🗑 Quadro</button><span class="dica" style="margin-left:auto">V/H/T/N/A ferramentas · Del apaga · Ctrl+D duplica · clique na seta seleciona · 2× na seta = rótulo · Shift+1 enquadra</span></div>
+    <button class="qsel" onclick="qEscolherQuadro()" aria-haspopup="dialog" aria-label="Escolher quadro">${esc(quadroAtual().nome)}<span class="qsel-c">▾</span></button>
+    <div class="qtools">
+      <span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn qt-t" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">T</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Barbante — arraste de um cartão a outro (A)">↗</button></span>
+      <button class="topbtn qfich" onclick="qAddItem()">＋ Ficha do arquivo</button>
+      <button class="topbtn ic" onclick="document.getElementById('qmore').classList.toggle('open')" title="Mais ações">···</button>
+      <div class="moremenu qmore" id="qmore">
+        <button class="mmit" onclick="qAddTexto();document.getElementById('qmore').classList.remove('open')">Texto</button>
+        <button class="mmit" onclick="qAddNota();document.getElementById('qmore').classList.remove('open')">Nota adesiva</button>
+        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');qLista()">Lista de itens…</button>
+        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');renomearQuadro(_qIdx)">Renomear quadro…</button>
+        <div class="mm-sep"></div>
+        <button class="mmit del" onclick="document.getElementById('qmore').classList.remove('open');excluirQuadro()">Excluir quadro…</button>
+      </div>
+    </div>
   </div>
-  <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div></div>`;
+  <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div>
+  ${
+    !(quadroAtual().nodes || []).length
+      ? `<div class="qvazio"><div class="qv-ic">🧵</div><div class="qv-tit">Quadro vazio</div><div class="qv-tx">${ehToque() ? "Toque em ＋ para adicionar uma ficha, nota ou texto e começar a teoria." : "Arraste fichas do arquivo ou crie uma nota para começar a teoria."}</div><div class="qv-btns"><button class="topbtn primary" onclick="qAddItem()">＋ Ficha do arquivo</button><button class="topbtn" onclick="qAddNota()">Nota</button></div></div>`
+      : ""
+  }
+  <div class="qhint">V selecionar · H mão · T texto · N nota · A barbante · Del apaga · Ctrl+D duplica</div></div>`;
   wireQuadro();
   desenhaQuadro();
   qSetTool(_qTool); // restaura a ferramenta ativa (a barra é recriada a cada render)
@@ -5046,6 +6726,27 @@ function trocarQuadro(i) {
   _qIdx = i;
   _qSelSet = new Set();
   renderTeorias();
+}
+/* Seletor de quadro do celular: a lista substitui as abas (P04) */
+function qEscolherQuadro() {
+  const itens = DADOS.quadros.map(function (q, i) {
+    const n = (q.nodes || []).length;
+    return {
+      rotulo: q.nome,
+      detalhe:
+        (i === _qIdx ? "aberto · " : "") + n + (n === 1 ? " item" : " itens"),
+      fn: function () {
+        trocarQuadro(i);
+      },
+    };
+  });
+  itens.push({
+    rotulo: "＋ Novo quadro",
+    fn: function () {
+      novoQuadro();
+    },
+  });
+  abrirSheetAcoes("Quadros", itens);
 }
 function novoQuadro() {
   DADOS.quadros.push({
@@ -5110,19 +6811,24 @@ function nodeHTML(n) {
       ? `;background:${QCORES_NOTA[(n.cor | 0) % QCORES_NOTA.length]}`
       : "";
     const btnCor = nota
-      ? `<span class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor">🎨</span>`
+      ? `<button class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor" aria-label="Mudar a cor da nota">🎨</button>`
       : "";
-    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><span class="qdel" onclick="qDelNode('${n.id}')">✕</span>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
     ? `<div class="qthumb"><img src="${esc(info.img)}" onerror="this.parentNode.style.display='none'"></div>`
     : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')">${thumb}<div class="qreftit"><span class="qicon">${info.icon}</span><span class="qname">${esc(info.nome)}</span></div><span class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')">✕</span><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+  // Ficha no quadro = papel com alfinete vermelho, código e título serif
+  const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
   if (!q) return;
+  // Some o cartão "Quadro vazio" assim que o primeiro item entra
+  const qv = document.querySelector(".qvazio");
+  if (qv && (q.nodes || []).length) qv.remove();
   aplicaCam();
   const nd = document.getElementById("qnodes");
   if (nd) nd.innerHTML = q.nodes.map(nodeHTML).join("");
@@ -5133,13 +6839,7 @@ function aplicaCam() {
   const w = document.getElementById("qworld");
   if (w && q)
     w.style.transform = `translate(${q.cam.x}px,${q.cam.y}px) scale(${q.cam.s})`;
-  const cv = document.getElementById("qcanvas");
-  if (cv && q) {
-    const gz = (26 * q.cam.s).toFixed(2) + "px";
-    const pos = q.cam.x.toFixed(1) + "px " + q.cam.y.toFixed(1) + "px";
-    cv.style.backgroundSize = gz + " " + gz + ", " + gz + " " + gz;
-    cv.style.backgroundPosition = pos + ", " + pos;
-  }
+  // O fundo do quadro é um degradê liso e parado — nada a mover aqui.
 }
 function nodeEl(id) {
   return document.querySelector(
@@ -5181,8 +6881,17 @@ function desenhaSetas() {
   const q = quadroAtual();
   const svg = document.getElementById("qsvg");
   if (!svg || !q) return;
-  let s =
-    '<defs><marker id="qar" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#9fc0ff"/></marker><marker id="qarSel" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#e3c074"/></marker></defs>';
+  // Barbante vermelho: curva com leve "barriga", sem ponta de seta
+  let s = "";
+  const _curva = (p1, p2) => {
+    const mx = (p1.x + p2.x) / 2,
+      my = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x,
+      dy = p2.y - p1.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const sag = Math.min(34, len * 0.14);
+    return `M ${p1.x} ${p1.y} Q ${mx - (dy / len) * sag} ${my + (dx / len) * sag + sag * 0.6}, ${p2.x} ${p2.y}`;
+  };
   q.setas.forEach(function (se, i) {
     // Geometria derivada (estilo tldraw): mira o centro, corta na borda.
     const pp = qSetaPontos(q, se);
@@ -5195,25 +6904,26 @@ function desenhaSetas() {
       else p2 = _qRebindCur;
     }
     const sel = _qSetaSel.has(i);
-    const cor = sel ? "#e3c074" : "#9fc0ff";
-    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${sel ? 3 : 2}" marker-end="url(#${sel ? "qarSel" : "qar"})"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
-    s += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></line>`;
+    const cor = sel ? "#e0be7a" : "#b8452e";
+    const dPath = _curva(p1, p2);
+    s += `<path d="${dPath}" fill="none" stroke="${cor}" stroke-width="${sel ? 3.2 : 2.5}"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
+    s += `<path d="${dPath}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></path>`;
     if (se.rotulo) {
       const mx = (p1.x + p2.x) / 2,
         my = (p1.y + p2.y) / 2;
-      s += `<text x="${mx}" y="${my - 6}" text-anchor="middle" font-size="12" fill="#eaf0fb" paint-order="stroke" stroke="#0a1428" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
+      s += `<text x="${mx}" y="${my - 8}" text-anchor="middle" font-size="12" fill="#f0d878" font-family="'Special Elite',monospace" paint-order="stroke" stroke="#3a281a" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
     }
     if (sel && _qSetaSel.size === 1 && !religando) {
       // Alças das pontas (só com UMA seta selecionada): arrastar reconecta.
-      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
-      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#0a1428" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
     }
   });
   if (_qArrow && _qArrowCur) {
     const a = q.nodes.find((n) => n.id === _qArrow.de);
     if (a) {
       const ca = nodeCenter(a);
-      s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#caa53a" stroke-width="2" stroke-dasharray="5 4"/>`;
+      s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#b8452e" stroke-width="2" stroke-dasharray="5 4"/>`;
     }
   }
   svg.innerHTML = s;
@@ -5742,6 +7452,415 @@ function wireQuadro() {
     },
     { passive: false },
   );
+  // ===== Toque (P04/§3.3): arrastar um CARTÃO move o cartão (ficha, nota
+  // ou texto); arrastar o fundo move o quadro; pinça dá zoom; tap abre o
+  // menu do item; SEGURAR o toque num cartão puxa o barbante até outro.
+  const toWxy = (x, y) => {
+    const r = cv.getBoundingClientRect();
+    return toW({ x: x - r.left, y: y - r.top });
+  };
+  let _gqPan = null,
+    _gqDrag = null;
+  ligarGestos(cv, {
+    mouseProprio: true,
+    ignorar: function (e) {
+      // Editor de texto EM USO (teclado aberto) segue o fluxo nativo;
+      // fora de edição, o dedo arrasta a nota/texto normalmente.
+      if (e.target.tagName === "TEXTAREA") return true;
+      const ed = e.target.closest && e.target.closest(".qtxt");
+      return !!(ed && document.activeElement === ed);
+    },
+    dragInicio: function (e, alvo, x0, y0) {
+      qMenuCancela(); // virou arraste: o menu pendente não abre
+      _gqDrag = null;
+      const q = quadroAtual();
+      const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+      if (noEl && x0 != null) {
+        // Dedo num cartão: arrasta o cartão (e o resto da seleção junto)
+        const id = noEl.getAttribute("data-id");
+        if (!_qSelSet.has(id)) {
+          _qSelSet = new Set([id]);
+          markSelDom();
+        }
+        _gqDrag = { ids: [..._qSelSet], orig: {} };
+        _gqDrag.ids.forEach(function (i) {
+          const nn = q.nodes.find((x) => x.id === i);
+          if (nn) _gqDrag.orig[i] = { x: nn.x, y: nn.y };
+        });
+        return;
+      }
+      // Dedo no vazio: move o quadro
+      _gqPan = { x: q.cam.x, y: q.cam.y };
+    },
+    drag: function (e, dx, dy) {
+      const q = quadroAtual();
+      if (_gqDrag) {
+        const s = q.cam.s || 1;
+        _gqDrag.ids.forEach(function (id) {
+          const n = q.nodes.find((x) => x.id === id),
+            o = _gqDrag.orig[id];
+          if (n && o) {
+            n.x = Math.round(o.x + dx / s);
+            n.y = Math.round(o.y + dy / s);
+            const el = nodeEl(id);
+            if (el) {
+              el.style.left = n.x + "px";
+              el.style.top = n.y + "px";
+            }
+          }
+        });
+        desenhaSetas();
+        return;
+      }
+      if (!_gqPan) return;
+      q.cam.x = _gqPan.x + dx;
+      q.cam.y = _gqPan.y + dy;
+      aplicaCam();
+    },
+    dragFim: function () {
+      if (_gqDrag) marcarAlterado();
+      if (_gqPan) qAgendaSalvarCam();
+      _gqDrag = null;
+      _gqPan = null;
+    },
+    dragCancela: function () {
+      _gqDrag = null;
+      _gqPan = null;
+    },
+    cancelar: function () {
+      _gqDrag = null;
+      _gqPan = null;
+      if (_qArrow) {
+        _qArrow = null;
+        _qArrowCur = null;
+        desenhaSetas();
+      }
+    },
+    // Segurar o toque num cartão: puxa o barbante até outro cartão
+    longPress: function (alvo, pt) {
+      const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+      if (!noEl) return false;
+      qMenuCancela(); // segurou: puxa barbante, não abre menu
+      _qArrow = { de: noEl.getAttribute("data-id") };
+      _qArrowCur = toWxy(pt.x, pt.y);
+      desenhaSetas();
+      try {
+        if (navigator.vibrate) navigator.vibrate(30);
+      } catch (err) {}
+      toast("Puxe a linha até outro cartão.");
+      return true;
+    },
+    longDrag: function (e) {
+      _qArrowCur = toWxy(e.clientX, e.clientY);
+      desenhaSetas();
+    },
+    longFim: function (e) {
+      const de = _qArrow && _qArrow.de;
+      _qArrow = null;
+      _qArrowCur = null;
+      // Com pointer capture o e.target é o canvas; quem diz onde o dedo
+      // soltou é o elementFromPoint (fallback: e.target, p/ testes).
+      let t = null;
+      try {
+        t = document.elementFromPoint(e.clientX, e.clientY);
+      } catch (err) {}
+      if (!t) t = e.target;
+      const noEl = t && t.closest ? t.closest(".qnode") : null;
+      const para = noEl && noEl.getAttribute("data-id");
+      if (de && para && para !== de) {
+        const q = quadroAtual();
+        if (!q.setas.some((s) => s.de === de && s.para === para)) {
+          q.setas.push({ de: de, para: para });
+          marcarAlterado();
+        }
+        toast("Barbante criado.");
+      } else toast("Ligação cancelada.");
+      desenhaSetas();
+    },
+    pinch: function (p) {
+      const q = quadroAtual();
+      const r = cv.getBoundingClientRect();
+      const cx = p.cx - r.left,
+        cy = p.cy - r.top;
+      const wx = (cx - q.cam.x) / q.cam.s,
+        wy = (cy - q.cam.y) / q.cam.s;
+      const ns = Math.max(
+        QUADRO_ZOOM_MIN,
+        Math.min(QUADRO_ZOOM_MAX, q.cam.s * p.fator),
+      );
+      q.cam.x = cx - wx * ns + p.dx;
+      q.cam.y = cy - wy * ns + p.dy;
+      q.cam.s = ns;
+      aplicaCam();
+      qAgendaSalvarCam();
+    },
+    tap: function (e, alvo) {
+      qTapToque(e, alvo, rel, toW);
+    },
+    doubleTap: function (e, alvo) {
+      qDuploToque(alvo);
+    },
+  });
+}
+/* ===== Toque nos Quadros: tap com modos guiados ===== */
+let _qConectarDe = null, // conexão guiada: origem escolhida, falta o destino
+  _qMoverId = null, // mover guiado: próximo toque diz o novo lugar
+  _qReligar = null, // religar guiado: {i, end}
+  _qMenuTimer = null; // menu pendente (esperando um possível 2º toque)
+/* O menu espera 340ms — mais que a janela de toque duplo (320ms) — para
+   que "tocar 2x rápido" abra o editor em vez do menu. */
+function qMenuAgenda(id) {
+  clearTimeout(_qMenuTimer);
+  _qMenuTimer = setTimeout(function () {
+    _qMenuTimer = null;
+    qNoMenu(id);
+  }, 340);
+}
+function qMenuCancela() {
+  clearTimeout(_qMenuTimer);
+  _qMenuTimer = null;
+}
+/* Dois toques no cartão JÁ SELECIONADO: nota/texto abre para escrever;
+   ficha abre a ficha. Nunca abre o menu. */
+function qDuploToque(alvo) {
+  qMenuCancela();
+  const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+  if (!noEl) return;
+  const id = noEl.getAttribute("data-id");
+  if (!_qSelSet.has(id)) {
+    _qSelSet = new Set([id]);
+    markSelDom();
+    return;
+  }
+  const q = quadroAtual();
+  const n = q && q.nodes.find((x) => x.id === id);
+  if (!n) return;
+  if (n.tipo === "texto") qFocarEditor(noEl.querySelector(".qtxt"));
+  else qOpenRef(id);
+}
+/* Foca o editor de texto com o cursor no FIM (o toque não posiciona o
+   cursor sozinho: o gesto chama preventDefault). */
+function qFocarEditor(el) {
+  if (!el) return;
+  try {
+    el.focus();
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  } catch (e) {}
+}
+function qTapToque(e, alvo, rel, toW) {
+  const q = quadroAtual();
+  const p = toW(rel(e));
+  // Toque fora do editor de texto em uso: solta o foco (fecha o teclado)
+  const edAtivo =
+    document.activeElement &&
+    document.activeElement.closest &&
+    document.activeElement.closest(".qtxt");
+  if (edAtivo && !(alvo && edAtivo.contains(alvo))) edAtivo.blur();
+  const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
+  const setaEl = alvo && alvo.closest ? alvo.closest("[data-seta]") : null;
+  // 1) Modos guiados pendentes
+  if (_qConectarDe) {
+    const de = _qConectarDe;
+    _qConectarDe = null;
+    if (noEl && noEl.getAttribute("data-id") !== de) {
+      const para = noEl.getAttribute("data-id");
+      if (!q.setas.some((s) => s.de === de && s.para === para)) {
+        q.setas.push({ de: de, para: para });
+        marcarAlterado();
+        desenhaSetas();
+      }
+      toast("Barbante criado.");
+    } else toast("Ligação cancelada.");
+    return;
+  }
+  if (_qReligar) {
+    const rl = _qReligar;
+    _qReligar = null;
+    if (noEl) qReligarSeta(rl.i, rl.end, noEl.getAttribute("data-id"));
+    else toast("Religação cancelada.");
+    return;
+  }
+  if (_qMoverId) {
+    const n = q.nodes.find((x) => x.id === _qMoverId);
+    _qMoverId = null;
+    if (n) {
+      n.x = Math.round(p.x - 70);
+      n.y = Math.round(p.y - 20);
+      marcarAlterado();
+      desenhaQuadro();
+      toast("Item movido.");
+    }
+    return;
+  }
+  // 2) Ferramentas de criação escolhidas na barra
+  if ((_qTool === "texto" || _qTool === "nota") && !noEl) {
+    qNovoTextoEm(p.x, p.y, _qTool === "nota" ? "nota" : undefined);
+    qSetTool("select");
+    return;
+  }
+  // 3) Tap num cartão (§toque): 1º toque SELECIONA; tocar de novo no que já
+  // está selecionado abre o menu — com uma pausa, porque dois toques
+  // rápidos no selecionado significam "editar" (ver qDuploToque).
+  if (noEl) {
+    const id = noEl.getAttribute("data-id");
+    if (!(_qSelSet.size === 1 && _qSelSet.has(id))) {
+      _qSelSet = new Set([id]);
+      markSelDom();
+      return;
+    }
+    qMenuAgenda(id);
+    return;
+  }
+  // 4) Tap numa seta: mesma regra — 1º toque seleciona, o 2º abre o menu
+  if (setaEl) {
+    const i = +setaEl.getAttribute("data-seta");
+    const jaSel = _qSetaSel.size === 1 && _qSetaSel.has(i);
+    qSelSeta(i);
+    if (jaSel) qSetaMenu(i);
+    return;
+  }
+  // 5) Tap no vazio: limpa seleção
+  qMenuCancela();
+  _qSelSet = new Set();
+  if (_qSetaSel.size) {
+    _qSetaSel = new Set();
+    desenhaSetas();
+  }
+  markSelDom();
+}
+/* Menu contextual do cartão (§3.3): nada depende de hover/duplo clique. */
+function qNoMenu(id) {
+  const q = quadroAtual();
+  const n = q.nodes.find((x) => x.id === id);
+  if (!n) return;
+  const ehTexto = n.tipo === "texto";
+  const ehNota = ehTexto && n.estilo === "nota";
+  const titulo = ehTexto
+    ? ehNota
+      ? "Nota adesiva"
+      : "Caixa de texto"
+    : qRefInfo(n).nome;
+  abrirSheetAcoes(titulo, [
+    !ehTexto
+      ? {
+          rotulo: "Abrir",
+          fn: function () {
+            qOpenRef(id);
+          },
+        }
+      : {
+          rotulo: "Editar texto",
+          fn: function () {
+            qFocarEditor(
+              document.querySelector('.qnode[data-id="' + id + '"] .qtxt'),
+            );
+          },
+        },
+    {
+      rotulo: "Conectar (barbante)",
+      fn: function () {
+        _qConectarDe = id;
+        toast("Toque no cartão de DESTINO para ligar o barbante.");
+      },
+    },
+    {
+      rotulo: "Mover para…",
+      fn: function () {
+        _qMoverId = id;
+        toast("Toque no lugar do quadro para onde mover.");
+      },
+    },
+    ehNota
+      ? {
+          rotulo: "Mudar a cor",
+          fn: function () {
+            qCorNota(id);
+          },
+        }
+      : null,
+    {
+      rotulo: "Duplicar",
+      fn: function () {
+        _qSelSet = new Set([id]);
+        qDuplicarSelecao();
+      },
+    },
+    {
+      rotulo: "Excluir do quadro",
+      perigo: true,
+      fn: function () {
+        qDelNode(id);
+      },
+    },
+  ]);
+}
+/* Alternativa acessível em LISTA para o quadro (Etapa 6): todo item pode
+   ser alcançado e operado sem gesto espacial. */
+function qLista() {
+  const q = quadroAtual();
+  if (!(q.nodes || []).length) {
+    toast("O quadro está vazio.");
+    return;
+  }
+  abrirSheetAcoes(
+    "Itens do quadro",
+    q.nodes.slice(0, 60).map(function (n) {
+      const ehTexto = n.tipo === "texto";
+      const nome = ehTexto
+        ? (n.texto || "(sem texto)").replace(/<[^>]*>/g, "").slice(0, 40) ||
+          "(sem texto)"
+        : qRefInfo(n).nome;
+      return {
+        rotulo: nome,
+        detalhe: ehTexto ? (n.estilo === "nota" ? "nota" : "texto") : "ficha",
+        fn: function () {
+          _qSelSet = new Set([n.id]);
+          markSelDom();
+          qNoMenu(n.id);
+        },
+      };
+    }),
+  );
+}
+/* Menu do barbante: rótulo, religar pontas e excluir — sem arraste. */
+function qSetaMenu(i) {
+  const q = quadroAtual();
+  const se = q.setas[i];
+  if (!se) return;
+  abrirSheetAcoes("Barbante", [
+    {
+      rotulo: se.rotulo ? "Editar rótulo" : "Adicionar rótulo",
+      fn: function () {
+        qRotuloSeta(i);
+      },
+    },
+    {
+      rotulo: "Religar origem",
+      fn: function () {
+        _qReligar = { i: i, end: "de" };
+        toast("Toque no cartão que passa a ser a ORIGEM.");
+      },
+    },
+    {
+      rotulo: "Religar destino",
+      fn: function () {
+        _qReligar = { i: i, end: "para" };
+        toast("Toque no cartão que passa a ser o DESTINO.");
+      },
+    },
+    {
+      rotulo: "Excluir barbante",
+      perigo: true,
+      fn: function () {
+        qDelSeta(i);
+      },
+    },
+  ]);
 }
 function qCentro() {
   const q = quadroAtual();
@@ -6067,6 +8186,8 @@ function render() {
   else if (state.view === "mundo") renderMundo();
   else if (state.view === "diretorio") renderDiretorio();
   else if (state.view === "teorias") renderTeorias();
+  else if (state.view === "arquivo") renderArquivo();
+  else if (state.view === "conta") renderConta();
 }
 render();
 // No modo online quem comanda o início (login -> carregar da nuvem) é a camada online (online.js).

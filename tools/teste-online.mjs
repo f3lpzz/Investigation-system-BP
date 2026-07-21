@@ -93,6 +93,29 @@ const mockSb = {
   from(table) {
     return makeBuilder(table);
   },
+  // Storage: o app resolve "nuvem:caminho" em URL assinada ao desenhar
+  // imagens (mapa, dossiês). Sem isto, abrir o mapa quebrava no teste.
+  storage: {
+    from() {
+      return {
+        async createSignedUrl(caminho) {
+          return {
+            data: { signedUrl: "https://sb.co/assinada/" + caminho },
+            error: null,
+          };
+        },
+        async upload() {
+          return { data: {}, error: null };
+        },
+        async remove() {
+          return { data: {}, error: null };
+        },
+        getPublicUrl(caminho) {
+          return { data: { publicUrl: "https://sb.co/publica/" + caminho } };
+        },
+      };
+    },
+  },
 };
 
 /* ---------------- Ambiente "sem tela" ---------------- */
@@ -295,6 +318,43 @@ const entrou = () =>
   ok("ferramentas: qSetTool troca o modo ativo", g('_qTool === "nota"'));
   g('qSetTool("select")');
 
+  /* Teste 8.4 — Câmera do quadro: o mundo é que se move (o fundo é liso
+     e parado; nada de textura acompanhando a câmera) */
+  g(
+    '(function(){var q=quadroAtual();q.cam.x=-420;q.cam.y=-260;q.cam.s=2;aplicaCam();})()',
+  );
+  ok(
+    "câmera do quadro: o mundo recebe o transform do arraste e do zoom",
+    g(
+      '(function(){var t=document.getElementById("qworld").style.transform;return t.indexOf("translate(-420px,-260px)")>=0 && t.indexOf("scale(2)")>0;})()',
+    ),
+  );
+  ok(
+    "fundo do quadro: continua liso (sem imagem/textura no canvas)",
+    g(
+      '(function(){var cv=document.getElementById("qcanvas");return !cv.style.backgroundImage && !cv.style.backgroundSize;})()',
+    ),
+  );
+  g(
+    '(function(){var q=quadroAtual();q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();})()',
+  );
+
+  /* Teste 8.5 — Seletor de quadro do celular (lista no lugar das abas) */
+  ok(
+    "quadros: a barra tem o nome da área e o seletor com o quadro atual",
+    g(
+      '(function(){var t=document.querySelector(".qtitulo"),s=document.querySelector(".qsel");return !!t && t.textContent==="Quadros" && !!s && s.textContent.indexOf(quadroAtual().nome)===0;})()',
+    ),
+  );
+  g("qEscolherQuadro()");
+  ok(
+    "quadros: o seletor abre a lista com todos + '＋ Novo quadro'",
+    g(
+      '(function(){var b=document.querySelectorAll(".acsheet .acit[data-i]");return b.length===DADOS.quadros.length+1 && b[0].textContent.indexOf(DADOS.quadros[0].nome)===0 && b[b.length-1].textContent.indexOf("Novo quadro")>=0;})()',
+    ),
+  );
+  g('(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()');
+
   /* Teste 9 — Setas estilo tldraw (Etapa D) */
   ok(
     "seta: geometria corta na BORDA do cartão (não no centro)",
@@ -347,6 +407,77 @@ const entrou = () =>
     "seta: Delete apaga a(s) selecionada(s) e zera a seleção",
     g("quadroAtual().setas.length === 0 && _qSetaSel.size === 0"),
   );
+
+  /* Teste 9.5 — Toque nos Quadros: arrastar move o cartão; segurar puxa o
+     barbante (eventos de ponteiro simulados; MouseEvent serve de PointerEvent) */
+  g(
+    '(function(){desenhaQuadro();var q=quadroAtual();window._gA=q.nodes.find(function(n){return n.id===window._nA});window._gB=q.nodes.find(function(n){return n.id===window._nB});window._gA.x=0;window._gA.y=0;desenhaQuadro();})()',
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"] .qtxt\');pe("pointerdown",el,100,100);pe("pointermove",el,140,130);pe("pointerup",el,140,130);})()',
+  );
+  ok(
+    "toque: arrastar o corpo da nota/texto MOVE o cartão (não o quadro)",
+    g("window._gA.x === 40 && window._gA.y === 30"),
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"]\');pe("pointerdown",el,100,100);})()',
+  );
+  await new Promise((r) => setTimeout(r, 550)); // segurar 450ms sem mover
+  ok(
+    "toque: segurar num cartão entra no modo de puxar o barbante",
+    g("_qArrow !== null && _qArrow.de === window._nA"),
+  );
+  g(
+    '(function(){function pe(t,el,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}var elB=document.querySelector(\'.qnode[data-id="\'+window._nB+\'"]\');pe("pointermove",elB,300,50);pe("pointerup",elB,300,50);})()',
+  );
+  ok(
+    "toque: soltar sobre outro cartão cria o barbante (e sai do modo)",
+    g(
+      "_qArrow === null && quadroAtual().setas.some(function(s){return s.de===window._nA && s.para===window._nB})",
+    ),
+  );
+  g("quadroAtual().setas.length = 0");
+
+  /* Teste 9.6 — Toque nos cartões: 1º toque seleciona, o 2º abre o menu,
+     dois toques rápidos editam (e o clique fantasma não fecha a folha) */
+  g(
+    '(function(){window._tap=function(id){var el=document.querySelector(\'.qnode[data-id="\'+id+\'"]\');function pe(t,x,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:x,clientY:y}))}pe("pointerdown",10,10);pe("pointerup",10,10);};_qSelSet=new Set();qMenuCancela();})()',
+  );
+  g("window._tap(window._nA)");
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 1º toque só SELECIONA (não abre menu)",
+    g(
+      '(function(){return _qSelSet.has(window._nA) && !document.querySelector(".acsheet");})()',
+    ),
+  );
+  g("window._tap(window._nA)");
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 2º toque no já selecionado ABRE o menu",
+    g('!!document.querySelector(".acsheet")'),
+  );
+  ok(
+    "menu: clique fantasma logo após abrir NÃO fecha a folha (bug do toque)",
+    g(
+      '(function(){var s=document.querySelector(".acsheet");s.querySelector(".acsheet-veu").dispatchEvent(new MouseEvent("click",{bubbles:true}));return !!document.querySelector(".acsheet");})()',
+    ),
+  );
+  g(
+    '(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()',
+  );
+  g(
+    '(function(){var el=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"]\');function pe(t){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:10,clientY:10}))}pe("pointerdown");pe("pointerup");pe("pointerdown");pe("pointerup");})()',
+  );
+  await new Promise((r) => setTimeout(r, 400));
+  ok(
+    "toque no cartão: 2 toques rápidos no selecionado EDITAM (sem abrir menu)",
+    g(
+      '(function(){var ed=document.querySelector(\'.qnode[data-id="\'+window._nA+\'"] .qtxt\');return document.activeElement===ed && !document.querySelector(".acsheet");})()',
+    ),
+  );
+  g("document.activeElement.blur(); _qSelSet=new Set();");
 
   /* Teste 10 — IA: aplicador + anti-duplicata (sem chamada real; tudo local) */
   g(
@@ -489,8 +620,8 @@ const entrou = () =>
 
   /* Teste 15 — Miniatura das imagens de sala (transformação do Supabase) */
   ok(
-    "thumb: vira render/image com resize=contain + width/height (proporcional, sem distorcer)",
-    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,240);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=240")>0 && t.indexOf("height=240")>0 && t.indexOf("resize=contain")>0 && t.indexOf("object/public")<0;})()'),
+    "thumb: vira render/image quadrada com resize=cover (recorte proporcional, sem distorcer)",
+    g('(function(){var u="https://x.supabase.co/storage/v1/object/public/salas/Rooms%20001-012/The%20Foundation.png";var t=thumbSala(u,240);return t.indexOf("/storage/v1/render/image/public/")>0 && t.indexOf("width=240")>0 && t.indexOf("height=240")>0 && t.indexOf("resize=cover")>0 && t.indexOf("object/public")<0;})()'),
   );
   ok(
     "thumb: URL que não é do Storage público fica intacta (data:/web)",
@@ -508,8 +639,8 @@ const entrou = () =>
     g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Coleção")<0 && h.indexOf("tipo")<0;})()'),
   );
   ok(
-    "legenda: tem Grupo e Pista (cor = grupo)",
-    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Grupo")>=0 && h.indexOf("Pista (cor = grupo)")>=0 && h.indexOf("Conexão manual")>=0 && h.indexOf("Ligação automática")>=0;})()'),
+    "legenda: tem Ficha (cor do grupo) e fio manual",
+    g('(function(){var h=document.getElementById("legend").innerHTML;return h.indexOf("Ficha (cor do grupo)")>=0 && h.indexOf("Fio manual")>=0 && h.indexOf("Ligação automática")>=0;})()'),
   );
   ok(
     "como usar: menu existe acima da legenda (mesmo canto) e aberto por padrão",
@@ -633,6 +764,117 @@ const entrou = () =>
     "filtros movidos continuam funcionando (toggle pendentes marca .on)",
     g('(function(){togglePendentes();var on=document.getElementById("btnPend").classList.contains("on");togglePendentes();return on;})()'),
   );
+
+  /* Teste 18.3 — Fios da investigação levam ao mapa com a ficha em foco.
+     (Este jsdom não executa onclick inline — os scripts são injetados à
+     mão —, então aqui se confere a FIAÇÃO do HTML e o EFEITO da função.) */
+  g(`
+    DADOS.fichas.push(
+      {id:"fFIO1",titulo:"Fio A",sala:"",grupos:[],personagens:["Simon"],conexoes:["fFIO2"],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]},
+      {id:"fFIO2",titulo:"Fio B",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:false,fav:false,status:"",paginas:[{imagem:"",original:"",traducao:"",explica:"",rotulo:""}]}
+    );
+    setView("grade"); render(); abrir("fFIO1");
+  `);
+  ok(
+    "fios: as duas linhas (manual e automática) levam ao mapa desta ficha",
+    g(
+      '(function(){var f=document.querySelectorAll(".fio.aomapa");return f.length===2 && [].every.call(f,function(x){return x.getAttribute("onclick")==="focarMapa(\'fFIO1\')" && x.getAttribute("role")==="button" && x.getAttribute("tabindex")==="0";});})()',
+    ),
+  );
+  ok(
+    "fios: no fio manual, o título abre a OUTRA ficha sem disparar o mapa",
+    g(
+      '(function(){var t=document.querySelector(".fio-l.manual").closest(".fio").querySelector(".fio-t").getAttribute("onclick");return t.indexOf("stopPropagation")>=0 && t.indexOf("abrir(\'fFIO2\')")>0;})()',
+    ),
+  );
+  ok(
+    "fios: o ✕ de remover também não dispara o mapa",
+    g(
+      '(function(){var x=document.querySelector(".fio-l.manual").closest(".fio").querySelector(".fio-x").getAttribute("onclick");return x.indexOf("stopPropagation")>=0 && x.indexOf("desligarFicha")>0;})()',
+    ),
+  );
+  g('focarMapa("fFIO1")');
+  ok(
+    "fios: focarMapa abre o MAPA com a ficha em foco (fecha a ficha)",
+    g('state.view === "mapa" && _focus === "fFIO1" && !document.getElementById("drawer").classList.contains("open")'),
+  );
+  g('setView("grade"); render(); _focus=null;');
+  g(
+    'fioTecla({key:"Enter",preventDefault:function(){}}, "fFIO1")',
+  );
+  ok(
+    "fios: Enter no fio faz o mesmo que o clique (teclado)",
+    g('state.view === "mapa" && _focus === "fFIO1"'),
+  );
+  g(
+    'setView("grade"); DADOS.fichas = DADOS.fichas.filter(function(f){return f.id!=="fFIO1" && f.id!=="fFIO2"}); fechar(); render();',
+  );
+
+  /* Teste 18.4 — Arquivo › Salas: a lista de categorias é a primeira tela
+     e o botão "trocar" traz ela de volta (classe .catlist manda no CSS) */
+  g('setArqTab("salas"); setView("arquivo"); renderArquivo();');
+  ok(
+    "arquivo/salas: abre na LISTA de categorias (.catlist) com o diretório",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return b.classList.contains("catlist") && !!document.querySelector(".dirtitle2") && document.querySelectorAll(".dirbtn2").length>=11;})()',
+    ),
+  );
+  g('arqEscolherCat("Bedrooms")');
+  ok(
+    "arquivo/salas: escolher a categoria abre a grade (sai do .catlist)",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return !b.classList.contains("catlist") && state.dirCat==="Bedrooms" && !!document.querySelector(".arqcatbtn") && !!document.querySelector(".arqgrid.salas");})()',
+    ),
+  );
+  ok(
+    "arquivo/salas: o botão mostra a categoria atual",
+    g(
+      'document.querySelector(".arqcatbtn .arqcatn").textContent === "BEDROOMS"',
+    ),
+  );
+  g("arqAbrirCats()");
+  ok(
+    "arquivo/salas: o botão traz a lista de categorias de volta",
+    g('document.querySelector(".arqbody").classList.contains("catlist")'),
+  );
+  g('arqEscolherCat("Rooms 001-012"); arqBuscaInput("hall");');
+  ok(
+    "arquivo/salas: buscando mostra os resultados (sem lista e sem botão)",
+    g(
+      '(function(){var b=document.querySelector(".arqbody");return !b.classList.contains("catlist") && !document.querySelector(".arqcatbtn") && !!document.querySelector(".arqfx.busca");})()',
+    ),
+  );
+  g('arqBuscaFechar(); setArqTab("salas");');
+
+  /* Teste 18.5 — Folha de filtros no compacto: fundo escurecido fecha ao
+     toque e arrastar a alça para baixo fecha (ehCompacto forçado) */
+  g("window._ehcOrig = ehCompacto; ehCompacto = function(){ return true; };");
+  g("toggleFiltros()");
+  await new Promise((r) => setTimeout(r, 50)); // rAF do fundo
+  ok(
+    "folha de filtros: abre com fundo escurecido (sheet-fundo .on)",
+    g(
+      '(function(){var pn=document.getElementById("filtrosPanel");var bd=document.getElementById("sheetFundo");return pn.classList.contains("open") && !!bd && bd.classList.contains("on");})()',
+    ),
+  );
+  g('document.getElementById("sheetFundo").onclick()');
+  await new Promise((r) => setTimeout(r, 300)); // animação de descida (230ms)
+  ok(
+    "folha de filtros: tocar no fundo fecha (descendo, e o fundo apaga)",
+    g(
+      '(function(){var pn=document.getElementById("filtrosPanel");var bd=document.getElementById("sheetFundo");return !pn.classList.contains("open") && !bd.classList.contains("on") && pn.style.transform==="";})()',
+    ),
+  );
+  g("toggleFiltros()");
+  g(
+    '(function(){function pe(t,el,y){el.dispatchEvent(new MouseEvent(t,{bubbles:true,clientY:y}))}var al=document.querySelector("#filtrosPanel .sheet-grip");pe("pointerdown",al,100);pe("pointermove",al,320);pe("pointerup",al,320);})()',
+  );
+  await new Promise((r) => setTimeout(r, 300));
+  ok(
+    "folha de filtros: arrastar a alça para baixo fecha a folha",
+    g('!document.getElementById("filtrosPanel").classList.contains("open")'),
+  );
+  g("ehCompacto = window._ehcOrig;");
 
   /* Teste 19 — IA: dossiês de personagens (elegibilidade + fila + escrita segura) */
   g(`

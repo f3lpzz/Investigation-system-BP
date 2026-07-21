@@ -1,45 +1,142 @@
 :root {
-  --canvas: #0a1428;
-  --s1: #0e1a33;
-  --s2: #13213f;
-  --s3: #182a4d;
-  --field: #0c1730;
-  --line: #21345c;
-  --line-em: #2c4a82;
-  --ink: #eaf0fb;
-  --ink-soft: #9fb0d0;
-  --hint: #6b7ea1;
-  --gold: #d8b15a;
-  --gold-2: #e3c074;
-  --info: #5ea0ff;
-  --ok: #4fbf8b;
-  --warn: #e0a13a;
-  --danger: #e2645f;
-  --sala: #5ec8ff;
-  --pessoa: #ff7e9a;
-  --manual: #a98bff;
+  /* ===== Tokens noir do redesign Magnify (handoff Claude Design, §4) ===== */
+  --canvas: #0f0c08; /* fundo base */
+  --s1: #171209; /* superfície */
+  --s2: #1d1710; /* painel */
+  --s3: #241c12; /* item interno */
+  --field: #100c07; /* campos escuros */
+  --line: #372c1f; /* borda */
+  --line-em: #4a3a22; /* borda enfatizada */
+  --ink: #ede4d3; /* texto claro */
+  --ink-soft: #b3a68e; /* texto 2º */
+  --hint: #948669; /* texto suave */
+  --gold: #c9a35c; /* ouro (ação) */
+  --gold-2: #e0be7a;
+  --gold-ink: #14100b; /* texto sobre ouro */
+  --ativo: #2b2114; /* fundo do item/aba ativa */
+  --info: #c9a35c;
+  --ok: #7a9c6e; /* sucesso/salvo */
+  --warn: #b07a2e;
+  --danger: #d98a7e; /* perigo/excluir */
+  --danger-line: #5a2a20;
+  --sala: #6fa8c0; /* nó sala */
+  --pessoa: #cf7f70; /* nó personagem */
+  --manual: #b8452e; /* barbante / fio manual */
+  --auto: #6f6046; /* ligação automática */
+  --grupo: #8d3030; /* grupo/ficha padrão */
+  /* papel (cards kraft) */
+  --papel: #ece1c9;
+  --papel-2: #f6efdd;
+  --papel-line: #c4b590;
+  --papel-ink: #2b2317;
+  --papel-ink2: #5c5142;
+  --papel-hint: #6b5f45;
+  --papel-hachura: repeating-linear-gradient(
+    45deg,
+    #e0d4b4,
+    #e0d4b4 8px,
+    #d8caa6 8px,
+    #d8caa6 16px
+  );
+  --postit: #f0d878;
+  --postit-ink: #3a3212;
+  --verde-carimbo: #4a6b3f;
   /* compat: nomes antigos remapeados pros novos tokens */
-  --bg: #0a1428;
-  --bg2: #0e1a33;
-  --grid: rgba(120, 170, 255, 0.05);
-  --panel: #0e1a33;
-  --card: #13213f;
-  --card-edge: #21345c;
-  --t-sala: #5ec8ff;
-  --t-pista: #d8b15a;
-  --t-carta: #a98bff;
-  --t-pessoa: #ff7e9a;
-  --t-mecanica: #4fbf8b;
+  --bg: #0f0c08;
+  --bg2: #171209;
+  --grid: transparent;
+  --panel: #1d1710;
+  --card: #1d1710;
+  --card-edge: #372c1f;
+  --t-sala: #6fa8c0;
+  --t-pista: #c9a35c;
+  --t-carta: #b07a2e;
+  --t-pessoa: #cf7f70;
+  --t-mecanica: #7a9c6e;
   --r-sm: 7px;
   --r: 8px;
   --r-md: 10px;
-  --r-lg: 14px;
+  --r-lg: 12px;
   --r-xl: 16px;
-  --sh-pop: 0 12px 36px rgba(3, 8, 22, 0.5);
-  --sh-drawer: 0 24px 70px rgba(3, 8, 22, 0.6);
+  --sh-pop: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --sh-drawer: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --sh-paper: 0 3px 10px rgba(0, 0, 0, 0.5);
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-type: "Special Elite", "IBM Plex Mono", monospace;
+  /* ===== Tokens mobile (plano mobile §5.2) =====
+     Modo compacto = @media (max-width: 720px), (max-height: 500px)
+     — a MESMA definição vive no JS (MQ_COMPACTO em app.js). */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --tabbar-h: 58px;
+  --tabbar-total: calc(var(--tabbar-h) + var(--sab));
+  --fab-offset: calc(var(--tabbar-total) + 14px);
+  --toast-offset: calc(var(--tabbar-total) + 12px);
+  --alvo: 44px; /* alvo de toque padrão */
+  --alvo-lg: 48px; /* alvo de toque crítico (mapa, fechar, salvar) */
+  --foco-cor: #e0be7a; /* foco visível (≥3:1 sobre superfícies escuras) */
+}
+/* Foco visível consistente (teclado) — não some sobre fundos escuros */
+:focus-visible {
+  outline: 2px solid var(--foco-cor);
+  outline-offset: 2px;
+}
+/* Conteúdo só para leitores de tela (região de status etc.) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* Spans clicáveis viraram <button> (Etapa 6): reset de peso zero (:where)
+   para herdarem o visual das classes existentes. */
+:where(
+    button.et,
+    button.dstar,
+    button.fio-x,
+    button.pcard-m,
+    button.dosx,
+    button.qdel,
+    button.qcor,
+    button.mtog,
+    button.t-abrir,
+    button.t-x,
+    button.langsw
+  ) {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+/* Sem hover (toque): controles revelados no hover ficam sempre visíveis */
+@media (hover: none) {
+  .cstar {
+    opacity: 1;
+  }
+}
+/* Movimento reduzido: corta transições/animações espaciais */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 * {
   box-sizing: border-box;
@@ -54,13 +151,13 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   background:
-    linear-gradient(var(--grid) 1px, transparent 1px) 0 0/30px 30px,
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/30px 30px,
-    radial-gradient(1100px 520px at 78% -8%, #16336a33, transparent),
+    radial-gradient(900px 400px at 70% -10%, #241b10, transparent),
     var(--canvas);
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Shell estável: svh ignora as barras móveis do navegador (não "pula") */
+  height: 100svh;
   overflow: hidden;
 }
 h1,
@@ -133,7 +230,7 @@ select {
   cursor: pointer;
 }
 select option {
-  background: #0e1a33;
+  background: #1d1710;
   color: var(--ink);
 }
 select option:checked {
@@ -311,7 +408,7 @@ main {
 .card:hover {
   transform: translateY(-3px);
   border-color: var(--line-em);
-  box-shadow: 0 10px 30px rgba(3, 8, 22, 0.55);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
 }
 .card[data-tipo="sala"] {
   border-left-color: var(--t-sala);
@@ -434,12 +531,12 @@ main {
   z-index: 99998;
   width: 300px;
   max-width: calc(100vw - 32px);
-  background: #0e1a33f2;
+  background: #1d1710f2;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px 14px;
   color: var(--ink);
-  box-shadow: 0 10px 30px rgba(3, 8, 22, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   font-size: 12.5px;
 }
 #ialote .il-head {
@@ -503,7 +600,7 @@ main {
   padding: 28px 44px;
   font-size: 18px;
   color: var(--ink);
-  background: #0e1a33ee;
+  background: #1d1710ee;
 }
 /* Abas do cadastro em lote (uma miniatura por imagem) */
 .qtabs-wrap {
@@ -571,7 +668,7 @@ main {
   max-width: 240px;
 }
 .legend {
-  background: #0e1a33e6;
+  background: #1d1710e6;
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
@@ -596,7 +693,7 @@ main {
   flex: none;
 }
 .maphelp {
-  background: #0e1a33e6;
+  background: #1d1710e6;
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 11px;
@@ -667,7 +764,7 @@ main {
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: #0b1730f2;
+  background: #171209f2;
   backdrop-filter: blur(4px);
   z-index: 2;
 }
@@ -921,7 +1018,7 @@ main {
   position: absolute;
   right: 16px;
   top: 44px;
-  background: #0e1a33e6;
+  background: #1d1710e6;
   border: 1px solid var(--line);
   color: var(--ink-soft);
   border-radius: 8px;
@@ -940,7 +1037,7 @@ main {
   bottom: 16px;
   width: 170px;
   height: 120px;
-  background: #0a1428e6;
+  background: #0f0c08e6;
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -956,7 +1053,7 @@ main {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(3, 8, 22, 0.55);
+  background: rgba(0, 0, 0, 0.55);
   display: none;
   align-items: center;
   justify-content: center;
@@ -1328,7 +1425,7 @@ main {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  background: #0e1a33e6;
+  background: #1d1710e6;
   border: 1px solid var(--line);
   color: var(--ink-soft);
   padding: 5px 11px;
@@ -1548,25 +1645,32 @@ header {
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+/* ---- Barras de rolagem no tema (antes ficaram azuis do tema antigo) ----
+   color-scheme: dark também escurece as barras nativas do celular e os
+   controles do sistema (selects, campos). */
 html {
+  color-scheme: dark;
   scrollbar-width: thin;
-  scrollbar-color: #27508f transparent;
+  scrollbar-color: var(--line-em) transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27508f;
+  background: var(--line-em);
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a6bc0;
+  background: var(--gold);
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 .topbtn,
@@ -1860,7 +1964,7 @@ select:focus {
 .dtile.found:hover {
   transform: translateY(-3px);
   border-color: var(--gold);
-  box-shadow: 0 8px 22px rgba(3, 8, 22, 0.5);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 .dtile .dthumb {
   flex: 1;
@@ -1980,9 +2084,9 @@ select:focus {
   display: none;
   pointer-events: none;
   max-width: 340px;
-  background: rgba(10, 20, 40, 0.97);
-  color: #eaf0fb;
-  border: 1px solid #2c4a82;
+  background: rgba(23, 18, 9, 0.97);
+  color: #ede4d3;
+  border: 1px solid #4a3a22;
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
@@ -2345,7 +2449,7 @@ select:focus {
   padding: 0 0 9px;
   cursor: grab;
   font-size: 13px;
-  box-shadow: 0 4px 14px rgba(3, 8, 22, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .qnode.qref:hover {
@@ -2386,7 +2490,7 @@ select:focus {
   background: var(--s2);
   border: 1px solid var(--line-em);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(3, 8, 22, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 .qnode .qhandle {
   display: flex;
@@ -2745,7 +2849,7 @@ select:focus {
   gap: 12px;
   padding: 11px 18px;
   border-bottom: 1px solid var(--line);
-  background: #0b1730cc;
+  background: #171209cc;
   backdrop-filter: blur(4px);
   flex-wrap: wrap;
 }
@@ -2993,4 +3097,3457 @@ select:focus {
 }
 .chip-sugit:hover {
   background: #16243f;
+}
+
+/* ==========================================================================
+   REDESIGN MAGNIFY — camada de componentes do handoff (Claude Design)
+   Fonte de verdade: «Novo Design - Arquivo do Detetive». Os valores abaixo
+   vêm dos mockups (px exatos). Esta camada re-estrutura os componentes;
+   os tokens estão no :root no topo do arquivo.
+   ========================================================================== */
+
+/* ---------- NavRail (trilho lateral, 212px) ---------- */
+.side {
+  width: 212px;
+  min-width: 212px;
+  background: var(--s2);
+  border-right: 1px solid var(--line);
+}
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.side-brand .emblem {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid var(--gold);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: none;
+  font-size: 0;
+}
+.side-brand-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.brand-logo {
+  height: 16px;
+  width: auto;
+  display: block;
+  align-self: flex-start;
+}
+.side-brand .sub {
+  font-family: var(--font-type);
+  font-size: 9.5px;
+  color: var(--hint);
+  letter-spacing: 1px;
+}
+.side-scroll {
+  padding: 12px 10px;
+}
+.side-head {
+  display: none;
+}
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.navit {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.navit .ni-ic {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 0;
+  color: var(--hint);
+  background: none;
+}
+.navit:hover {
+  background: #241c12;
+  color: var(--ink);
+}
+.navit.active,
+.navit.on {
+  background: var(--ativo);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.navit.active .ni-ic,
+.navit.active .ni-ic svg {
+  color: var(--gold);
+}
+.side-foot {
+  border-top: 1px solid var(--line);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.navit.save {
+  padding: 4px 12px;
+  font-size: 11.5px;
+  color: var(--ok);
+  cursor: pointer;
+}
+.navit.save .ni-ic.save-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 0;
+  flex: none;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--ok);
+  font-size: 0;
+  line-height: 0;
+}
+.navit.save.st-ok,
+.navit.save.st-ok #saveIc {
+  color: var(--ok);
+  background-color: var(--ok);
+}
+.navit.save.st-ok {
+  background: none;
+}
+.navit.save.st-info {
+  color: var(--gold);
+  background: none;
+}
+.navit.save.st-info #saveIc {
+  background-color: var(--gold);
+}
+.navit.save.st-warn {
+  color: var(--danger);
+  background: none;
+}
+.navit.save.st-warn #saveIc {
+  background-color: var(--danger);
+}
+.navit .ni-ic.avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--line);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--gold);
+}
+.appwrap {
+  background:
+    radial-gradient(900px 400px at 70% -10%, #241b10, transparent),
+    var(--s1);
+}
+
+/* ---------- Cabeçalho da área (Fichas) ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* o respiro embaixo evita que o card rolando encoste no cabeçalho */
+  padding: 18px 24px 8px;
+  background: none;
+  border: 0;
+  position: relative;
+}
+.atitle {
+  margin-right: 6px;
+}
+.atitle h3 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.astats {
+  font-size: 12px;
+  color: var(--hint);
+  margin-top: 2px;
+  font-family: var(--font-ui);
+}
+.stat-link {
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.stat-link.gold {
+  color: var(--gold);
+}
+.stat-link.red {
+  color: var(--manual);
+}
+.topgrow {
+  flex: 1;
+}
+.topbar .search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0 12px;
+  height: 38px;
+  width: 320px;
+  color: var(--hint);
+  font-size: 13px;
+}
+.topbar .search svg {
+  flex: none;
+}
+.topbar .search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+.topbar .search input::placeholder {
+  color: var(--hint);
+}
+.topbar .searchx {
+  background: none;
+  border: 0;
+  color: var(--hint);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
+}
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--hint);
+  flex: none;
+  white-space: nowrap;
+}
+.topactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbtn {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: none;
+  box-shadow: none;
+}
+.topbtn:hover {
+  color: var(--ink);
+  background: #241c12;
+  border-color: var(--line-em);
+}
+.topbtn.ic {
+  padding: 0 12px;
+  font-size: 15px;
+}
+.topbtn.primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 0 16px;
+  box-shadow: 0 3px 12px rgba(201, 163, 92, 0.25);
+}
+.topbtn.primary:hover {
+  background: var(--gold-2);
+  border-color: var(--gold-2);
+  color: var(--gold-ink);
+}
+.topbtn.ghost {
+  color: var(--gold);
+}
+.topbtn.on,
+.topbtn.hasfilters {
+  background: var(--ativo);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.fbadge {
+  background: var(--manual);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 0 6px;
+  line-height: 16px;
+}
+/* Busca + botão de filtros lado a lado (no desktop fica como antes) */
+.searchrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* No desktop o botão é "Filtros" escrito; o funil só serve ao celular */
+#btnFiltros .fic {
+  display: none;
+}
+.contador {
+  display: none;
+}
+
+/* ---------- Menu ··· (ações raras) ---------- */
+.moremenu {
+  display: none;
+  position: absolute;
+  z-index: 60;
+  top: 62px;
+  right: 24px;
+  width: 300px;
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  flex-direction: column;
+}
+.moremenu.open {
+  display: flex;
+}
+.mmit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-ui);
+  width: 100%;
+}
+.mmit:hover {
+  background: #241c12;
+}
+.mmit:disabled {
+  color: var(--hint);
+  cursor: default;
+}
+.mmit.del {
+  color: var(--danger);
+}
+.mm-k {
+  margin-left: auto;
+  color: var(--hint);
+  font-size: 12px;
+}
+.mm-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 6px 8px;
+}
+.mmit.ordlbl {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: 13px;
+}
+.ordsel {
+  background: var(--field);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+}
+
+/* ---------- Chips de filtro ativos ---------- */
+.filtros-pills {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filtros-pills:empty {
+  display: none;
+}
+.fpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--ativo);
+  border: 1px solid var(--line-em);
+  color: var(--ink);
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.fpill b {
+  color: var(--hint);
+  font-weight: 600;
+}
+.fpill:hover b {
+  color: var(--danger);
+}
+.fpill.clr {
+  background: none;
+  border: 0;
+  color: var(--hint);
+  text-decoration: underline dotted;
+  padding: 4px 2px;
+}
+
+/* ---------- Painel/folha de filtros ---------- */
+.filtros-panel {
+  display: none;
+  gap: 14px;
+  align-items: flex-end;
+  padding: 12px 24px 0;
+  background: none;
+  border: 0;
+  flex-wrap: wrap;
+}
+.filtros-panel.open {
+  display: flex;
+}
+.sheet-grip,
+.sheet-head {
+  display: none;
+}
+/* Fundo escurecido da folha de filtros (só o compacto liga o .on) */
+.sheet-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+  background: rgba(12, 8, 4, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.sheet-fundo.on {
+  opacity: 1;
+  pointer-events: auto;
+}
+.fgrp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fgrp label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--hint);
+  text-transform: uppercase;
+}
+.fgrp select {
+  background: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 9px 13px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-width: 160px;
+}
+.fgrp select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.fchips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fchip {
+  flex: none;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.fchip.on {
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 600;
+  border-color: var(--gold);
+}
+.fclear {
+  height: 34px;
+}
+.faplicar {
+  display: none;
+}
+
+/* ---------- Grade de fichas (ClueCard papel) ---------- */
+#grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(218px, 1fr));
+  gap: 18px;
+  align-content: start;
+  /* Cada linha cresce com o conteúdo dela. Sem isto as linhas dividiam a
+     altura da tela e o card (que tem overflow: hidden) era cortado no
+     meio — título pela metade, foto fatiada, rodapé sumindo. */
+  grid-auto-rows: max-content;
+  padding: 18px 24px 24px;
+  overflow: auto;
+  /* Na rolagem o card some suave junto ao cabeçalho, sem corte seco.
+     12px (não 18px, o padding): o alfinete do card sobe 5px acima dele e
+     um fade maior comia a metade de cima da cabeça do alfinete. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+}
+.card {
+  background: var(--papel);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: var(--sh-paper);
+  padding: 14px 14px 12px;
+  position: relative;
+  color: var(--papel-ink);
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  border: 0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+.pin {
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #9c9c9c;
+  border: 2px solid #6e6e6e;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+.pin.fav {
+  background: var(--gold);
+  border-color: #8a6c34;
+}
+.chead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cid {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--manual);
+}
+.csala {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: var(--hint);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cstar {
+  margin-left: auto;
+  color: #b8ac8f;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  line-height: 1;
+}
+.cstar.on {
+  color: var(--gold);
+  opacity: 1;
+}
+.card:hover .cstar {
+  opacity: 1;
+}
+.card h3.ctit {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 7px 0 6px;
+  color: var(--papel-ink);
+  text-shadow: none;
+}
+.cthumb {
+  height: 86px;
+  border-radius: 3px;
+  background: var(--papel-hachura);
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.cthumb img.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cph {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--papel-hint);
+}
+.pgcount {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(43, 35, 23, 0.8);
+  color: var(--papel);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.cexc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--papel-ink2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 18px;
+}
+/* Carimbo no canto de baixo, ao lado do rodapé. Antes ficava a 56px do
+   fundo — com o card de altura variável, caía em cima do resumo. */
+.stamp {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font-family: var(--font-type);
+  font-size: 11px;
+  border: 2px solid;
+  border-radius: 3px;
+  padding: 1px 7px;
+  letter-spacing: 1px;
+  pointer-events: none;
+  background: rgba(236, 225, 201, 0.88);
+}
+.stamp.pend {
+  color: var(--manual);
+  border-color: rgba(184, 69, 46, 0.7);
+  transform: rotate(-4deg);
+}
+.stamp.res {
+  color: var(--verde-carimbo);
+  border-color: rgba(74, 107, 63, 0.65);
+  transform: rotate(3deg);
+}
+.stamp.imp {
+  color: #8a6c34;
+  border-color: rgba(138, 108, 52, 0.65);
+  transform: rotate(-3deg);
+}
+.cfoot {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+  /* espaço reservado para o carimbo, que fica neste canto */
+  padding-right: 86px;
+  min-height: 20px;
+}
+.cgrupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--papel-ink2);
+}
+.gdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+}
+.cpess {
+  color: #8a5c50;
+}
+.cvazio {
+  color: var(--papel-hint);
+  font-style: italic;
+}
+.cfalta {
+  color: #a8442e;
+  border-bottom: 1px dashed #a8442e;
+}
+#grade.selmode .card {
+  outline-offset: 2px;
+}
+.card.selected {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border: 0;
+}
+.selcheck {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: rgba(43, 35, 23, 0.12);
+  color: var(--gold-ink);
+  display: none;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 3;
+}
+#grade.selmode .selcheck {
+  display: grid;
+}
+.card.selected .selcheck {
+  background: var(--gold);
+}
+
+/* ---------- Barra de seleção múltipla ---------- */
+.selbar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: var(--ativo);
+  border: 1px solid var(--line-em);
+  border-radius: 10px;
+  margin: 12px 24px 0;
+  padding: 10px 14px;
+}
+.selbar.on {
+  display: flex;
+}
+.selchk {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--gold);
+  color: var(--gold-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+}
+.selbar .cnt {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+}
+.selbar .grow {
+  flex: 1;
+}
+.seldel {
+  border: 1px solid var(--danger-line);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 0 14px;
+  height: 38px;
+  font-size: 12.5px;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.topbtn.plain {
+  border: 0;
+  color: var(--hint);
+}
+
+/* ---------- Estados vazios ---------- */
+.empty {
+  grid-column: 1/-1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 20px;
+  text-align: center;
+  background: none;
+  border: 0;
+}
+.empty .eic {
+  opacity: 0.5;
+}
+.empty .etit {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  color: var(--ink);
+}
+.empty .etxt {
+  font-size: 13px;
+  color: var(--hint);
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+/* ---------- Gaveta de detalhe (ClueDetail) ---------- */
+#drawer {
+  width: 520px;
+  max-width: 92vw;
+  background: var(--s2);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--sh-drawer);
+  display: flex;
+  flex-direction: column;
+}
+.dh {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: none;
+}
+.dh-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.did {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--manual);
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+.dsala {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--hint);
+  text-transform: uppercase;
+}
+.dgrow {
+  flex: 1;
+}
+.dstar {
+  color: var(--hint);
+  font-size: 16px;
+  cursor: pointer;
+}
+.dstar.on {
+  color: var(--gold);
+}
+.dh .close {
+  position: static;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+}
+.dtit {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.15;
+  margin: 0;
+}
+.dactions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.dbtn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.dbtn:hover {
+  color: var(--ink);
+  background: #241c12;
+}
+.dbtn.del {
+  margin-left: auto;
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+.dbtn.del:hover {
+  background: rgba(90, 42, 32, 0.25);
+}
+.dbtn.primary,
+.dbtn.save {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 600;
+}
+.db {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+.paper {
+  background: var(--papel);
+  border-radius: 5px;
+  box-shadow: var(--sh-paper);
+  padding: 14px;
+  color: var(--papel-ink);
+  position: relative;
+}
+.paper::before {
+  content: "";
+  position: absolute;
+  left: 24px;
+  top: -7px;
+  width: 52px;
+  height: 15px;
+  background: rgba(222, 207, 170, 0.85);
+  transform: rotate(-3deg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.dimg {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 3px;
+  display: block;
+  margin-bottom: 12px;
+  cursor: zoom-in;
+}
+.dph {
+  height: 150px;
+  border-radius: 3px;
+  background: var(--papel-hachura);
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--papel-hint);
+}
+.plab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--hint);
+}
+.transc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  border: 0;
+  padding: 0;
+}
+.transc-head .langsw {
+  margin-left: auto;
+}
+.langsw {
+  display: inline-flex;
+  border: 1px solid var(--papel-line);
+  border-radius: 999px;
+  padding: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  background: none;
+}
+.langsw span {
+  padding: 2px 10px;
+  color: var(--papel-hint);
+  border-radius: 999px;
+}
+.langsw span.on {
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 600;
+}
+.db .langsw {
+  border-color: var(--papel-line);
+}
+.transc {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #3a3125;
+  font-family: var(--font-serif);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.dexpl {
+  border-top: 1px dashed var(--papel-line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.dexpl-tx {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--papel-ink2);
+  margin-top: 4px;
+}
+.dsec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dlab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--hint);
+}
+.dlab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dlab-sub {
+  font-size: 11px;
+  color: var(--hint);
+}
+.dlink {
+  margin-left: auto;
+  border: 1px dashed var(--line-em);
+  border-radius: 7px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  color: var(--gold);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.taglist {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.et {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 7px;
+  padding: 4px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.et.sala {
+  border-color: #2e4a58;
+  color: #9cc4d6;
+}
+.et.pessoa {
+  border-color: #5a3a34;
+  color: var(--danger);
+}
+.et.grupo {
+  color: #fff;
+}
+.fio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.fio-l {
+  width: 22px;
+  flex: none;
+}
+.fio-l.manual {
+  border-top: 2px solid var(--manual);
+}
+.fio-l.auto {
+  border-top: 2px dashed var(--auto);
+}
+.fio-tx {
+  flex: 1;
+  min-width: 0;
+}
+.fio-t {
+  font-size: 12.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.fio-s {
+  font-size: 10.5px;
+  color: var(--hint);
+}
+/* Fio clicável: leva ao mapa com esta ficha em foco */
+.fio.aomapa {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.fio.aomapa:hover {
+  border-color: var(--line-em);
+  background: var(--s2);
+}
+.fio-go {
+  color: var(--hint);
+  font-size: 15px;
+  flex: none;
+  line-height: 1;
+}
+.fio-x {
+  color: var(--hint);
+  cursor: pointer;
+  font-size: 12px;
+}
+.fio-x:hover {
+  color: var(--danger);
+}
+.postit {
+  background: var(--postit);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  padding: 10px 12px;
+  color: var(--postit-ink);
+  font-size: 12.5px;
+  line-height: 1.5;
+  transform: rotate(-0.5deg);
+}
+.dfoot {
+  display: none;
+  gap: 10px;
+  padding: 12px 16px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--s2);
+}
+.dfoot .dbtn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  display: inline-flex;
+  padding: 12px 0;
+  font-size: 13.5px;
+  border-radius: 10px;
+}
+.pgtabs:empty {
+  display: none;
+}
+.pgtab {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.pgtab.active {
+  background: var(--ativo);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--gold);
+}
+
+/* ---------- Formulário de ficha (Nova/Editar) e chips ---------- */
+.field .lab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--hint);
+  text-transform: uppercase;
+}
+.field .val {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.edinput,
+.fgrp select {
+  background: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  font-family: var(--font-ui);
+}
+.edinput:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: none;
+}
+.edarea {
+  min-height: 64px;
+}
+.editbtns {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.dbtn.cancel {
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+.t {
+  border-radius: 7px;
+  padding: 4px 11px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  background: none;
+}
+.t.sala {
+  border-color: #2e4a58;
+  color: #9cc4d6;
+  background: none;
+}
+.t.pessoa {
+  border-color: #5a3a34;
+  color: var(--danger);
+  background: none;
+}
+.t.conx,
+.t.auto {
+  border-style: dashed;
+  border-color: var(--line-em);
+}
+.t b {
+  cursor: pointer;
+  color: var(--hint);
+  font-weight: 600;
+}
+.t b:hover {
+  color: var(--danger);
+}
+.chip-add {
+  border: 1px dashed var(--line-em);
+  border-radius: 7px;
+  padding: 4px 11px;
+  font-size: 12px;
+  color: var(--gold);
+  background: none;
+  cursor: pointer;
+}
+.chip-el {
+  border-radius: 7px;
+  font-size: 12px;
+}
+.pgedhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+
+/* ---------- Mapa ---------- */
+#mapa {
+  background: radial-gradient(1000px 500px at 50% -10%, #221a10, #14100b);
+}
+.maphead {
+  position: absolute;
+  left: 20px;
+  top: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.maphead h3 {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  margin: 0;
+  color: var(--ink);
+}
+.maphint {
+  font-size: 12px;
+  color: var(--hint);
+}
+.mapctrl {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 6;
+  display: flex;
+  gap: 8px;
+}
+.mapgrupo {
+  display: flex;
+  gap: 8px;
+}
+.mapbtn {
+  position: static;
+  background: rgba(29, 23, 16, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.mapbtn.ic {
+  width: 38px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
+.mapbtn.em {
+  background: var(--ativo);
+  border-color: var(--line-em);
+  color: var(--ink);
+}
+/* Botões que só existem no modo compacto (ex.: "?" do mapa) */
+.soCompacto,
+.mapbtn.soCompacto {
+  display: none;
+}
+/* Canvas 2D próprios: gesto do navegador só FORA deles (P03/P04/P13).
+   touch-action fica restrito aos canvases — nunca global. */
+#mapa svg,
+.qcanvas,
+.lightbox {
+  touch-action: none;
+}
+/* ---------- Bottom sheet do ponto selecionado (Mapa) ---------- */
+#mapsheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  background: var(--s2);
+  border-top: 1px solid var(--line-em);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 16px calc(12px + var(--sab));
+  transform: translateY(105%);
+  transition: transform 0.2s;
+  box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.5);
+}
+#mapsheet.open {
+  transform: none;
+}
+.ms-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-em);
+  margin: 0 auto 6px;
+}
+.ms-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ms-tx {
+  flex: 1;
+  min-width: 0;
+}
+.ms-tit {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.ms-x {
+  min-width: var(--alvo-lg);
+  min-height: var(--alvo-lg);
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  flex: none;
+}
+.ms-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.ms-acoes .dbtn {
+  min-height: var(--alvo);
+}
+/* Conteúdo informativo dentro do sheet (ajuda/legenda do mapa) */
+.acsheet-html {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 6px 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.acsheet-html .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.acsheet-html .ltit {
+  font-family: var(--font-type);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--hint);
+  margin-top: 10px;
+}
+.acsheet-html .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.maptoggles {
+  display: none;
+  position: absolute;
+  right: 16px;
+  top: 58px;
+  z-index: 6;
+  background: rgba(29, 23, 16, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  flex-direction: column;
+  gap: 7px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.maptoggles.open {
+  display: flex;
+}
+.mtog {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  opacity: 0.55;
+}
+.mtog.on {
+  opacity: 1;
+  background: none;
+  border: 0;
+}
+.mtog .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.mtog .ln {
+  width: 14px;
+}
+.mtog .chk {
+  margin-left: auto;
+  color: var(--ok);
+  visibility: hidden;
+  padding-left: 14px;
+}
+.mtog.on .chk {
+  visibility: visible;
+}
+.mapcorner {
+  left: 20px;
+  bottom: 16px;
+  right: auto;
+}
+.legend {
+  background: var(--papel);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  padding: 10px 14px;
+  color: var(--papel-ink);
+  transform: rotate(-1deg);
+}
+.legend .ltit {
+  font-family: var(--font-type);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--papel-hint);
+  margin-bottom: 6px;
+}
+.legend .row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--papel-ink);
+}
+.legend .dot {
+  width: 9px;
+  height: 9px;
+}
+.maphelp {
+  background: rgba(29, 23, 16, 0.95);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.minimap {
+  background: rgba(16, 12, 7, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.maptip {
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  color: var(--ink);
+}
+
+/* ---------- Quadros (cortiça) ---------- */
+/* Fundo do quadro: marrom liso com luz suave no meio e cantos escuros.
+   Esta camada é a ILUMINAÇÃO do ambiente e fica parada; quem anda com a
+   câmera é a textura do .qcanvas (aplicaCam), senão o fundo parece um
+   papel de parede colado na tela. */
+#teorias {
+  background-color: #4a3729;
+  background-image: radial-gradient(
+    115% 88% at 48% 44%,
+    #67503b 0%,
+    #533f2e 45%,
+    #402f22 75%,
+    #32251b 100%
+  );
+}
+.qbar {
+  background: linear-gradient(rgba(23, 18, 9, 0.95), rgba(23, 18, 9, 0.8));
+  border-bottom: 1px solid var(--line);
+  padding: 14px 20px;
+  gap: 10px;
+  position: relative;
+}
+.qtab {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  border-radius: 8px;
+  padding: 7px 16px;
+  background: none;
+  border: 1px solid transparent;
+}
+.qtab.active {
+  background: var(--ativo);
+  border: 1px solid var(--line-em);
+  color: var(--ink);
+  border-radius: 8px 8px 0 0;
+  border-bottom: 2px solid var(--gold);
+}
+.qtab.qadd {
+  color: var(--gold);
+  font-size: 14px;
+}
+/* Título da área e seletor de quadro: só existem no celular (ver media) */
+.qtitulo,
+.qsel {
+  display: none;
+}
+.qtoolbar {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 4px;
+}
+.qtoolbtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.qtoolbtn.qt-t {
+  font-weight: 700;
+  font-size: 12px;
+}
+.qtoolbtn.active {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.qfich {
+  background: var(--ativo);
+  border-color: var(--line);
+  color: var(--ink);
+  height: 34px;
+  font-size: 12.5px;
+}
+.qmore {
+  top: 54px;
+  right: 20px;
+  width: 240px;
+}
+.qhint {
+  position: absolute;
+  left: 20px;
+  bottom: 14px;
+  font-size: 11.5px;
+  color: #d8c9ae;
+  background: rgba(23, 18, 9, 0.7);
+  border-radius: 7px;
+  padding: 6px 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+/* Sem textura no canvas: o fundo é só o degradê liso do #teorias. */
+.qcanvas {
+  position: relative;
+  background: none;
+  background-image: none;
+}
+.qsvg,
+.qworld {
+  background: none;
+}
+/* Estado vazio do quadro (cartão sobre a cortiça) */
+.qvazio {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: rgba(23, 18, 9, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px 24px;
+  text-align: center;
+  z-index: 4;
+}
+.qvazio .qv-ic {
+  font-size: 34px;
+}
+.qvazio .qv-tit {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--ink);
+}
+.qvazio .qv-tx {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  max-width: 230px;
+}
+.qvazio .qv-btns {
+  display: flex;
+  gap: 8px;
+}
+.qnode.qref {
+  background: var(--papel);
+  border: 0;
+  border-radius: 3px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+  padding: 12px;
+  color: var(--papel-ink);
+  width: 210px;
+  transform: rotate(-1deg);
+}
+.qnode.qref:nth-child(even) {
+  transform: rotate(1.5deg);
+}
+.qnode.qref.sel {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.qpin {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--manual);
+  border: 2px solid #7d2417;
+  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+.qcod {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--manual);
+  font-weight: 600;
+}
+.qnode.qref .qreftit {
+  margin: 4px 0 6px;
+}
+.qnode.qref .qicon {
+  display: none;
+}
+.qnode.qref .qname {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--papel-ink);
+}
+.qnode.qref .qthumb {
+  height: 64px;
+  border-radius: 2px;
+  background: var(--papel-hachura);
+  overflow: hidden;
+}
+.qnode.qref .qthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qnode.qtexto {
+  background: var(--papel-2);
+  color: #3a3125;
+  border: 0;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+  transform: rotate(-1deg);
+}
+.qnode.qtexto .qtxt {
+  font-family: var(--font-type);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #3a3125;
+}
+.qnode.qnota {
+  background: var(--postit);
+  transform: rotate(2.5deg);
+  border: 0;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+}
+.qnode.qnota .qtxt {
+  color: var(--postit-ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.qnode .qhandle {
+  color: rgba(58, 49, 37, 0.55);
+  background: none;
+  border: 0;
+  font-size: 10px;
+}
+.qnode.sel {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border: 0;
+}
+.qnode .qdel {
+  background: rgba(43, 35, 23, 0.75);
+  color: var(--papel);
+}
+.qnode .qconn {
+  color: var(--manual);
+}
+
+/* ---------- Arquivo (Salas · Personagens · Grupos) ---------- */
+#arquivo {
+  display: none;
+  flex-direction: column;
+  /* Dono da altura: o main não é flex — a vista precisa de height explícita
+     para a rolagem interna (arqbody/arqgrid) funcionar. */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.arqhead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 24px 0;
+  flex-wrap: wrap;
+}
+.arqhead h3 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  margin: 0;
+  color: var(--ink);
+}
+.segtabs {
+  display: flex;
+  gap: 4px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 4px;
+}
+.seg {
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  border-radius: 7px;
+  padding: 7px 18px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.seg.active {
+  background: var(--ativo);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--gold);
+}
+.segn {
+  color: var(--hint);
+  font-size: 11.5px;
+}
+.arqsearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0 12px;
+  height: 38px;
+  width: 240px;
+  flex: none;
+  color: var(--hint);
+}
+.arqsearch input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-family: var(--font-ui);
+}
+.arqsearch input::-webkit-search-cancel-button {
+  display: none;
+}
+.arqlupa {
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+}
+.arqx {
+  display: none;
+  background: none;
+  border: 0;
+  color: var(--hint);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.arqbody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  padding: 18px 24px 24px;
+  gap: 20px;
+  overflow: hidden;
+}
+.dirmenu2 {
+  width: 230px;
+  flex: none;
+  background: var(--s3);
+  border: 1px solid var(--line-em);
+  border-radius: 6px;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.12) 0 1px,
+    transparent 1px 34px
+  );
+}
+.dirtitle2 {
+  font-family: var(--font-type);
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-align: center;
+  line-height: 1.5;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-em);
+  margin-bottom: 8px;
+}
+.dirtitle2 b {
+  font-size: 15px;
+  color: var(--ink);
+}
+.dirbtn2 {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  padding: 7px 12px;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dirbtn2:hover {
+  color: var(--ink);
+}
+.dirbtn2.active {
+  color: var(--gold-ink);
+  background: var(--gold);
+  font-weight: 600;
+}
+.dirbtn2.mist {
+  color: #5b5142;
+}
+.dirbtn2 .dirn {
+  color: inherit;
+  opacity: 0.75;
+}
+/* Botão "categoria atual · trocar" — só existe no compacto (ver media) */
+.arqcatbtn {
+  display: none;
+}
+.arqmain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+.arqfaixa {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.arqfx {
+  font-family: var(--font-type);
+  font-size: 14px;
+  color: var(--ink);
+  letter-spacing: 1px;
+}
+.arqfx-s {
+  font-size: 12px;
+  color: var(--hint);
+}
+.arqgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  align-content: start;
+  /* mesma proteção da grade de fichas: linha cresce com o conteúdo */
+  grid-auto-rows: max-content;
+}
+.com-dossie .arqgrid.salas {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+}
+.arqgrid.pess,
+.arqgrid.grps {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  flex: 1;
+  overflow-y: auto;
+}
+.rtile {
+  background: var(--papel);
+  border-radius: 4px;
+  box-shadow: var(--sh-paper);
+  padding: 10px;
+  color: var(--papel-ink);
+  cursor: pointer;
+}
+.rtile.on {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.rthumb {
+  /* quadrado sempre (com ou sem foto): a foto preenche com recorte
+     proporcional e a grade fica alinhada */
+  aspect-ratio: 1 / 1;
+  border-radius: 3px;
+  background: var(--papel-hachura);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.rthumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rname {
+  font-family: var(--font-serif);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.rmeta {
+  font-size: 10.5px;
+  color: var(--papel-hint);
+  font-family: var(--font-mono);
+}
+.rtile.locked {
+  background: none;
+  border: 1.5px dashed var(--line-em);
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  min-height: 128px;
+  color: #5b5142;
+}
+.rlk {
+  text-align: center;
+}
+.rlknum {
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+.rlktxt {
+  font-size: 10.5px;
+  margin-top: 3px;
+}
+.pcard {
+  background: var(--s2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--pessoa);
+  border-radius: 9px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: pointer;
+  position: relative;
+  align-self: start;
+}
+.pcard.on {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.pcard.grp {
+  border-left-color: var(--grupo);
+}
+.pcard.novo {
+  background: none;
+  border: 1.5px dashed var(--line-em);
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--hint);
+  font-size: 13px;
+  min-height: 96px;
+}
+.pcard-h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.avatar-p {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #2e211c;
+  color: var(--pessoa);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  flex: none;
+}
+.pcard-n {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+.pcard-m {
+  margin-left: auto;
+  color: var(--hint);
+  font-size: 15px;
+  cursor: pointer;
+}
+.pcard-d {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  /* no máximo 3 linhas com "…" — descrição longa não estica o card */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pcard-f {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--hint);
+}
+.gsw {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex: none;
+}
+.arqdossie {
+  width: 330px;
+  flex: none;
+  background: var(--s2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.doshead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.doskicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1.5px;
+}
+.doskicker.rosa {
+  color: var(--pessoa);
+}
+.dosx {
+  margin-left: auto;
+  color: var(--hint);
+  cursor: pointer;
+}
+.dosnome {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dosmeta {
+  font-size: 11px;
+  color: var(--hint);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.dosimg {
+  height: 110px;
+  border-radius: 5px;
+  background: repeating-linear-gradient(
+    45deg,
+    #241c12,
+    #241c12 8px,
+    #2b2114 8px,
+    #2b2114 16px
+  );
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.dosimg span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--hint);
+}
+.dosimg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dossec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.doslab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--hint);
+}
+.dosrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+.doscod {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--manual);
+  font-weight: 600;
+}
+.dostit {
+  font-size: 12px;
+  color: var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dosgo {
+  color: var(--hint);
+}
+.dosfatos {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.dosid {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dosren {
+  margin-left: auto;
+  color: var(--gold);
+  font-size: 12px;
+  border: 1px solid var(--line-em);
+  border-radius: 7px;
+  padding: 4px 9px;
+  background: none;
+  cursor: pointer;
+}
+.dosdesc {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.dosswatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  flex: none;
+}
+.dossws {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dossw {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.dossw.on {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.dossw.custom {
+  position: relative;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  overflow: hidden;
+}
+.dossw.custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dosbtn {
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.dosbtn.gold {
+  color: var(--gold);
+  margin-top: auto;
+}
+.dosbtn.ghost {
+  color: var(--ink-soft);
+}
+.dosbtn.dashed {
+  border-style: dashed;
+  border-color: var(--line-em);
+  color: var(--gold);
+}
+.dosbtn.danger {
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+.dosbtn.danger.slim {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ---------- Conta ---------- */
+#conta {
+  display: none;
+  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+}
+.contawrap {
+  padding: 26px 24px;
+  display: flex;
+  justify-content: center;
+}
+.contacard {
+  width: 560px;
+  max-width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--sh-drawer);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.conta-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar-lg {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--line);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--gold);
+  flex: none;
+}
+.conta-tit {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--ink);
+}
+.conta-mail {
+  font-size: 12px;
+  color: var(--hint);
+}
+.conta-id .dbtn {
+  margin-left: auto;
+  padding: 7px 14px;
+}
+.conta-save {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+}
+.save-dot2 {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+.conta-save-tx {
+  flex: 1;
+}
+.conta-save-tx > div:first-child {
+  font-size: 13px;
+  color: var(--ink);
+}
+.conta-save-sub {
+  font-size: 11px;
+  color: var(--hint);
+}
+.conta-link {
+  font-size: 12px;
+  color: var(--gold);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.conta-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.conta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.conta-row.noclick {
+  cursor: default;
+}
+.conta-row > div {
+  flex: 1;
+}
+.cr-t {
+  font-size: 13px;
+  color: var(--ink);
+}
+.cr-s {
+  font-size: 11px;
+  color: var(--hint);
+}
+.conta-danger {
+  border: 1px solid var(--danger-line);
+  border-radius: 9px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.conta-danger .cr-t {
+  color: var(--danger);
+}
+.conta-danger > div {
+  flex: 1;
+}
+#conta .langsw {
+  border-color: var(--line-em);
+}
+#conta .langsw span {
+  color: var(--hint);
+}
+#conta .langsw span.on {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+/* ---------- Modais e confirmações ---------- */
+.modal {
+  background: rgba(15, 12, 8, 0.86);
+}
+.modalbox {
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.modalhd h2 {
+  font-family: var(--font-serif);
+  color: var(--ink);
+}
+#toast {
+  background: var(--ativo);
+  border: 1px solid var(--line-em);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+  font-size: 13.5px;
+}
+
+/* ---------- Folha de ações contextual (mobile) — §5.6 ---------- */
+.acsheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.acsheet-veu {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 12, 8, 0.62);
+}
+.acsheet-caixa {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80dvh;
+  overflow-y: auto;
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  border-radius: 16px 16px 0 0;
+  padding: 10px 14px calc(14px + var(--sab));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.6);
+}
+.acsheet .sheet-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-em);
+  align-self: center;
+  margin-bottom: 4px;
+}
+.acsheet-tit {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.acit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alvo-lg);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-align: left;
+}
+.acit:hover {
+  background: var(--s3);
+}
+.acit .acic {
+  width: 22px;
+  text-align: center;
+  flex: none;
+}
+.acit .acdet {
+  margin-left: auto;
+  color: var(--hint);
+  font-size: 12px;
+}
+.acit.perigo {
+  color: var(--danger);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 9px 9px;
+  margin-top: 4px;
+}
+.acit.cancelar {
+  justify-content: center;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+/* Em tela larga a folha vira um cartão central */
+@media (min-width: 721px) and (min-height: 501px) {
+  .acsheet {
+    align-items: center;
+    padding: 20px;
+  }
+  .acsheet-caixa {
+    border-radius: 14px;
+    max-width: 380px;
+    padding-bottom: 14px;
+  }
+  .acsheet .sheet-grip {
+    display: none;
+  }
+}
+.diskbanner {
+  background: #2b2416;
+  border: 1px solid #6b5a2a;
+  color: #e6cf94;
+}
+
+/* ---------- Telas grandes: a interface inteira cresce ----------
+   O desenho foi feito para ~1300–1400px. Em monitor grande tudo ficava
+   miúdo e sobrava vazio; aqui a interface é ampliada como o zoom do
+   navegador faria. O zoom vai no BODY (no html ele mudaria o viewport
+   e as próprias media queries ligariam/desligariam em loop) e a altura
+   é dividida pelo mesmo fator, senão o rodapé sairia da tela. */
+@media (min-width: 1600px) {
+  body {
+    zoom: 1.08;
+    height: calc(100svh / 1.08);
+  }
+}
+@media (min-width: 1900px) {
+  body {
+    zoom: 1.22;
+    height: calc(100svh / 1.22);
+  }
+}
+@media (min-width: 2400px) {
+  body {
+    zoom: 1.45;
+    height: calc(100svh / 1.45);
+  }
+}
+
+/* ---------- Visibilidade por área ---------- */
+body.view-mapa .topbar,
+body.view-teorias .topbar,
+body.view-arquivo .topbar,
+body.view-conta .topbar,
+body.view-mundo .topbar,
+body.view-diretorio .topbar,
+body.view-mapa .filtros-pills,
+body.view-teorias .filtros-pills,
+body.view-arquivo .filtros-pills,
+body.view-conta .filtros-pills,
+body.view-mapa .filtros-panel,
+body.view-teorias .filtros-panel,
+body.view-arquivo .filtros-panel,
+body.view-conta .filtros-panel {
+  display: none;
+}
+.legado[hidden] {
+  display: none;
+}
+
+/* ---------- Barra inferior + FAB (mobile) ---------- */
+.tabbar {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  border-top: 1px solid var(--line);
+  background: var(--s2);
+  /* Reserva a área segura (home indicator) sem crescer o alvo de toque */
+  padding: 6px calc(6px + var(--sar)) calc(6px + var(--sab)) calc(6px + var(--sal));
+  min-height: var(--tabbar-total);
+}
+.tbit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  background: none;
+  border: 0;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  min-height: var(--alvo);
+  min-width: var(--alvo);
+  padding: 2px 0;
+}
+.tbit.active {
+  color: var(--gold);
+  font-weight: 600;
+}
+/* Bolinha de status de salvamento na aba Conta (espelha o trilho) */
+.tb-conta {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.tb-conta .tb-dot {
+  position: absolute;
+  right: -4px;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  border: 1.5px solid var(--s2);
+}
+.tbit.st-info .tb-dot {
+  background: var(--info);
+}
+.tbit.st-warn .tb-dot {
+  background: var(--warn);
+}
+.fab {
+  display: none;
+  position: fixed;
+  right: calc(16px + var(--sar));
+  bottom: var(--fab-offset);
+  z-index: 41;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 26px;
+  font-weight: 600;
+  border: 0;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  place-items: center;
+  line-height: 0;
+}
+
+/* ---------- Trilho estreito (721–1000px): degrau entre mobile e desktop.
+   Sem ele, 720→721px saltava de tabbar para uma sidebar de 212px (P09). */
+@media (min-width: 721px) and (max-width: 1000px) and (min-height: 501px) {
+  .side {
+    width: 64px;
+    min-width: 64px;
+  }
+  .side .side-brand-txt,
+  .side .ni-lb,
+  .side .side-brand .sub {
+    display: none;
+  }
+  .side .navit {
+    justify-content: center;
+    padding: 11px 0;
+  }
+  .side .navit.save {
+    padding: 8px 0;
+  }
+  .side-brand {
+    justify-content: center;
+    padding: 14px 8px;
+  }
+}
+
+/* ---------- Modo compacto (mobile) ----------
+   MESMA definição do JS (MQ_COMPACTO): largura estreita OU altura curta
+   (celular deitado). Capacidade de entrada é tratada à parte (pointer). */
+@media (max-width: 720px), (max-height: 500px) {
+  .side {
+    display: none;
+  }
+  .tabbar {
+    display: flex;
+  }
+  body.view-grade .fab,
+  body.view-teorias .fab {
+    display: grid;
+  }
+  body.drawer-aberta .fab,
+  body.drawer-aberta .tabbar {
+    display: none;
+  }
+  .appwrap {
+    padding-bottom: var(--tabbar-total);
+  }
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 16px 18px 8px;
+  }
+  .atitle h3 {
+    font-size: 19px;
+  }
+  .astats {
+    display: none;
+  }
+  /* A linha da busca desce inteira, com o filtro à direita dela */
+  .searchrow {
+    order: 5;
+    width: 100%;
+  }
+  .topbar .search {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    border-radius: 10px;
+  }
+  .topbtn {
+    height: 44px;
+    min-width: 44px;
+  }
+  /* Filtro vira botão quadrado de ícone, com o nº num selo no canto */
+  #btnFiltros {
+    position: relative;
+    flex: none;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 10px;
+  }
+  #btnFiltros .fic {
+    display: block;
+  }
+  #btnFiltros .btxt {
+    display: none;
+  }
+  #btnFiltros .fbadge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    box-sizing: border-box;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 3px;
+    border-radius: 9px;
+    line-height: 18px;
+    text-align: center;
+    /* anel por sombra (não mexe no tamanho, como faria uma borda) */
+    box-shadow: 0 0 0 2px var(--s1);
+  }
+  #btnNova {
+    display: none;
+  }
+  .moremenu {
+    right: 12px;
+  }
+  #grade {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 18px 18px;
+    /* Na rolagem o card some suave perto da busca, sem corte seco
+       (12px = o padding do topo: parado, nenhum card fica esmaecido) */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  }
+  /* ClueCardCompact em DUAS colunas: foto · conteúdo. O carimbo
+     retangular divide só a linha do cabeçalho (canto superior direito);
+     título e rodapé usam a largura toda. */
+  .card {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "thumb head status"
+      "thumb tit tit"
+      "thumb foot foot";
+    column-gap: 12px;
+    padding: 14px 12px;
+    border-radius: 8px;
+    align-items: center;
+    align-content: center;
+    min-height: 96px;
+  }
+  .pin {
+    display: none;
+  }
+  .chead {
+    grid-area: head;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* espaço para a estrela fixa no canto superior direito */
+    padding-right: 26px;
+  }
+  .csala {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Estrela sempre visível no canto superior direito: fraca sem favorito,
+     dourada com. .chead na frente vence a regra de alvo de toque (P12). */
+  .chead .cstar {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    opacity: 1;
+    font-size: 15px;
+    color: rgba(184, 172, 143, 0.5);
+    z-index: 2;
+  }
+  .chead .cstar.on {
+    color: var(--gold);
+  }
+  /* Título: UMA linha até quase a borda (corta no meio da palavra com
+     "…"); segurar o dedo mostra o nome inteiro */
+  .ctit {
+    grid-area: tit;
+    font-size: 16px;
+    line-height: 1.25;
+    margin: 2px 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .ctit.rolando {
+    white-space: normal;
+  }
+  .cthumb {
+    grid-area: thumb;
+    width: 68px;
+    height: 68px;
+    margin: 0;
+    align-self: center;
+    border-radius: 6px;
+  }
+  /* Sem foto: só a hachura, sem o texto "foto da ficha" */
+  .cthumb .cph {
+    display: none;
+  }
+  .cexc {
+    display: none;
+  }
+  .cfoot {
+    grid-area: foot;
+    /* block (não flex): é o que faz o "…" funcionar na linha única
+       de etiqueta · personagens */
+    display: block;
+    margin-top: 0;
+    font-size: 11px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* nomes param antes da borda, e o "…" sai na cor dos personagens */
+    padding-right: 28px;
+    color: #8a5c50;
+  }
+  /* No bloco, o respiro entre etiqueta e personagens (o flex dava gap) */
+  .cfoot .cgrupo {
+    margin-right: 4px;
+  }
+  /* Carimbo retangular e discreto, na linha do cabeçalho, antes da estrela */
+  .stamp {
+    grid-area: status;
+    position: static;
+    justify-self: end;
+    align-self: center;
+    margin-right: 24px;
+    font-size: 8px;
+    letter-spacing: 0.6px;
+    line-height: 1.2;
+    padding: 1px 6px;
+    border-width: 1.5px;
+    border-radius: 3px;
+  }
+  .selcheck {
+    left: 6px;
+    top: 6px;
+  }
+  /* Detalhe vira página cheia com barra de ações (P07) */
+  #drawer {
+    position: fixed;
+    inset: 0; /* estica até as bordas reais — acompanha as barras sozinho */
+    width: auto;
+    max-width: 100vw;
+    height: auto;
+    border-left: 0;
+    z-index: 60;
+    padding-top: var(--sat);
+  }
+  #drawer .dactions {
+    display: none;
+  }
+  .dfoot {
+    display: flex;
+    padding-bottom: calc(12px + var(--sab));
+  }
+  #drawer .dh .close,
+  .dfoot .dbtn {
+    min-height: var(--alvo-lg);
+    min-width: var(--alvo-lg);
+  }
+  /* Filtros viram folha inferior */
+  .filtros-panel.open {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    background: var(--s2);
+    border-top: 1px solid var(--line-em);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.6);
+    padding: 14px 18px calc(22px + var(--sab));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    /* dvh: o limite acompanha o teclado/barras; corpo interno rola */
+    max-height: min(80vh, 85dvh);
+    overflow-y: auto;
+    animation: sheetSobe 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  @keyframes sheetSobe {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  /* Alça: visual de 40×4, mas área de toque bem maior (padding invisível) */
+  .filtros-panel.open .sheet-grip {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line-em);
+    align-self: center;
+    box-sizing: content-box;
+    padding: 10px 44px;
+    margin: -10px 0;
+    background-clip: content-box;
+    touch-action: none;
+    cursor: grab;
+  }
+  .filtros-panel.open .sheet-head {
+    display: flex;
+    align-items: center;
+    touch-action: none;
+  }
+  .sheet-title {
+    font-family: var(--font-serif);
+    font-size: 19px;
+    color: var(--ink);
+  }
+  .sheet-clear {
+    margin-left: auto;
+    font-size: 12.5px;
+    color: var(--gold);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .fgrp select {
+    padding: 11px 13px;
+    font-size: 13.5px;
+  }
+  .fclear {
+    display: none;
+  }
+  .faplicar {
+    display: block;
+    height: 48px;
+    border-radius: 10px;
+    font-size: 14px;
+    justify-content: center;
+  }
+  /* Arquivo mobile: abas cheias, sem dossiê lateral */
+  .arqhead {
+    padding: 16px 18px 0;
+    gap: 10px;
+  }
+  .arqhead h3 {
+    font-size: 19px;
+  }
+  .segtabs {
+    order: 5;
+    width: 100%;
+  }
+  .seg {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 12.5px;
+  }
+  .segn {
+    display: none;
+  }
+  /* Busca do Arquivo: lupa vira botão real; aberta, ocupa a linha toda */
+  .arqsearch {
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    justify-content: center;
+  }
+  .arqsearch .arqlupa {
+    width: var(--alvo);
+    height: var(--alvo);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--field);
+    color: var(--hint);
+  }
+  .arqsearch:not(.aberta) input,
+  .arqsearch:not(.aberta) .arqx {
+    display: none;
+  }
+  .arqsearch.aberta {
+    order: 6;
+    width: 100%;
+    height: var(--alvo);
+    padding: 0 6px 0 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--field);
+    justify-content: flex-start;
+  }
+  .arqsearch.aberta .arqlupa {
+    border: 0;
+    background: none;
+  }
+  .arqsearch.aberta .arqx {
+    display: grid;
+    place-items: center;
+    min-width: var(--alvo);
+    min-height: var(--alvo);
+  }
+  .arqbody {
+    padding: 12px 18px 18px;
+    gap: 12px;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .dirmenu2 {
+    width: 100%;
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 6px;
+    background-image: none;
+    gap: 7px;
+    border: 0;
+    background: none;
+  }
+  .dirtitle2 {
+    display: none;
+  }
+  .dirbtn2 {
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 14px;
+    min-height: var(--alvo);
+    display: inline-flex;
+    align-items: center;
+  }
+  .dirbtn2.active {
+    border-color: var(--gold);
+  }
+  /* ===== Salas no celular: a LISTA de categorias é a primeira tela =====
+     .catlist = lista aberta (grade escondida); sem ela, grade + botão que
+     traz a lista de volta (a faixa horizontal de chips não é usada). */
+  .arqbody.catlist .arqmain {
+    display: none;
+  }
+  .arqbody:not(.catlist) .dirmenu2 {
+    display: none;
+  }
+  .arqbody.catlist .dirmenu2 {
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    gap: 0;
+    padding: 16px 12px;
+    border: 1px solid var(--line-em);
+    border-radius: 6px;
+    background: var(--s3);
+    /* sem fundo listrado: as linhas são as bordas das categorias (abaixo),
+       senão elas não acompanham as linhas de verdade */
+    background-image: none;
+  }
+  .arqbody.catlist .dirtitle2 {
+    display: block;
+  }
+  .arqbody.catlist .dirbtn2 {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 4px;
+    justify-content: space-between;
+    padding: 12px 10px;
+    font-size: 12.5px;
+  }
+  .arqbody.catlist .dirbtn2:last-child {
+    border-bottom: 0;
+  }
+  /* Na grade: botão com a categoria atual (o nome já não repete na faixa) */
+  .arqcatbtn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: var(--alvo);
+    padding: 10px 14px;
+    background: var(--s3);
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+  }
+  .arqcatx {
+    color: var(--hint);
+    font-size: 11.5px;
+  }
+  .arqfaixa .arqfx:not(.busca) {
+    display: none;
+  }
+  .arqgrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+  }
+  .arqgrid.pess,
+  .arqgrid.grps {
+    grid-template-columns: 1fr;
+  }
+  .arqdossie {
+    display: none;
+  }
+  /* Mapa/Quadros condensados */
+  .maphint {
+    display: none;
+  }
+  .qhint {
+    display: none;
+  }
+  .minimap {
+    display: none;
+  }
+  /* Mapa no toque: extras (lista/camadas/ajuda) numa linha no TOPO;
+     zoom (+/−/⤢/1:1) numa pilha no CANTO DE BAIXO, perto do polegar. */
+  .mapctrl {
+    right: calc(10px + var(--sar));
+    top: 10px;
+    gap: 8px;
+  }
+  .mapextras {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .mapzoom {
+    position: fixed;
+    right: calc(10px + var(--sar));
+    bottom: calc(var(--tabbar-total) + 14px);
+    top: auto;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 6;
+  }
+  .mapbtn {
+    min-height: var(--alvo-lg);
+    min-width: var(--alvo-lg);
+  }
+  .mapbtn.ic {
+    width: var(--alvo-lg);
+    height: var(--alvo-lg);
+    font-size: 18px;
+  }
+  .soCompacto,
+  .mapbtn.soCompacto {
+    display: grid;
+  }
+  /* Ajuda e legenda não cobrem o grafo por padrão (P17): viram sheet no "?" */
+  .mapcorner {
+    display: none;
+  }
+  .maptoggles {
+    display: none !important;
+  }
+  /* Quadros no toque (P04): barra FINA de uma linha só — abas + menu ···.
+     Criar (ficha/nota/texto) fica no botão ＋; selecionar/mover/conectar
+     saem do toque no cartão. As ferramentas de desktop somem. */
+  .qbar {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  /* Nome da área à esquerda e o quadro atual num seletor de lista
+     (as abas lado a lado saem: com vários quadros viravam rolagem) */
+  .qtitulo {
+    display: block;
+    margin-right: auto;
+    font-family: var(--font-serif);
+    font-size: 19px;
+    color: var(--ink);
+    padding-left: 4px;
+  }
+  .qtabs {
+    display: none;
+  }
+  .qsel {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: none;
+    max-width: 46vw;
+    min-height: 42px;
+    padding: 0 12px;
+    background: var(--s3);
+    border: 1px solid var(--line-em);
+    border-radius: 999px;
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .qsel-c {
+    color: var(--gold);
+    font-size: 11px;
+    flex: none;
+  }
+  .qtools {
+    flex: none;
+    display: flex;
+    align-items: center;
+  }
+  .qtoolbar,
+  .qfich {
+    display: none;
+  }
+  /* Menus e popups com alvo de 44px; atalhos de teclado somem no toque */
+  .mmit {
+    min-height: var(--alvo);
+  }
+  .mm-k,
+  .kbd {
+    display: none;
+  }
+  .mentmenu {
+    max-width: calc(100vw - 16px);
+    max-height: 40dvh;
+    overflow-y: auto;
+  }
+  /* Lightbox: fechar com 48px e dica fora da área segura */
+  .lightbox .lbclose {
+    width: var(--alvo-lg);
+    height: var(--alvo-lg);
+  }
+  .lightbox .lbhint {
+    bottom: calc(10px + var(--sab));
+  }
+  .contawrap {
+    padding: 16px 18px;
+  }
+  .contacard {
+    border: 0;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+  }
+  /* Feedback acima da tabbar/área segura (P16): toast e progresso da IA
+     não cobrem a navegação nem o FAB. */
+  #toast {
+    bottom: var(--toast-offset);
+    max-width: calc(100vw - 24px);
+  }
+  #ialote {
+    bottom: var(--fab-offset);
+    right: 12px;
+  }
+  body.drawer-aberta #toast,
+  body.drawer-aberta #ialote {
+    bottom: calc(12px + var(--sab));
+  }
+  /* Teclado virtual (§5.7): fonte mínima de 16px nos campos digitáveis
+     (evita o zoom automático do iOS e melhora a leitura) */
+  .topbar .search input,
+  .arqsearch input,
+  .edinput,
+  .fgrp select,
+  .gadd input,
+  .ginput,
+  .ordsel {
+    font-size: 16px;
+  }
+  /* Botões de formulários de edição com alvo de toque confortável */
+  .editbtns .dbtn,
+  .gadd button {
+    min-height: var(--alvo);
+  }
+  /* Ações que dependiam de hover ganham área e presença permanentes */
+  .pcard-m,
+  .dosren,
+  .dosx,
+  .fio-x,
+  .searchx {
+    min-width: var(--alvo);
+    min-height: var(--alvo);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Favorito do card e chave de idioma com alvo de 44px (P12) —
+     margens negativas mantêm o layout visual do card */
+  .cstar {
+    display: inline-grid;
+    place-items: center;
+    min-width: var(--alvo);
+    min-height: var(--alvo);
+    margin: -12px -10px -12px auto;
+  }
+  .langsw,
+  #conta .langsw {
+    position: relative;
+    align-items: center;
+  }
+  /* Alvo de 44px sem inflar a cápsula: a área de toque cresce invisível
+     ao redor (a borda visível continua abraçando só o PT/EN) */
+  .langsw::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
 }

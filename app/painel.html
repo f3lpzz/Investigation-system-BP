@@ -2,161 +2,178 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blue Prince — Painel de Pistas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Magnify — Sistema de investigação</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="estilos.css" />
-    <link rel="stylesheet" href="online.css" />
+    <!-- ?v= força o celular a baixar a versão nova (troque ao mudar o CSS/JS) -->
+    <link rel="stylesheet" href="estilos.css?v=20260718b" />
+    <link rel="stylesheet" href="online.css?v=20260718b" />
   </head>
-  <body class="app-carregando">
+  <body class="app-carregando view-grade">
     <div class="shell">
+      <!-- ===== NavRail (trilho lateral desktop) ===== -->
       <aside class="side" id="side">
         <div class="side-brand">
-          <div class="emblem">βP</div>
-          <div>
-            <h1>Blue Prince</h1>
-            <div class="sub">Painel de pistas</div>
+          <div class="emblem">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+              <line x1="12.6" y1="12.6" x2="17" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></line>
+            </svg>
+          </div>
+          <div class="side-brand-txt">
+            <img src="assets/magnify-logo.svg" alt="Magnify" class="brand-logo" />
+            <div class="sub">SISTEMA DE INVESTIGAÇÃO</div>
           </div>
         </div>
         <div class="side-scroll">
-          <div class="side-head">Visões</div>
           <nav class="side-nav">
-            <button id="vGrade" class="navit active" title="Grade">
-              <span class="ni-ic">▦</span><span class="ni-lb">Grade</span>
+            <button id="vGrade" class="navit active" title="Fichas">
+              <span class="ni-ic"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"></rect></svg></span><span class="ni-lb">Fichas</span>
             </button>
             <button id="vMapa" class="navit" title="Mapa de conexões">
-              <span class="ni-ic">🕸</span><span class="ni-lb">Mapa</span>
+              <span class="ni-ic"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><line x1="4" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="1.4"></line><line x1="12" y1="8" x2="5" y2="13" stroke="currentColor" stroke-width="1.4"></line><circle cx="4" cy="4" r="2.6" fill="currentColor"></circle><circle cx="12" cy="8" r="2.6" fill="currentColor"></circle><circle cx="5" cy="13" r="2.6" fill="currentColor"></circle></svg></span><span class="ni-lb">Mapa</span>
             </button>
-            <button id="vMundo" class="navit" title="Dossiês">
-              <span class="ni-ic">🌐</span><span class="ni-lb">Mundo</span>
+            <button id="vTeorias" class="navit" title="Quadros de cortiça">
+              <span class="ni-ic"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect><circle cx="8" cy="6" r="1.6" fill="#b8452e"></circle><line x1="8" y1="7.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.3"></line></svg></span><span class="ni-lb">Quadros</span>
             </button>
-            <button id="vDir" class="navit" title="Diretório de salas">
-              <span class="ni-ic">📖</span><span class="ni-lb">Diretório</span>
-            </button>
-            <button id="vTeorias" class="navit" title="Quadros (estilo Miro)">
-              <span class="ni-ic">🧠</span><span class="ni-lb">Quadros</span>
+            <button id="vArquivo" class="navit" title="Arquivo — salas, personagens e grupos">
+              <span class="ni-ic"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><rect x="2" y="9" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><line x1="6.5" y1="5.2" x2="9.5" y2="5.2" stroke="currentColor" stroke-width="1.4"></line><line x1="6.5" y1="11.2" x2="9.5" y2="11.2" stroke="currentColor" stroke-width="1.4"></line></svg></span><span class="ni-lb">Arquivo</span>
             </button>
           </nav>
         </div>
         <div class="side-foot">
-          <button
-            id="btnGerenciar"
-            class="navit"
-            onclick="abrirGestao()"
-            title="Gerenciar"
-          >
-            <span class="ni-ic">⚙</span><span class="ni-lb">Gerenciar</span>
-          </button>
           <button
             id="btnSalvar"
             class="navit save"
             onclick="salvarTudo()"
             title="Estado do salvamento — clique para salvar agora"
           >
-            <span class="ni-ic" id="saveIc">☁</span
-            ><span class="ni-lb" id="saveLb">Tudo salvo</span>
+            <span class="ni-ic save-dot" id="saveIc"></span
+            ><span class="ni-lb" id="saveLb">Tudo salvo na nuvem</span>
           </button>
-          <button
-            id="btnSair"
-            class="navit"
-            onclick="if (window.sairComConfirmacao) window.sairComConfirmacao()"
-            title="Sair da conta (volta para a tela de login)"
-          >
-            <span class="ni-ic">🚪</span><span class="ni-lb">Sair</span>
+          <button id="vConta" class="navit" title="Conta">
+            <span class="ni-ic avatar" id="contaAvatar">·</span
+            ><span class="ni-lb">Conta</span>
           </button>
         </div>
       </aside>
       <div class="appwrap">
+        <!-- ===== Cabeçalho da área Fichas ===== -->
         <div class="topbar">
-          <div class="search">
-            🔎<input
-              id="busca"
-              placeholder="Buscar pistas, salas, personagens…"
-            /><button
-              class="searchx"
-              onclick="limparBusca()"
-              title="Limpar busca"
-            >
-              ✕
-            </button>
+          <div class="atitle">
+            <h3 id="areaTitle">Fichas</h3>
+            <div class="astats" id="areaStats"></div>
           </div>
-          <div class="topactions">
-            <button
-              id="btnUndo"
-              class="topbtn ic"
-              onclick="desfazer()"
-              title="Desfazer (Ctrl+Z)"
-              disabled
-            >
-              ↶
-            </button>
-            <button
-              id="btnRedo"
-              class="topbtn ic"
-              onclick="refazer()"
-              title="Refazer (Ctrl+Y / Ctrl+Shift+Z)"
-              disabled
-            >
-              ↷
-            </button>
+          <div class="topgrow"></div>
+          <!-- busca + filtro na mesma linha (no celular o filtro vira ícone) -->
+          <div class="searchrow">
+            <div class="search">
+              <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"></circle><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"></line></svg>
+              <input id="busca" type="search" enterkeyhint="search" aria-label="Buscar fichas, salas, pessoas" placeholder="Buscar fichas, salas, pessoas…" /><button
+                class="searchx"
+                onclick="limparBusca()"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+              <span class="kbd" title="Busca rápida">Ctrl K</span>
+            </div>
             <button
               id="btnFiltros"
               class="topbtn"
               onclick="toggleFiltros()"
               title="Abrir/fechar filtros"
+              aria-label="Filtros"
             >
-              ⛃ Filtros
+              Filtros
             </button>
+          </div>
+          <div class="topactions">
             <button
-              id="btnIaLote"
-              class="topbtn"
-              style="display: none"
-              onclick="iaLotePendentes()"
-              title="Processa com a IA todas as pistas ainda não processadas (⏳), uma por vez"
-            ></button>
-            <button
-              id="btnIdioma"
-              class="topbtn"
-              onclick="toggleIdioma()"
-              title="Idioma dos cards"
-            >
-              🌐 PT
-            </button>
-            <button
-              id="btnSel"
+              id="btnMore"
               class="topbtn ic"
-              onclick="toggleSelMode()"
-              title="Selecionar várias"
+              onclick="toggleMore()"
+              title="Mais ações"
             >
-              ☑
+              ···
             </button>
-            <label class="ordlbl"
-              >Ordenar
-              <select id="ordenar" class="ordsel">
-                <option value="recentes">Recentes</option>
-                <option value="sala">Sala</option>
-                <option value="titulo">Título</option>
-              </select></label
-            >
             <button
               id="btnNova"
               class="topbtn primary"
               onclick="novaFicha()"
-              title="Criar uma pista do zero"
+              title="Criar uma ficha do zero"
             >
-              ＋ Nova pista
+              ＋ Nova ficha
             </button>
             <span id="contador" class="contador"></span>
           </div>
         </div>
+        <!-- ===== Menu ··· (ações raras) ===== -->
+        <div class="moremenu" id="moreMenu">
+          <button
+            id="btnIdioma"
+            class="mmit"
+            onclick="toggleIdioma()"
+            title="Idioma das transcrições nos cards"
+          >
+            Idioma dos cards<span class="mm-k" id="mmIdioma">PT</span>
+          </button>
+          <button
+            id="btnSel"
+            class="mmit"
+            onclick="toggleSelMode();toggleMore(false)"
+            title="Selecionar várias fichas"
+          >
+            Selecionar várias
+          </button>
+          <label class="mmit ordlbl"
+            >Ordenar
+            <select id="ordenar" class="ordsel">
+              <option value="recentes">Recentes</option>
+              <option value="sala">Sala</option>
+              <option value="titulo">Título</option>
+            </select></label
+          >
+          <button
+            id="btnIaLote"
+            class="mmit"
+            style="display: none"
+            onclick="iaLotePendentes()"
+            title="Processa com a IA todas as fichas ainda não processadas, uma por vez"
+          ></button>
+          <div class="mm-sep"></div>
+          <button
+            id="btnUndo"
+            class="mmit"
+            onclick="desfazer()"
+            title="Desfazer (Ctrl+Z)"
+            disabled
+          >
+            Desfazer<span class="mm-k">Ctrl+Z</span>
+          </button>
+          <button
+            id="btnRedo"
+            class="mmit"
+            onclick="refazer()"
+            title="Refazer (Ctrl+Y / Ctrl+Shift+Z)"
+            disabled
+          >
+            Refazer<span class="mm-k">Ctrl+Y</span>
+          </button>
+        </div>
         <div class="filtros-pills" id="filtrosPills"></div>
         <div class="selbar" id="selbar"></div>
         <div class="filtros-panel" id="filtrosPanel">
+          <div class="sheet-grip"></div>
+          <div class="sheet-head">
+            <div class="sheet-title">Filtros</div>
+            <button class="sheet-clear" onclick="limparFiltros()">limpar</button>
+          </div>
           <div class="fgrp">
             <label>Sala</label
             ><select id="fsala">
@@ -178,26 +195,36 @@
           <div class="fgrp">
             <label>Mostrar só</label>
             <div class="fchips">
-              <button id="btnInc" class="topbtn" onclick="toggleIncompletas()" title="Só incompletas">⚠ Incompletas</button>
-              <button id="btnPend" class="topbtn" onclick="togglePendentes()" title="Só pendentes">⏳ Pendentes</button>
-              <button id="btnOrfas" class="topbtn" onclick="toggleOrfas()" title="Sem conexão">🧩 Sem conexão</button>
-              <button id="btnFav" class="topbtn" onclick="toggleFavoritas()" title="Só favoritas">⭐ Favoritas</button>
+              <button id="btnInc" class="fchip" onclick="toggleIncompletas()" title="Só incompletas">Incompletas</button>
+              <button id="btnPend" class="fchip" onclick="togglePendentes()" title="Só pendentes">Pendentes</button>
+              <button id="btnOrfas" class="fchip" onclick="toggleOrfas()" title="Sem conexão">Sem conexão</button>
+              <button id="btnFav" class="fchip" onclick="toggleFavoritas()" title="Só favoritas">Favoritas</button>
             </div>
           </div>
-          <button class="topbtn" onclick="limparFiltros()">Limpar tudo</button>
+          <button class="topbtn fclear" onclick="limparFiltros()">Limpar tudo</button>
+          <button class="topbtn primary faplicar" onclick="toggleFiltros()">Aplicar filtros</button>
         </div>
         <main>
           <div id="grade"></div>
           <div id="mapa">
+            <div class="maphead">
+              <h3>Mapa</h3>
+              <span class="maphint">arraste para navegar · roda = zoom · clique abre a ficha</span>
+            </div>
             <svg id="svg"></svg>
-            <button
-              class="mapbtn"
-              id="btnFit"
-              onclick="fitCamera(true)"
-              title="Reenquadrar todo o mapa na tela"
-            >
-              ⤢ Centralizar
-            </button>
+            <div class="mapctrl" role="group" aria-label="Controles do mapa">
+              <div class="mapgrupo mapzoom" role="group" aria-label="Zoom">
+                <button class="mapbtn ic" id="btnZoomIn" onclick="zoomMapa(1.25)" aria-label="Aproximar" title="Aproximar">＋</button>
+                <button class="mapbtn ic" id="btnZoomOut" onclick="zoomMapa(0.8)" aria-label="Afastar" title="Afastar">−</button>
+                <button class="mapbtn ic" id="btnFit" onclick="fitCamera(true)" aria-label="Enquadrar todo o mapa" title="Enquadrar todo o mapa (Shift+1)">⤢</button>
+                <button class="mapbtn ic" id="btnZoom100" onclick="zoom100Mapa()" aria-label="Restaurar zoom para 100%" title="Zoom 100% (Shift+0)">1:1</button>
+              </div>
+              <div class="mapgrupo mapextras">
+                <button class="mapbtn ic" id="btnLista" onclick="mapaLista()" aria-label="Lista de pontos do mapa" title="Lista de pontos (alternativa aos gestos)">☰</button>
+                <button class="mapbtn em" id="btnCamadas" onclick="toggleCamadas()" aria-label="Camadas do mapa" title="Mostrar/ocultar camadas do mapa">Camadas ▾</button>
+                <button class="mapbtn ic soCompacto" id="btnMapAjuda" onclick="mapaAjuda()" aria-label="Como usar o mapa e legenda" title="Como usar">?</button>
+              </div>
+            </div>
             <div class="maptoggles" id="maptoggles"></div>
             <div class="mapcorner">
               <div class="maphelp" id="maphelp"></div>
@@ -205,21 +232,23 @@
             </div>
             <div class="minimap" id="minimap"><svg id="minisvg"></svg></div>
           </div>
-          <div id="mundo"></div>
-          <div id="diretorio"></div>
+          <div id="mundo" class="legado" hidden></div>
+          <div id="diretorio" class="legado" hidden></div>
           <div id="teorias"></div>
+          <div id="arquivo"></div>
+          <div id="conta"></div>
           <aside id="drawer"></aside>
           <div id="modalGestao" class="modal">
             <div class="modalbox gest">
               <div class="modalhd">
-                <h2>⚙ Gerenciar</h2>
+                <h2>Gerenciar</h2>
                 <button class="close" onclick="fecharGestao()">✕</button>
               </div>
               <div class="modalbody">
                 <div class="gcols">
                   <div class="gsec card">
                     <h3>
-                      🚪 Salas <span class="gcount" id="gc-salas">0</span>
+                      Salas <span class="gcount" id="gc-salas">0</span>
                       <span
                         class="qmark"
                         title="As salas vêm do diretório compartilhado do jogo (Supabase), iguais para todos. Aqui você só as consulta e abre o dossiê — não é possível criar, renomear nem excluir salas."
@@ -230,11 +259,11 @@
                   </div>
                   <div class="gsec card">
                     <h3>
-                      👤 Personagens
+                      Personagens
                       <span class="gcount" id="gc-pessoas">0</span>
                       <span
                         class="qmark"
-                        title="Pessoas citadas nas pistas. Renomear propaga em todas as pistas; excluir desvincula. Para unir dois nomes da mesma pessoa, use a ferramenta Mesclar abaixo."
+                        title="Pessoas citadas nas fichas. Renomear propaga em todas as fichas; excluir desvincula. Para unir dois nomes da mesma pessoa, use a ferramenta Mesclar abaixo."
                         >?</span
                       >
                     </h3>
@@ -248,10 +277,10 @@
                   </div>
                   <div class="gsec card">
                     <h3>
-                      📦 Grupos <span class="gcount" id="gc-grupos">0</span>
+                      Grupos <span class="gcount" id="gc-grupos">0</span>
                       <span
                         class="qmark"
-                        title="Conjuntos de pistas (ex.: Cartas Vermelhas). A cor identifica o grupo no mapa e nas etiquetas, e é escurecida automaticamente quando necessário para o nome branco ficar sempre legível. Clique no quadradinho para mudar a cor."
+                        title="Conjuntos de fichas (ex.: Cartas Vermelhas). A cor identifica o grupo no mapa e nas etiquetas, e é escurecida automaticamente quando necessário para o nome branco ficar sempre legível. Clique no quadradinho para mudar a cor."
                         >?</span
                       >
                     </h3>
@@ -266,7 +295,7 @@
                 </div>
                 <div class="gsec card gtool">
                   <h3>
-                    🔗 Mesclar personagens
+                    Mesclar personagens
                     <span
                       class="qmark"
                       title="Une dois nomes que são a mesma pessoa. O 1º (Manter) é preservado; o 2º (Absorver) é incorporado: dados, apelidos e ligações vão para o 1º."
@@ -297,18 +326,18 @@
                   <div class="gadd mescla-btns">
                     <button
                       onclick="mesclarPessoas('alias')"
-                      title="O 2º nome vira apelido do 1º; as pistas continuam citando o 2º, que passa a resolver para o 1º"
+                      title="O 2º nome vira apelido do 1º; as fichas continuam citando o 2º, que passa a resolver para o 1º"
                     >
-                      🏷️ Tornar pseudônimo</button
+                      Tornar pseudônimo</button
                     ><button
                       onclick="mesclarPessoas('full')"
                       title="Junta tudo no 1º nome e o 2º deixa de existir (citações reescritas para o 1º)"
                     >
-                      ⛓️ Juntar e manter o 1º
+                      Juntar e manter o 1º
                     </button>
                   </div>
                   <div class="mescla-dica">
-                    <b>Tornar pseudônimo:</b> as pistas seguem citando o 2º
+                    <b>Tornar pseudônimo:</b> as fichas seguem citando o 2º
                     nome, que passa a resolver para o 1º. &nbsp;·&nbsp;
                     <b>Juntar:</b> as citações do 2º são reescritas para o 1º e
                     o 2º nome deixa de existir.
@@ -318,13 +347,13 @@
               <div class="modalft">
                 <div class="ft-note">
                   As mudanças valem na hora e são
-                  <b>salvas automaticamente</b> no dados.js. Renomear propaga
-                  nas pistas; excluir limpa.
+                  <b>salvas automaticamente</b>. Renomear propaga
+                  nas fichas; excluir limpa.
                 </div>
                 <div class="ftbtns">
                   <span class="ftitem"
                     ><button class="topbtn" onclick="trocarArquivo()">
-                      📁 Trocar arquivo de dados</button
+                      Trocar arquivo de dados</button
                     ><span
                       class="qmark"
                       title="Escolhe outro arquivo dados.js (ou cria um novo) como destino do salvamento automático. Útil se você moveu o painel de pasta ou quer salvar em outro lugar."
@@ -332,15 +361,15 @@
                     ></span
                   ><span class="ftitem"
                     ><button class="topbtn" onclick="exportarBackup()">
-                      ⬇ Exportar backup</button
+                      Exportar backup</button
                     ><span
                       class="qmark"
-                      title="Baixa agora uma cópia do dados.js atual como um arquivo separado, para você guardar em segurança."
+                      title="Baixa agora uma cópia dos dados atuais como um arquivo separado, para você guardar em segurança."
                       >?</span
                     ></span
                   ><span class="ftitem"
                     ><button class="topbtn" onclick="importarDados()">
-                      ⬆ Restaurar/Importar</button
+                      Restaurar/Importar</button
                     ><span
                       class="qmark"
                       title="Carrega os dados a partir de um arquivo de backup, substituindo os dados atuais do painel."
@@ -348,7 +377,7 @@
                     ></span
                   ><span class="ftitem"
                     ><button class="topbtn" onclick="conectarPasta()">
-                      📂 Conectar pasta de imagens</button
+                      Conectar pasta de imagens</button
                     ><span
                       class="qmark"
                       title="Permite salvar as imagens coladas como arquivos na pasta imagens/ (em vez de embutidas no dados.js), deixando o arquivo mais leve."
@@ -356,7 +385,7 @@
                     ></span
                   ><span class="ftitem"
                     ><button class="topbtn" onclick="migrarImagens()">
-                      🖼 Converter imagens embutidas</button
+                      Converter imagens embutidas</button
                     ><span
                       class="qmark"
                       title="Converte as imagens que já estão embutidas (base64) no dados.js em arquivos na pasta imagens/, reduzindo o tamanho do arquivo."
@@ -364,7 +393,7 @@
                     ></span
                   ><span class="ftitem"
                     ><button class="topbtn" onclick="abrirBackups()">
-                      🛟 Backups / Restaurar</button
+                      Backups / Restaurar</button
                     ><span
                       class="qmark"
                       title="Abre a lista de backups automáticos (pasta backups/) para visualizar e restaurar uma versão anterior dos dados."
@@ -379,9 +408,34 @@
       </div>
     </div>
 
+    <!-- ===== Barra inferior mobile (5 abas) ===== -->
+    <nav class="tabbar" id="tabbar" aria-label="Navegação principal">
+      <button class="tbit active" data-view="grade" onclick="setView('grade')">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor"></rect><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"></rect></svg>Fichas
+      </button>
+      <button class="tbit" data-view="mapa" onclick="setView('mapa')">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><line x1="4" y1="4" x2="12" y2="8" stroke="currentColor" stroke-width="1.4"></line><line x1="12" y1="8" x2="5" y2="13" stroke="currentColor" stroke-width="1.4"></line><circle cx="4" cy="4" r="2.6" fill="currentColor"></circle><circle cx="12" cy="8" r="2.6" fill="currentColor"></circle><circle cx="5" cy="13" r="2.6" fill="currentColor"></circle></svg>Mapa
+      </button>
+      <button class="tbit" data-view="teorias" onclick="setView('teorias')">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect><circle cx="8" cy="6" r="1.6" fill="#b8452e"></circle><line x1="8" y1="7.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.3"></line></svg>Quadros
+      </button>
+      <button class="tbit" data-view="arquivo" onclick="setView('arquivo')">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><rect x="2" y="9" width="12" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"></rect><line x1="6.5" y1="5.2" x2="9.5" y2="5.2" stroke="currentColor" stroke-width="1.4"></line><line x1="6.5" y1="11.2" x2="9.5" y2="11.2" stroke="currentColor" stroke-width="1.4"></line></svg>Arquivo
+      </button>
+      <button class="tbit" data-view="conta" onclick="setView('conta')">
+        <span class="tb-conta"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.4" r="3" fill="none" stroke="currentColor" stroke-width="1.4"></circle><path d="M2.6 13.6c.8-2.6 2.9-4 5.4-4s4.6 1.4 5.4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg><span class="tb-dot" aria-hidden="true"></span></span>Conta
+      </button>
+    </nav>
+    <!-- Status de salvamento e avisos, anunciados a leitores de tela -->
+    <div id="srlive" role="status" aria-live="polite" class="visually-hidden"></div>
+    <!-- ===== FAB mobile: nova ficha ===== -->
+    <button class="fab" id="fab" onclick="fabAcao()" title="Nova ficha" aria-label="Nova ficha">＋</button>
+
     <div id="onboard" class="onboard" style="display: none">
       <div class="onboard-card">
-        <div class="emblem">βP</div>
+        <div class="emblem">
+          <svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></line></svg>
+        </div>
         <h2>Escolha onde salvar</h2>
         <p id="onboardMsg">
           Para o painel guardar tudo automaticamente, escolha o arquivo
@@ -393,7 +447,7 @@
           class="onboard-btn"
           onclick="escolherArquivoSalvar()"
         >
-          📂 Escolher onde salvar
+          Escolher onde salvar
         </button>
         <div class="onboard-dica">
           Funciona no Chrome ou Edge. Selecione (ou crie) o arquivo
@@ -409,25 +463,35 @@
       </div>
     </div>
 
-    <!-- ===== Tela de login (versão online) ===== -->
+    <!-- ===== Tela de login (versão online): cartão de papel ===== -->
     <div id="authScreen">
       <div class="auth-card">
-        <div class="emblem">βP</div>
-        <h1>Blue Prince</h1>
+        <span class="auth-tape"></span>
+        <span class="auth-stamp">CONFIDENCIAL</span>
+        <div class="auth-marca">
+          <div class="emblem">
+            <svg width="23" height="23" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"></circle><line x1="12.6" y1="12.6" x2="17" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></line></svg>
+          </div>
+          <div class="auth-marca-tx">
+            <img src="assets/magnify-logo-ink.svg" alt="Magnify" class="auth-logo" />
+            <div class="auth-tag">SISTEMA DE INVESTIGAÇÃO</div>
+          </div>
+        </div>
         <div class="auth-sub" id="authSub">Entre na sua conta</div>
         <div class="auth-msg" id="authMsg"></div>
         <form class="auth-form" id="authForm" autocomplete="on">
           <label
-            >E-mail
-            <input id="authEmail" type="email" autocomplete="email" required />
+            >E-MAIL
+            <input id="authEmail" type="email" inputmode="email" autocomplete="email" enterkeyhint="next" required />
           </label>
           <label
-            >Senha
+            >SENHA
             <div class="auth-pass-wrap">
               <input
                 id="authPass"
                 type="password"
                 autocomplete="current-password"
+                enterkeyhint="go"
                 required
               />
               <button
@@ -441,7 +505,7 @@
           </label>
           <div id="authPass2wrap" style="display: none">
             <label
-              >Confirmar senha
+              >CONFIRMAR SENHA
               <div class="auth-pass-wrap">
                 <input
                   id="authPass2"
@@ -459,7 +523,7 @@
             </label>
           </div>
           <button type="submit" class="auth-btn primary" id="authPrimary">
-            Entrar
+            Abrir o arquivo
           </button>
         </form>
         <button
@@ -484,16 +548,16 @@
     <!-- SDK do Supabase (cliente de auth + banco + storage) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0"></script>
     <!-- Config pública (URL + chave anon) e liga o MODO_ONLINE -->
-    <script src="supabase-config.js"></script>
+    <script src="supabase-config.js?v=20260718b"></script>
     <!-- Esqueleto v6 vazio: a fonte real é a nuvem (não o dados.js) -->
-    <script src="dados-vazio.js"></script>
+    <script src="dados-vazio.js?v=20260718b"></script>
     <!-- O app (miolo inalterado) -->
-    <script src="app.js"></script>
+    <script src="app.js?v=20260718b"></script>
     <!-- Lista-base das salas (dado do jogo): semeia o Diretório de usuários novos -->
-    <script src="salas-base.js"></script>
+    <script src="salas-base.js?v=20260718b"></script>
     <!-- Camada online: login + carregar/salvar na nuvem -->
-    <script src="online.js"></script>
+    <script src="online.js?v=20260718b"></script>
     <!-- IA: processar pistas (inerte sem window.IA_ATIVA) -->
-    <script src="ia.js"></script>
+    <script src="ia.js?v=20260718b"></script>
   </body>
 </html>
