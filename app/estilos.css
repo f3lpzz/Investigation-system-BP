@@ -5725,20 +5725,20 @@ select:focus {
    é dividida pelo mesmo fator, senão o rodapé sairia da tela. */
 @media (min-width: 1600px) {
   body {
-    zoom: 1.15;
-    height: calc(100svh / 1.15);
+    zoom: 1.08;
+    height: calc(100svh / 1.08);
   }
 }
 @media (min-width: 1900px) {
   body {
-    zoom: 1.35;
-    height: calc(100svh / 1.35);
+    zoom: 1.22;
+    height: calc(100svh / 1.22);
   }
 }
 @media (min-width: 2400px) {
   body {
-    zoom: 1.6;
-    height: calc(100svh / 1.6);
+    zoom: 1.45;
+    height: calc(100svh / 1.45);
   }
 }
 
