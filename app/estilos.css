@@ -3267,7 +3267,8 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 18px 24px 0;
+  /* o respiro embaixo evita que o card rolando encoste no cabeçalho */
+  padding: 18px 24px 8px;
   background: none;
   border: 0;
   position: relative;
@@ -3630,6 +3631,11 @@ select:focus {
   grid-auto-rows: max-content;
   padding: 18px 24px 24px;
   overflow: auto;
+  /* Na rolagem o card some suave junto ao cabeçalho, sem corte seco.
+     12px (não 18px, o padding): o alfinete do card sobe 5px acima dele e
+     um fade maior comia a metade de cima da cabeça do alfinete. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
 }
 .card {
   background: var(--papel);

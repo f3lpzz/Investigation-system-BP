@@ -77,7 +77,7 @@ const SEED = (vista) => `
     else if (base === "grade-filtroativo") { setView("grade"); togglePendentes(); render(); }
     // grade cheia: 28 fichas com títulos de 1 a 3 linhas (reproduz a
     // responsividade real do Felipe, que o seed pequeno não mostra)
-    else if (base === "grade-cheia") {
+    else if (base.indexOf("grade-cheia") === 0) {
       var _ts = ["Pista importada 14/07/2026 - 11/11", "Carta aos editores - rejeicao ao livro", "Mineracao - Ultimo equipamento para a nova mina", "Aviso ao pessoal - Ala Oeste fechada (Lady Clara Epson)", "Peca de xadrez - Peao (Parlor)", "Carta Vermelha 4"];
       var _bs = DADOS.fichas.slice();
       for (var i = 0; i < 28; i++) {
@@ -89,6 +89,11 @@ const SEED = (vista) => `
         }));
       }
       setView("grade"); render();
+      // "-rolada": mostra o topo da lista durante a rolagem (o corte rente
+      // ao cabeçalho só aparece com a grade fora do início)
+      if (v.indexOf("rolada") > 0) setTimeout(function () {
+        document.getElementById("grade").scrollTop = 260;
+      }, 200);
     }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
