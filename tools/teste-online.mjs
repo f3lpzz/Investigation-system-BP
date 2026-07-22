@@ -893,7 +893,9 @@ const entrou = () =>
     window.__payloadPersona = null;
     window.IA.chamar = async function(payload){
       window.__payloadPersona = payload;
-      return { resultado: { descricao: "Dossie Persona escreveu uma carta sobre a mina e, segundo o jornal, desapareceu em 3 de maio.", observacoes: "" }, uso:null, modelo:"mock" };
+      // Espelha a resposta REAL do servidor: o modelo devolve resumo+fatos
+      // estruturados e a Edge Function monta a "descricao" (resumo + bullets).
+      return { resultado: { resumo: "Dossie Persona escreveu uma carta sobre a mina.", fatos: [{ pista: "F-901", fato: "Escreveu uma carta sobre a mina" }, { pista: "F-902", fato: "Segundo o jornal, desapareceu em 3 de maio" }], descricao: "Dossie Persona escreveu uma carta sobre a mina.\\n\\n\\u2022 F-901 - Escreveu uma carta sobre a mina\\n\\u2022 F-902 - Segundo o jornal, desapareceu em 3 de maio", observacoes: "" }, uso:null, modelo:"mock" };
     };
     window.IA.personasProcessar(["Dossie Persona"]);
   `);
@@ -907,8 +909,8 @@ const entrou = () =>
     g('(function(){var p=window.__payloadPersona;return !!p && p.modo==="personagem" && p.personagem.nome==="Dossie Persona" && p.personagem.aliases[0]==="D.P." && p.pistas.length===2 && p.pistas[0].original.indexOf("Letter written")===0;})()'),
   );
   ok(
-    "personas: descrição escrita; fatos/notas do usuário INTACTOS; ia_desc registrado",
-    g('(function(){var p=DADOS.personagens.find(x=>x.nome==="Dossie Persona");return p.descricao.indexOf("desapareceu em 3 de maio")>0 && p.fatos[0]==="fato do usuário" && p.notas==="nota minha" && p.ia_desc && p.ia_desc.fichas.length===2;})()'),
+    "personas: descrição escrita (resumo + bullets por pista); fatos/notas do usuário INTACTOS; ia_desc registrado",
+    g('(function(){var p=DADOS.personagens.find(x=>x.nome==="Dossie Persona");return p.descricao.indexOf("desapareceu em 3 de maio")>0 && p.descricao.indexOf("\\u2022 F-902 - ")>0 && p.descricao.indexOf("\\n\\n")>0 && p.fatos[0]==="fato do usuário" && p.notas==="nota minha" && p.ia_desc && p.ia_desc.fichas.length===2;})()'),
   );
   ok(
     "personas: depois de processado deixa de ser elegível…",

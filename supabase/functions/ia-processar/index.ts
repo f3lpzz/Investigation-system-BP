@@ -47,23 +47,36 @@ const REGRAS_PERSONA = `Você escreve o dossiê de UM personagem do jogo Blue Pr
 REGRAS INEGOCIÁVEIS:
 1. FONTES: use APENAS os trechos fornecidos. Não use conhecimento externo sobre o jogo e não invente nada que nenhuma pista sustente.
 2. SÓ FATOS OBJETIVOS: relate o que cada pista DIZ sobre o personagem, nada além. NUNCA deduza, sugira ou especule — frases como "o que sugere…", "possivelmente…", "indicando envolvimento…" são PROIBIDAS. O que terceiros fizeram com criações do personagem fica de fora, a menos que a interação seja com o personagem em si (ex.: "ele construiu o relógio" entra; "outra pessoa vendeu o relógio dele" só entra se a pista ligar a venda a ele).
-3. FORMATO da "descricao" (texto puro, sem markdown, sem asteriscos):
-   - Comece com um RESUMO do personagem em 1 a 3 frases, só com fatos das pistas.
-   - Depois, UMA linha em branco.
-   - Depois, um bullet por fato, um por linha, no formato: • ID - fato curto e objetivo. Use o id da pista exatamente como aparece entre colchetes no cabeçalho dela (ex.: F-010). Uma pista com vários fatos gera vários bullets, repetindo o id. Ex.: • F-010 - Anne Babbage foi a primeira a alugar o livro "A Sightseer's Guide to Reddington" em 1982
-   - Agrupe os bullets da mesma pista juntos, na ordem em que as pistas foram fornecidas.
-4. FATO x RUMOR: distinga na redação do fato ("segundo o jornal…", "uma carta afirma…"). Se as pistas se contradizem, escreva um bullet para cada versão em vez de escolher um lado.
-5. IDIOMA: português do Brasil, tom neutro de dossiê.
-6. "observacoes": avisos práticos (ex.: menções ambíguas, pouco material sobre o personagem). Senão, "".`;
+3. "resumo": 1 a 3 frases sobre quem é o personagem, só com fatos das pistas. NÃO amontoe os fatos aqui — eles vão detalhados em "fatos".
+4. "fatos": UM item por fato — não junte vários fatos num item, e não deixe fato de fora achando que o resumo já cobriu. Em "pista" ponha o id exatamente como aparece entre colchetes no cabeçalho da pista (ex.: F-010). Em "fato" a frase curta e objetiva. Ex.: pista "F-010", fato "Anne Babbage foi a primeira a alugar o livro 'A Sightseer's Guide to Reddington' em 1982". Uma pista com vários fatos gera vários itens, repetindo o id; mantenha os itens da mesma pista juntos, na ordem em que as pistas foram fornecidas.
+5. FATO x RUMOR: distinga na redação do fato ("segundo o jornal…", "uma carta afirma…"). Se as pistas se contradizem, escreva um item para cada versão em vez de escolher um lado.
+6. IDIOMA: português do Brasil, tom neutro de dossiê; texto puro, sem markdown, sem asteriscos.
+7. "observacoes": avisos práticos (ex.: menções ambíguas, pouco material sobre o personagem). Senão, "".`;
 
+// O dossiê volta ESTRUTURADO (resumo + lista de fatos) — o esquema OBRIGA a
+// lista a existir; pedir o formato só no texto do prompt falhou com o
+// gpt-5-nano (ele escrevia o resumo e ignorava os bullets). O servidor monta
+// a "descricao" final a partir destes campos.
 const ESQUEMA_PERSONA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    descricao: { type: "string" },
+    resumo: { type: "string" },
+    fatos: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          pista: { type: "string" },
+          fato: { type: "string" },
+        },
+        required: ["pista", "fato"],
+      },
+    },
     observacoes: { type: "string" },
   },
-  required: ["descricao", "observacoes"],
+  required: ["resumo", "fatos", "observacoes"],
 };
 
 const ESQUEMA = {
@@ -273,6 +286,23 @@ Deno.serve(async (req) => {
         },
         502,
       );
+    }
+
+    // Dossiê: monta a "descricao" (resumo + linha em branco + bullets) AQUI,
+    // determinístico — o app continua lendo o campo único de sempre e o
+    // formato não depende da obediência do modelo.
+    if (modo === "personagem" && resultado && typeof resultado === "object") {
+      const fatos = (Array.isArray(resultado.fatos) ? resultado.fatos : [])
+        .slice(0, 120)
+        .map((x: Record<string, unknown>) => {
+          const id = txt(x?.pista, 20).trim() || "?";
+          const fato = txt(x?.fato, 500).trim();
+          return fato ? `• ${id} - ${fato}` : "";
+        })
+        .filter(Boolean);
+      resultado.descricao =
+        txt(resultado.resumo, 2000).trim() +
+        (fatos.length ? "\n\n" + fatos.join("\n") : "");
     }
 
     return json({
