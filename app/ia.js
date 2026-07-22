@@ -19,9 +19,12 @@
   }
 
   // ---- Anti-duplicata (Regra 2): determinístico, sem IA ----
+  // Remove os marcadores entre colchetes ([Ilustração: …], [ilegível]) antes de
+  // comparar: pistas antigas (sem eles) continuam batendo com as novas.
   function iaNormaliza(s) {
     return String(s || "")
       .toLowerCase()
+      .replace(/\[[^\]\n]*\]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -134,12 +137,16 @@
       document.body.appendChild(m);
     }
     const f = DADOS.fichas.find((x) => x.id === id);
+    // A transcrição agora vem com o layout da carta (várias linhas): o
+    // textarea cresce junto, senão vira uma janelinha de rolagem.
+    const linhasDe = (t) =>
+      Math.min(16, Math.max(4, String(t || "").split("\n").length + 1));
     const pgs = (r.paginas || []).map(
       (p, i) => `
       <div class="gsec card" style="margin-top:8px">
         <h3>📄 Página ${i + 1}</h3>
-        <div class="field"><label>Original (EN)</label><textarea id="ia-orig-${i}" class="edinput" rows="4">${esc(p.transcricao || "")}</textarea></div>
-        <div class="field"><label>Tradução (PT)</label><textarea id="ia-trad-${i}" class="edinput" rows="4">${esc(p.traducao || "")}</textarea></div>
+        <div class="field"><label>Original (EN)</label><textarea id="ia-orig-${i}" class="edinput" rows="${linhasDe(p.transcricao)}">${esc(p.transcricao || "")}</textarea></div>
+        <div class="field"><label>Tradução (PT)</label><textarea id="ia-trad-${i}" class="edinput" rows="${linhasDe(p.traducao)}">${esc(p.traducao || "")}</textarea></div>
       </div>`,
     );
     const opcoesGrupo =
@@ -591,8 +598,8 @@
             titulo: f.titulo || "",
             sala: f.sala || "",
             grupo: (f.grupos || [])[0] || "",
-            original: pgs.map((x) => x.original || "").filter(Boolean).join("\n"),
-            traducao: pgs.map((x) => x.traducao || "").filter(Boolean).join("\n"),
+            original: pgs.map((x) => x.original || "").filter(Boolean).join("\n\n"),
+            traducao: pgs.map((x) => x.traducao || "").filter(Boolean).join("\n\n"),
             resumo: (pgs[0] && pgs[0].explica) || "",
           };
         })

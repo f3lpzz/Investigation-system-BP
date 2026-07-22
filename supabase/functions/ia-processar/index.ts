@@ -29,26 +29,31 @@ const REGRAS = `Você processa fotos de pistas do jogo Blue Prince para um catá
 
 REGRAS INEGOCIÁVEIS:
 1. SEM SPOILER: transcreva e traduza APENAS o que está literalmente visível nas imagens. O resumo descreve só o que o texto diz — NUNCA deduza significados, soluções, segredos ou conexões com outras pistas. Não use conhecimento externo sobre o jogo.
-2. TRANSCRIÇÃO FIEL: mantenha o texto original em inglês exatamente como está (erros e tudo). Se algo estiver ilegível, use [ilegível].
-3. TRADUÇÃO: português do Brasil, natural, fiel ao original.
-4. TÍTULO: padrão "[Assunto principal] — [detalhe distintivo]", máx. 60 caracteres, em português. Ex.: "Aviso ao pessoal — Ala Oeste fechada".
-5. PERSONAGENS: em "personagens_existentes" liste APENAS nomes que constam na lista fornecida (grafia exata da lista). Nomes citados no texto que NÃO estão na lista vão em "personagens_novos".
-6. GRUPO: escolha no máximo UM grupo da lista fornecida (grafia exata) se a pista claramente pertencer a ele; senão deixe "" e, se fizer sentido, proponha um nome curto em "grupo_sugerido".
-7. RESUMO: 1-3 frases neutras sobre o que o texto diz. Sem especulação.
-8. "observacoes": avisos práticos (ex.: imagem cortada, texto parcialmente ilegível). Senão, "".`;
+2. TRANSCRIÇÃO FIEL E COM LAYOUT: mantenha o texto original em inglês exatamente como está (erros e tudo) e reproduza o desenho do documento, de cima para baixo: título sozinho na linha dele, subtítulo na linha seguinte, cada linha do documento numa linha própria, e UMA linha em branco entre blocos que aparecem separados na imagem. Se algo estiver ilegível, use [ilegível].
+3. ELEMENTOS NÃO TEXTUAIS: descreva ilustrações, gráficos, mapas, selos e assinaturas ilegíveis entre colchetes, NA POSIÇÃO em que aparecem no documento, em português nas duas versões. Ex.: [Ilustração: gráfico de aquecimento com curva de -10°C a 30°C]. Descreva só o que está visível; não interprete o significado.
+4. TRADUÇÃO: português do Brasil, natural, fiel ao original, espelhando EXATAMENTE as mesmas quebras de linha, linhas em branco e marcadores entre colchetes da transcrição.
+5. TÍTULO: padrão "[Assunto principal] — [detalhe distintivo]", máx. 60 caracteres, em português. Ex.: "Aviso ao pessoal — Ala Oeste fechada".
+6. PERSONAGENS: em "personagens_existentes" liste APENAS nomes que constam na lista fornecida (grafia exata da lista). Nomes citados no texto que NÃO estão na lista vão em "personagens_novos".
+7. GRUPO: escolha no máximo UM grupo da lista fornecida (grafia exata) se a pista claramente pertencer a ele; senão deixe "" e, se fizer sentido, proponha um nome curto em "grupo_sugerido".
+8. RESUMO: 1-3 frases neutras sobre o que o texto diz. Sem especulação.
+9. "observacoes": avisos práticos (ex.: imagem cortada, texto parcialmente ilegível). Senão, "".`;
 
 // ---- Receita 2: dossiê de PERSONAGEM (modo: "personagem") ----
 // Texto-somente (sem imagens): recebe os trechos das pistas que citam o
-// personagem e escreve a descrição organizada. Interpretação é PEDIDA aqui
-// (diferente da receita de pista), mas SEMPRE limitada às fontes fornecidas.
+// personagem e escreve a descrição em resumo + bullets de fatos objetivos,
+// um por fato, citando o id da pista. SEM interpretação/especulação.
 const REGRAS_PERSONA = `Você escreve o dossiê de UM personagem do jogo Blue Prince para um catálogo pessoal fan-made, a partir de trechos de pistas fornecidos. Responda SEMPRE no JSON pedido.
 
 REGRAS INEGOCIÁVEIS:
 1. FONTES: use APENAS os trechos fornecidos. Não use conhecimento externo sobre o jogo e não invente nada que nenhuma pista sustente.
-2. INTERPRETAÇÃO PEDIDA: organize e cruze as citações. Ex.: se o personagem aparece só como autor de um livro, diga que ele ESCREVEU o livro X (não conte a história do livro, a menos que ela seja sobre ele). Se um jornal noticia o desaparecimento dele em certa data, relate o desaparecimento com a data, o último lugar em que foi visto e o motivo, se citados.
-3. O QUE INCLUIR (quando as pistas derem base): papel/cargo e para quem trabalha; relações familiares e sociais; eventos com datas, em ordem cronológica; lugares e endereços associados; objetos/posses; cartas que escreveu ou recebeu (para quem / de quem e sobre o quê); apelidos ou pseudônimos usados.
-4. FATO x RUMOR: distinga ("segundo o jornal…", "uma carta sugere…"). Se as pistas se contradizem, aponte a divergência em vez de escolher um lado.
-5. FORMA: português do Brasil; 1 a 4 parágrafos corridos, tom neutro de dossiê; sem listas; não cite os ids das pistas.
+2. SÓ FATOS OBJETIVOS: relate o que cada pista DIZ sobre o personagem, nada além. NUNCA deduza, sugira ou especule — frases como "o que sugere…", "possivelmente…", "indicando envolvimento…" são PROIBIDAS. O que terceiros fizeram com criações do personagem fica de fora, a menos que a interação seja com o personagem em si (ex.: "ele construiu o relógio" entra; "outra pessoa vendeu o relógio dele" só entra se a pista ligar a venda a ele).
+3. FORMATO da "descricao" (texto puro, sem markdown, sem asteriscos):
+   - Comece com um RESUMO do personagem em 1 a 3 frases, só com fatos das pistas.
+   - Depois, UMA linha em branco.
+   - Depois, um bullet por fato, um por linha, no formato: • ID - fato curto e objetivo. Use o id da pista exatamente como aparece entre colchetes no cabeçalho dela (ex.: F-010). Uma pista com vários fatos gera vários bullets, repetindo o id. Ex.: • F-010 - Anne Babbage foi a primeira a alugar o livro "A Sightseer's Guide to Reddington" em 1982
+   - Agrupe os bullets da mesma pista juntos, na ordem em que as pistas foram fornecidas.
+4. FATO x RUMOR: distinga na redação do fato ("segundo o jornal…", "uma carta afirma…"). Se as pistas se contradizem, escreva um bullet para cada versão em vez de escolher um lado.
+5. IDIOMA: português do Brasil, tom neutro de dossiê.
 6. "observacoes": avisos práticos (ex.: menções ambíguas, pouco material sobre o personagem). Senão, "".`;
 
 const ESQUEMA_PERSONA = {
@@ -154,7 +159,13 @@ Deno.serve(async (req) => {
       if (!pistas.length)
         return json({ error: "nenhuma pista citando o personagem" }, 400);
       const blocos = pistas.map((f: Record<string, unknown>, i: number) => {
-        const cab = `[${txt(f.id, 20) || "?"}] ${txt(f.titulo, 200) || "(sem título)"}` +
+        // Id no formato "carimbo" que o app mostra nos cards (f10 → F-010),
+        // para os bullets do dossiê citarem a pista do jeito que o usuário vê.
+        const idVis = (txt(f.id, 20) || "?").replace(
+          /^([a-z]+)(\d+)$/i,
+          (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
+        );
+        const cab = `[${idVis}] ${txt(f.titulo, 200) || "(sem título)"}` +
           (txt(f.sala, 80) ? ` — sala: ${txt(f.sala, 80)}` : "") +
           (txt(f.grupo, 80) ? ` — grupo: ${txt(f.grupo, 80)}` : "");
         const en = txt(f.original, 6000);
