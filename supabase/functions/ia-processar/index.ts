@@ -10,6 +10,9 @@
 //   é impossível ele consultar wiki/walkthrough.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+// Montagem do texto do dossiê: arquivo à parte para o teste do Node poder
+// rodar o MESMO código que roda aqui (ver tools/teste-dossie.mjs).
+import { montarDescricao } from "./montar-dossie.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -292,17 +295,7 @@ Deno.serve(async (req) => {
     // determinístico — o app continua lendo o campo único de sempre e o
     // formato não depende da obediência do modelo.
     if (modo === "personagem" && resultado && typeof resultado === "object") {
-      const fatos = (Array.isArray(resultado.fatos) ? resultado.fatos : [])
-        .slice(0, 120)
-        .map((x: Record<string, unknown>) => {
-          const id = txt(x?.pista, 20).trim() || "?";
-          const fato = txt(x?.fato, 500).trim();
-          return fato ? `• ${id} - ${fato}` : "";
-        })
-        .filter(Boolean);
-      resultado.descricao =
-        txt(resultado.resumo, 2000).trim() +
-        (fatos.length ? "\n\n" + fatos.join("\n") : "");
+      resultado.descricao = montarDescricao(resultado);
     }
 
     return json({

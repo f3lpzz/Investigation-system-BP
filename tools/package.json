@@ -8,8 +8,9 @@
     "verificar": "node verificar-dados.mjs",
     "teste-carga": "node teste-carga.mjs",
     "teste-online": "node teste-online.mjs",
-    "checar": "node verificar-dados.mjs && node teste-carga.mjs",
-    "checar-online": "node verificar-dados.mjs && node teste-carga.mjs && node teste-online.mjs",
+    "teste-dossie": "node teste-dossie.mjs",
+    "checar": "node verificar-dados.mjs && node teste-carga.mjs && node teste-dossie.mjs",
+    "checar-online": "node verificar-dados.mjs && node teste-carga.mjs && node teste-dossie.mjs && node teste-online.mjs",
     "format": "prettier --write \"../app/painel.html\" \"../app/estilos.css\" \"../app/app.js\" *.mjs",
     "lint": "eslint \"../app/app.js\""
   },
