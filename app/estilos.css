@@ -3661,26 +3661,29 @@ select:focus {
   padding-top: 24px;
 }
 /* O alfinete É o botão de favoritar (não há mais estrela no card).
-   Desenho de alfinete de verdade, mas simples: CABEÇA redonda com brilho
-   (o fundo em degradê dá o volume) + AGULHA em triângulo descendo dela
-   (::after). Fica INTEIRO dentro do card, no meio do topo. O ::before é
-   só a área de clique invisível, bem maior que a cabeça de 11px. */
+   Alfinete de painel VISTO DE CIMA, como o modelo: um disco de BASE
+   (o próprio botão) e a CABEÇA menor sobreposta, deslocada para cima e
+   para a direita (::after) — a agulha não aparece porque está espetada
+   para dentro. A sombra cai para a esquerda-baixo, como no modelo.
+   O ::before é só a área de clique invisível, bem maior que o desenho.
+   O deslocamento de 1,5px na esquerda compensa a cabeça, que sai um
+   pouco para a direita: assim o conjunto fica óptico no meio do card. */
 .pin {
   position: absolute;
   left: 50%;
-  top: 5px;
-  transform: translateX(-50%);
-  width: 11px;
-  height: 11px;
+  top: 7px;
+  transform: translateX(calc(-50% - 1.5px));
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 0;
   background: radial-gradient(
-    circle at 34% 30%,
-    #dcdcdc 0 15%,
-    #a8a8a8 55%,
-    #6e6e6e 100%
+    circle at 62% 70%,
+    #b9b9b9 0 26%,
+    #8e8e8e 68%,
+    #666 100%
   );
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  box-shadow: -3px 3px 4px rgba(0, 0, 0, 0.32);
   z-index: 2;
   cursor: pointer;
   padding: 0;
@@ -3691,39 +3694,48 @@ select:focus {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   transform: translate(-50%, -50%);
 }
 .pin::after {
   content: "";
   position: absolute;
-  left: 50%;
-  top: 9px;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 1.5px solid transparent;
-  border-right: 1.5px solid transparent;
-  border-top: 6px solid #6e6e6e;
+  right: -3px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 33% 28%,
+    #eee 0 12%,
+    #b3b3b3 52%,
+    #767676 100%
+  );
+  box-shadow: -1px 1px 1.5px rgba(0, 0, 0, 0.3);
 }
 .pin:hover {
-  transform: translateX(-50%) scale(1.25);
+  transform: translateX(calc(-50% - 1.5px)) scale(1.22);
 }
 .pin:focus-visible {
   outline: 2px solid var(--gold);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 .pin.fav {
   background: radial-gradient(
-    circle at 34% 30%,
-    #f7e3ae 0 15%,
-    var(--gold) 55%,
+    circle at 62% 70%,
+    #e6c886 0 26%,
+    var(--gold) 68%,
     #8a6c34 100%
   );
 }
 .pin.fav::after {
-  border-top-color: #8a6c34;
+  background: radial-gradient(
+    circle at 33% 28%,
+    #fdf1cf 0 12%,
+    #e3c074 52%,
+    #a07f3d 100%
+  );
 }
 .chead {
   display: flex;
@@ -4861,26 +4873,27 @@ select:focus {
   outline-offset: 2px;
 }
 /* O alfinete da ficha no quadro é a alça do barbante: segurar e arrastar
-   puxa a linha. Mesmo desenho do alfinete da grade — cabeça redonda com
-   brilho + agulha (::after) — só que vermelho e inteiro dentro do papel.
-   A área de pega invisível (::before) é bem maior que a cabeça de 12px,
-   senão é impossível acertar com o mouse ou o dedo. */
+   puxa a linha. Mesmo desenho do alfinete da grade — disco de base +
+   cabeça sobreposta, visto de cima — só que VERMELHO, como o modelo, e
+   um pouco maior, porque aqui ele também é alça de arraste. A área de
+   pega invisível (::before) é bem maior que o desenho, senão é impossível
+   acertar com o mouse ou o dedo. */
 .qpin {
   position: absolute;
   left: 50%;
-  top: 6px;
-  transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
+  top: 7px;
+  transform: translateX(calc(-50% - 2px));
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   border: 0;
   background: radial-gradient(
-    circle at 34% 30%,
-    #e08a72 0 15%,
-    var(--manual) 55%,
+    circle at 62% 70%,
+    #d24a2c 0 26%,
+    #b8321a 68%,
     #7d2417 100%
   );
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  box-shadow: -3px 3px 5px rgba(0, 0, 0, 0.42);
   z-index: 3;
   cursor: grab;
   transition: transform 0.08s ease;
@@ -4890,24 +4903,28 @@ select:focus {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   transform: translate(-50%, -50%);
 }
 .qpin::after {
   content: "";
   position: absolute;
-  left: 50%;
-  top: 10px;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 1.5px solid transparent;
-  border-right: 1.5px solid transparent;
-  border-top: 7px solid #7d2417;
+  right: -4px;
+  top: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 33% 28%,
+    #f28a63 0 12%,
+    #d1442a 52%,
+    #8e2a19 100%
+  );
+  box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.35);
 }
 .qpin:hover {
-  transform: translateX(-50%) scale(1.3);
+  transform: translateX(calc(-50% - 2px)) scale(1.22);
 }
 .qcod {
   font-family: var(--font-mono);
