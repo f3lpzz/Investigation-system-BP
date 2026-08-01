@@ -101,6 +101,23 @@ const SEED = (vista) => `
         document.getElementById("grade").scrollTop = 260;
       }, 200);
     }
+    // quadro com fichas + barbantes, inclusive um barbante PRESO em outro
+    // barbante (alfinete = alça da linha). Usado para conferir a issue #9.
+    else if (base === "teorias-barbante") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 40, y: 40, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:60},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:430, y:70},
+        {id:"qc", tipo:"ref", kind:"pista", ref:"f2", x:250, y:330}
+      );
+      _q.setas.push({id:"sA", de:"qa", para:"qb", rotulo:"mesma letra"});
+      // sai do meio do barbante sA e desce até a terceira ficha
+      _q.setas.push({id:"sB", de:"seta:sA", deT:0.5, para:"qc"});
+      desenhaQuadro();
+    }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
     // quadro arrastado: prova que a textura do fundo anda com a câmera

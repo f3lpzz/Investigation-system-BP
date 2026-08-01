@@ -102,6 +102,7 @@
 :where(
     button.et,
     button.dstar,
+    button.pin,
     button.fio-x,
     button.pcard-m,
     button.dosx,
@@ -120,12 +121,6 @@
   color: inherit;
   cursor: pointer;
   text-align: inherit;
-}
-/* Sem hover (toque): controles revelados no hover ficam sempre visíveis */
-@media (hover: none) {
-  .cstar {
-    opacity: 1;
-  }
 }
 /* Movimento reduzido: corta transições/animações espaciais */
 @media (prefers-reduced-motion: reduce) {
@@ -3659,6 +3654,8 @@ select:focus {
   border: 0;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
 }
+/* O alfinete É o botão de favoritar (não há mais estrela no card): cabeça
+   de 11px com uma área de clique invisível maior em volta (::before). */
 .pin {
   position: absolute;
   left: 50%;
@@ -3671,6 +3668,25 @@ select:focus {
   border: 2px solid #6e6e6e;
   box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
   z-index: 2;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.08s ease;
+}
+.pin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+}
+.pin:hover {
+  transform: translateX(-50%) scale(1.25);
+}
+.pin:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 .pin.fav {
   background: var(--gold);
@@ -3696,21 +3712,6 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.cstar {
-  margin-left: auto;
-  color: #b8ac8f;
-  font-size: 14px;
-  cursor: pointer;
-  opacity: 0;
-  line-height: 1;
-}
-.cstar.on {
-  color: var(--gold);
-  opacity: 1;
-}
-.card:hover .cstar {
-  opacity: 1;
 }
 .card h3.ctit {
   font-family: var(--font-serif);
@@ -4824,6 +4825,9 @@ select:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
+/* O alfinete da ficha no quadro é a alça do barbante: segurar e arrastar
+   puxa a linha. A área de pega invisível (::before) é bem maior que a
+   cabeça de 12px, senão é impossível acertar com o mouse ou o dedo. */
 .qpin {
   position: absolute;
   left: 50%;
@@ -4835,7 +4839,21 @@ select:focus {
   background: var(--manual);
   border: 2px solid #7d2417;
   box-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
-  z-index: 2;
+  z-index: 3;
+  cursor: grab;
+  transition: transform 0.08s ease;
+}
+.qpin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+}
+.qpin:hover {
+  transform: translateX(-50%) scale(1.3);
 }
 .qcod {
   font-family: var(--font-mono);
@@ -5988,8 +6006,30 @@ body.view-conta .filtros-panel {
     align-content: center;
     min-height: 96px;
   }
+  /* No celular o card é uma linha compacta: o alfinete sai do topo e vira o
+     botão de favorito no canto superior direito, com alvo de 44px (P12).
+     Fraco quando não é favorito, dourado quando é. */
   .pin {
-    display: none;
+    left: auto;
+    top: 12px;
+    right: 14px;
+    transform: none;
+    width: 13px;
+    height: 13px;
+    background: rgba(156, 156, 156, 0.45);
+    border-color: rgba(110, 110, 110, 0.5);
+    box-shadow: none;
+  }
+  .pin::before {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  .pin:hover {
+    transform: none;
+  }
+  .pin.fav {
+    background: var(--gold);
+    border-color: #8a6c34;
   }
   .chead {
     grid-area: head;
@@ -5997,7 +6037,7 @@ body.view-conta .filtros-panel {
     display: flex;
     align-items: center;
     gap: 8px;
-    /* espaço para a estrela fixa no canto superior direito */
+    /* espaço para o alfinete fixo no canto superior direito */
     padding-right: 26px;
   }
   .csala {
@@ -6005,27 +6045,6 @@ body.view-conta .filtros-panel {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  /* Estrela sempre visível no canto superior direito: fraca sem favorito,
-     dourada com. .chead na frente vence a regra de alvo de toque (P12). */
-  .chead .cstar {
-    display: grid;
-    place-items: center;
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 40px;
-    height: 40px;
-    min-width: 0;
-    min-height: 0;
-    margin: 0;
-    opacity: 1;
-    font-size: 15px;
-    color: rgba(184, 172, 143, 0.5);
-    z-index: 2;
-  }
-  .chead .cstar.on {
-    color: var(--gold);
   }
   /* Título: UMA linha até quase a borda (corta no meio da palavra com
      "…"); segurar o dedo mostra o nome inteiro */
@@ -6537,15 +6556,6 @@ body.view-conta .filtros-panel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-  /* Favorito do card e chave de idioma com alvo de 44px (P12) —
-     margens negativas mantêm o layout visual do card */
-  .cstar {
-    display: inline-grid;
-    place-items: center;
-    min-width: var(--alvo);
-    min-height: var(--alvo);
-    margin: -12px -10px -12px auto;
   }
   .langsw,
   #conta .langsw {
