@@ -3654,19 +3654,33 @@ select:focus {
   border: 0;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
 }
-/* O alfinete É o botão de favoritar (não há mais estrela no card): cabeça
-   de 11px com uma área de clique invisível maior em volta (::before). */
+/* Faixa no topo reservada só para o alfinete aparecer INTEIRO, centrado,
+   sem encostar no cabeçalho (antes ele ficava metade para fora da borda).
+   Vale no computador e no celular — só o card de FICHA tem alfinete. */
+.card.com-alfinete {
+  padding-top: 24px;
+}
+/* O alfinete É o botão de favoritar (não há mais estrela no card).
+   Desenho de alfinete de verdade, mas simples: CABEÇA redonda com brilho
+   (o fundo em degradê dá o volume) + AGULHA em triângulo descendo dela
+   (::after). Fica INTEIRO dentro do card, no meio do topo. O ::before é
+   só a área de clique invisível, bem maior que a cabeça de 11px. */
 .pin {
   position: absolute;
   left: 50%;
-  top: -5px;
+  top: 5px;
   transform: translateX(-50%);
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: #9c9c9c;
-  border: 2px solid #6e6e6e;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+  border: 0;
+  background: radial-gradient(
+    circle at 34% 30%,
+    #dcdcdc 0 15%,
+    #a8a8a8 55%,
+    #6e6e6e 100%
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   z-index: 2;
   cursor: pointer;
   padding: 0;
@@ -3681,6 +3695,18 @@ select:focus {
   height: 26px;
   transform: translate(-50%, -50%);
 }
+.pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 1.5px solid transparent;
+  border-right: 1.5px solid transparent;
+  border-top: 6px solid #6e6e6e;
+}
 .pin:hover {
   transform: translateX(-50%) scale(1.25);
 }
@@ -3689,8 +3715,15 @@ select:focus {
   outline-offset: 2px;
 }
 .pin.fav {
-  background: var(--gold);
-  border-color: #8a6c34;
+  background: radial-gradient(
+    circle at 34% 30%,
+    #f7e3ae 0 15%,
+    var(--gold) 55%,
+    #8a6c34 100%
+  );
+}
+.pin.fav::after {
+  border-top-color: #8a6c34;
 }
 .chead {
   display: flex;
@@ -4813,7 +4846,9 @@ select:focus {
   border: 0;
   border-radius: 3px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
-  padding: 12px;
+  /* Faixa de cima reservada ao alfinete, igual ao card da grade: ele
+     aparece INTEIRO no meio do topo (o card corta o que passa da borda). */
+  padding: 26px 12px 12px;
   color: var(--papel-ink);
   width: 210px;
   transform: rotate(-1deg);
@@ -4826,19 +4861,26 @@ select:focus {
   outline-offset: 2px;
 }
 /* O alfinete da ficha no quadro é a alça do barbante: segurar e arrastar
-   puxa a linha. A área de pega invisível (::before) é bem maior que a
-   cabeça de 12px, senão é impossível acertar com o mouse ou o dedo. */
+   puxa a linha. Mesmo desenho do alfinete da grade — cabeça redonda com
+   brilho + agulha (::after) — só que vermelho e inteiro dentro do papel.
+   A área de pega invisível (::before) é bem maior que a cabeça de 12px,
+   senão é impossível acertar com o mouse ou o dedo. */
 .qpin {
   position: absolute;
   left: 50%;
-  top: -6px;
+  top: 6px;
   transform: translateX(-50%);
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--manual);
-  border: 2px solid #7d2417;
-  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
+  border: 0;
+  background: radial-gradient(
+    circle at 34% 30%,
+    #e08a72 0 15%,
+    var(--manual) 55%,
+    #7d2417 100%
+  );
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   z-index: 3;
   cursor: grab;
   transition: transform 0.08s ease;
@@ -4851,6 +4893,18 @@ select:focus {
   width: 30px;
   height: 30px;
   transform: translate(-50%, -50%);
+}
+.qpin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 1.5px solid transparent;
+  border-right: 1.5px solid transparent;
+  border-top: 7px solid #7d2417;
 }
 .qpin:hover {
   transform: translateX(-50%) scale(1.3);
@@ -6006,30 +6060,11 @@ body.view-conta .filtros-panel {
     align-content: center;
     min-height: 96px;
   }
-  /* No celular o card é uma linha compacta: o alfinete sai do topo e vira o
-     botão de favorito no canto superior direito, com alvo de 44px (P12).
-     Fraco quando não é favorito, dourado quando é. */
-  .pin {
-    left: auto;
-    top: 12px;
-    right: 14px;
-    transform: none;
-    width: 13px;
-    height: 13px;
-    background: rgba(156, 156, 156, 0.45);
-    border-color: rgba(110, 110, 110, 0.5);
-    box-shadow: none;
-  }
+  /* Mesma posição do computador (meio do topo); só a área de TOQUE cresce
+     para os 44px da regra P12. */
   .pin::before {
     width: var(--alvo);
     height: var(--alvo);
-  }
-  .pin:hover {
-    transform: none;
-  }
-  .pin.fav {
-    background: var(--gold);
-    border-color: #8a6c34;
   }
   .chead {
     grid-area: head;
@@ -6037,8 +6072,6 @@ body.view-conta .filtros-panel {
     display: flex;
     align-items: center;
     gap: 8px;
-    /* espaço para o alfinete fixo no canto superior direito */
-    padding-right: 26px;
   }
   .csala {
     min-width: 0;
