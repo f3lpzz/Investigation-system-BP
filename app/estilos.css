@@ -79,6 +79,10 @@
   --alvo: 44px; /* alvo de toque padrão */
   --alvo-lg: 48px; /* alvo de toque crítico (mapa, fechar, salvar) */
   --foco-cor: #e0be7a; /* foco visível (≥3:1 sobre superfícies escuras) */
+  /* Silhueta do alfinete (ícone "push-pin-simple" do Phosphor Icons, MIT).
+     Usada como MÁSCARA: quem manda na cor é o `background-color` de quem
+     aplica. Vale para o alfinete da grade e o do quadro. */
+  --alfinete: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M224,176a8,8,0,0,1-8,8H136v56a8,8,0,0,1-16,0V184H40a8,8,0,0,1,0-16h9.29L70.46,48H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16h-6.46l21.17,120H216A8,8,0,0,1,224,176Z'/%3E%3C/svg%3E");
 }
 /* Foco visível consistente (teclado) — não some sobre fundos escuros */
 :focus-visible {
@@ -3660,82 +3664,59 @@ select:focus {
 .card.com-alfinete {
   padding-top: 24px;
 }
-/* O alfinete É o botão de favoritar (não há mais estrela no card).
-   Alfinete de painel VISTO DE CIMA, como o modelo: um disco de BASE
-   (o próprio botão) e a CABEÇA menor sobreposta, deslocada para cima e
-   para a direita (::after) — a agulha não aparece porque está espetada
-   para dentro. A sombra cai para a esquerda-baixo, como no modelo.
-   O ::before é só a área de clique invisível, bem maior que o desenho.
-   O deslocamento de 1,5px na esquerda compensa a cabeça, que sai um
-   pouco para a direita: assim o conjunto fica óptico no meio do card. */
+/* ===== Alfinete =====
+   Silhueta minimalista de alfinete de painel (cabeça chata em cima, corpo
+   afunilado, aba e agulha), portada do ícone "push-pin-simple" da família
+   aberta Phosphor Icons (MIT). Chapada e de UMA cor só: em 15px, silhueta
+   limpa lê muito melhor que bolinha com brilho, e combina com o noir do
+   tema. Trocar a cor do alfinete = trocar `background-color`.
+
+   A forma vem de uma MÁSCARA (o desenho recorta a cor de fundo). Como a
+   máscara também recortaria a área de clique, o BOTÃO em si é um retângulo
+   transparente do tamanho do alvo de toque, e quem desenha é o ::before. */
 .pin {
   position: absolute;
   left: 50%;
-  top: 7px;
-  transform: translateX(calc(-50% - 1.5px));
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 26px;
+  background: none;
   border: 0;
-  background: radial-gradient(
-    circle at 62% 70%,
-    #b9b9b9 0 26%,
-    #8e8e8e 68%,
-    #666 100%
-  );
-  box-shadow: -3px 3px 4px rgba(0, 0, 0, 0.32);
+  padding: 0;
   z-index: 2;
   cursor: pointer;
-  padding: 0;
-  transition: transform 0.08s ease;
 }
 .pin::before {
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 28px;
-  height: 28px;
-  transform: translate(-50%, -50%);
+  top: 4px;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 15px;
+  background-color: #8a8a8a;
+  -webkit-mask: var(--alfinete) center / contain no-repeat;
+  mask: var(--alfinete) center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  transition:
+    transform 0.08s ease,
+    background-color 0.12s ease;
 }
-.pin::after {
-  content: "";
-  position: absolute;
-  right: -3px;
-  top: -4px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 33% 28%,
-    #eee 0 12%,
-    #b3b3b3 52%,
-    #767676 100%
-  );
-  box-shadow: -1px 1px 1.5px rgba(0, 0, 0, 0.3);
-}
-.pin:hover {
-  transform: translateX(calc(-50% - 1.5px)) scale(1.22);
+.pin:hover::before {
+  transform: translateX(-50%) scale(1.16);
+  background-color: #6f6f6f;
 }
 .pin:focus-visible {
   outline: 2px solid var(--gold);
-  outline-offset: 3px;
+  outline-offset: -2px;
+  border-radius: 6px;
 }
-.pin.fav {
-  background: radial-gradient(
-    circle at 62% 70%,
-    #e6c886 0 26%,
-    var(--gold) 68%,
-    #8a6c34 100%
-  );
+.pin.fav::before {
+  background-color: var(--gold);
 }
-.pin.fav::after {
-  background: radial-gradient(
-    circle at 33% 28%,
-    #fdf1cf 0 12%,
-    #e3c074 52%,
-    #a07f3d 100%
-  );
+.pin.fav:hover::before {
+  background-color: #efd08c;
 }
 .chead {
   display: flex;
@@ -4872,59 +4853,40 @@ select:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-/* O alfinete da ficha no quadro é a alça do barbante: segurar e arrastar
-   puxa a linha. Mesmo desenho do alfinete da grade — disco de base +
-   cabeça sobreposta, visto de cima — só que VERMELHO, como o modelo, e
-   um pouco maior, porque aqui ele também é alça de arraste. A área de
-   pega invisível (::before) é bem maior que o desenho, senão é impossível
-   acertar com o mouse ou o dedo. */
+/* O alfinete da ficha no quadro é a MESMA silhueta da grade (variável
+   --alfinete), só que vermelha e um pouco maior, porque aqui ele também é
+   a alça de arrastar o barbante. Mesmo arranjo: o span é a área de pega
+   (grande, senão é impossível acertar com o mouse ou o dedo) e o ::before
+   é o desenho. */
 .qpin {
   position: absolute;
   left: 50%;
-  top: 7px;
-  transform: translateX(calc(-50% - 2px));
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 0;
-  background: radial-gradient(
-    circle at 62% 70%,
-    #d24a2c 0 26%,
-    #b8321a 68%,
-    #7d2417 100%
-  );
-  box-shadow: -3px 3px 5px rgba(0, 0, 0, 0.42);
+  top: 0;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 30px;
   z-index: 3;
   cursor: grab;
-  transition: transform 0.08s ease;
 }
 .qpin::before {
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 34px;
-  height: 34px;
-  transform: translate(-50%, -50%);
+  top: 4px;
+  transform: translateX(-50%);
+  width: 17px;
+  height: 17px;
+  background-color: var(--manual);
+  -webkit-mask: var(--alfinete) center / contain no-repeat;
+  mask: var(--alfinete) center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  transition:
+    transform 0.08s ease,
+    background-color 0.12s ease;
 }
-.qpin::after {
-  content: "";
-  position: absolute;
-  right: -4px;
-  top: -5px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 33% 28%,
-    #f28a63 0 12%,
-    #d1442a 52%,
-    #8e2a19 100%
-  );
-  box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.35);
-}
-.qpin:hover {
-  transform: translateX(calc(-50% - 2px)) scale(1.22);
+.qpin:hover::before {
+  transform: translateX(-50%) scale(1.16);
+  background-color: #d1442a;
 }
 .qcod {
   font-family: var(--font-mono);
@@ -6077,11 +6039,13 @@ body.view-conta .filtros-panel {
     align-content: center;
     min-height: 96px;
   }
-  /* Mesma posição do computador (meio do topo); só a área de TOQUE cresce
-     para os 44px da regra P12. */
-  .pin::before {
+  /* Mesma posição e mesmo desenho do computador (meio do topo); quem cresce
+     para o alvo de toque (P12) é o BOTÃO, não o alfinete. A altura para em
+     32px de propósito: mais que isso roubaria o toque do título, logo
+     abaixo, e tocar no título tem de abrir a ficha. */
+  .pin {
     width: var(--alvo);
-    height: var(--alvo);
+    height: 32px;
   }
   .chead {
     grid-area: head;
