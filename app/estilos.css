@@ -3668,14 +3668,20 @@ select:focus {
   padding-top: 24px;
 }
 /* ===== Alfinete =====
-   Alfinete espetado de lado (ver a silhueta em `--alfinete`): chapado e de
-   UMA cor só, porque nos 15px do card a silhueta limpa lê muito melhor que
-   bolinha com brilho, e o chapado combina com o noir do tema. Trocar a cor
-   do alfinete = trocar `background-color`.
+   Alfinete espetado de lado (ver a silhueta em `--alfinete`), com um 3D
+   LEVE: a máscara recorta DOIS fundos — um degradê que escurece de cima
+   para baixo (a luz do tema vem de cima, igual à sombra do papel) e um
+   brilho pontual na cabeça. Some a isso a sombra própria do `drop-shadow`,
+   que segue o contorno recortado. É volume o bastante para o alfinete
+   descolar do papel sem virar bolinha lustrosa.
 
-   A forma vem de uma MÁSCARA (o desenho recorta a cor de fundo). Como a
-   máscara também recortaria a área de clique, o BOTÃO em si é um retângulo
-   transparente do tamanho do alvo de toque, e quem desenha é o ::before. */
+   Trocar a cor do alfinete = trocar os dois degradês do `background-image`;
+   o realce do hover é `brightness`, então vale para as três cores de uma
+   vez (cinza, dourado e vermelho) sem repetir regra.
+
+   Como a máscara também recortaria a área de clique, o BOTÃO em si é um
+   retângulo transparente do tamanho do alvo de toque, e quem desenha é o
+   ::before. */
 .pin {
   position: absolute;
   left: 50%;
@@ -3697,17 +3703,23 @@ select:focus {
   transform: translateX(-50%);
   width: 17px;
   height: 17px;
-  background-color: #8a8a8a;
+  background-image:
+    radial-gradient(
+      circle at 64% 26%,
+      rgba(255, 255, 255, 0.5) 0 9%,
+      rgba(255, 255, 255, 0) 42%
+    ),
+    linear-gradient(160deg, #a6a6a6 0%, #828282 46%, #565656 100%);
   -webkit-mask: var(--alfinete) center / contain no-repeat;
   mask: var(--alfinete) center / contain no-repeat;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.45));
   transition:
     transform 0.08s ease,
-    background-color 0.12s ease;
+    filter 0.12s ease;
 }
 .pin:hover::before {
   transform: translateX(-50%) scale(1.16);
-  background-color: #6f6f6f;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)) brightness(1.12);
 }
 .pin:focus-visible {
   outline: 2px solid var(--gold);
@@ -3715,10 +3727,13 @@ select:focus {
   border-radius: 6px;
 }
 .pin.fav::before {
-  background-color: var(--gold);
-}
-.pin.fav:hover::before {
-  background-color: #efd08c;
+  background-image:
+    radial-gradient(
+      circle at 64% 26%,
+      rgba(255, 255, 255, 0.55) 0 9%,
+      rgba(255, 255, 255, 0) 42%
+    ),
+    linear-gradient(160deg, #dbb570 0%, var(--gold) 46%, #82632d 100%);
 }
 .chead {
   display: flex;
@@ -4878,17 +4893,23 @@ select:focus {
   transform: translateX(-50%);
   width: 20px;
   height: 20px;
-  background-color: var(--manual);
+  background-image:
+    radial-gradient(
+      circle at 64% 26%,
+      rgba(255, 255, 255, 0.5) 0 9%,
+      rgba(255, 255, 255, 0) 42%
+    ),
+    linear-gradient(160deg, #d4573a 0%, var(--manual) 46%, #7a2214 100%);
   -webkit-mask: var(--alfinete) center / contain no-repeat;
   mask: var(--alfinete) center / contain no-repeat;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 2px 2.5px rgba(0, 0, 0, 0.55));
   transition:
     transform 0.08s ease,
-    background-color 0.12s ease;
+    filter 0.12s ease;
 }
 .qpin:hover::before {
   transform: translateX(-50%) scale(1.16);
-  background-color: #d1442a;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)) brightness(1.12);
 }
 .qcod {
   font-family: var(--font-mono);
