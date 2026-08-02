@@ -79,13 +79,6 @@
   --alvo: 44px; /* alvo de toque padrão */
   --alvo-lg: 48px; /* alvo de toque crítico (mapa, fechar, salvar) */
   --foco-cor: #e0be7a; /* foco visível (≥3:1 sobre superfícies escuras) */
-  /* Silhueta do alfinete ESPETADO DE LADO — a agulha entra no papel para
-     baixo-esquerda, o mesmo ângulo do alfinete de verdade. É o ícone
-     "push-pin" (peso fill) da família aberta Phosphor Icons (MIT); entre os
-     angulados testados, é o de silhueta mais firme nos 15px do card.
-     Usada como MÁSCARA: quem manda na cor é o `background-color` de quem
-     aplica. Vale para o alfinete da grade e o do quadro. */
-  --alfinete: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M235.33,104l-53.47,53.65c4.56,12.67,6.45,33.89-13.19,60A15.93,15.93,0,0,1,157,224c-.38,0-.75,0-1.13,0a16,16,0,0,1-11.32-4.69L96.29,171,53.66,213.66a8,8,0,0,1-11.32-11.32L85,159.71l-48.3-48.3A16,16,0,0,1,38,87.63c25.42-20.51,49.75-16.48,60.4-13.14L152,20.7a16,16,0,0,1,22.63,0l60.69,60.68A16,16,0,0,1,235.33,104Z'/%3E%3C/svg%3E");
 }
 /* Foco visível consistente (teclado) — não some sobre fundos escuros */
 :focus-visible {
@@ -3667,22 +3660,29 @@ select:focus {
 .card.com-alfinete {
   padding-top: 24px;
 }
-/* ===== Alfinete =====
-   Alfinete espetado de lado (ver a silhueta em `--alfinete`), com um 3D
-   LEVE: a máscara recorta DOIS fundos — um degradê que escurece de cima
-   para baixo (a luz do tema vem de cima, igual à sombra do papel) e um
-   brilho pontual na cabeça. Some a isso a sombra própria do `drop-shadow`,
-   que segue o contorno recortado. É volume o bastante para o alfinete
-   descolar do papel sem virar bolinha lustrosa.
+/* ===== Alfinete (grade e quadro) =====
+   Alfinete de painel VISTO DE CIMA, com volume, como o modelo que o Felipe
+   mandou. São duas peças e não duas bolinhas iguais — essa é a diferença
+   que faz parecer alfinete:
 
-   Trocar a cor do alfinete = trocar os dois degradês do `background-image`;
-   o realce do hover é `brightness`, então vale para as três cores de uma
-   vez (cinza, dourado e vermelho) sem repetir regra.
+   ::before = a BASE, um disco ACHATADO (mais largo que alto) e inclinado,
+              porque é a aba de plástico vista em perspectiva;
+   ::after  = a CABEÇA, uma esfera de verdade, menor, encaixada em cima e à
+              direita, com o ponto de brilho e uma sombra curta que cai
+              sobre a base (é ela que "cola" a cabeça no disco).
 
-   Como a máscara também recortaria a área de clique, o BOTÃO em si é um
-   retângulo transparente do tamanho do alvo de toque, e quem desenha é o
-   ::before. */
+   Cores em três variáveis (`--a-claro`, `--a-base`, `--a-escuro`), então a
+   mesma geometria serve ao cinza da grade, ao dourado do favorito e ao
+   vermelho do quadro. O tamanho é um só, `--alf`: todo o resto sai dele
+   por proporção, e o quadro só precisa aumentar essa medida.
+
+   O BOTÃO em si é um retângulo transparente do tamanho do alvo de toque;
+   quem desenha são os dois pseudo-elementos. */
 .pin {
+  --alf: 16px;
+  --a-claro: #d2d2d2;
+  --a-base: #909090;
+  --a-escuro: #565656;
   position: absolute;
   left: 50%;
   top: 0;
@@ -3695,45 +3695,75 @@ select:focus {
   z-index: 2;
   cursor: pointer;
 }
-.pin::before {
+.pin.fav {
+  --a-claro: #f4dfad;
+  --a-base: var(--gold);
+  --a-escuro: #7d5f2b;
+}
+/* BASE: disco ACHATADO e inclinado (a aba do alfinete, vista de cima).
+   Degradê reto de propósito, sem ponto de brilho: brilho concentrado aqui
+   faria a base virar uma segunda bola e o alfinete lia como boneco de neve.
+   A sombra interna na borda de baixo é a ESPESSURA do disco. */
+.pin::before,
+.qpin::before {
   content: "";
   position: absolute;
   left: 50%;
-  top: 3px;
-  transform: translateX(-50%);
-  width: 17px;
-  height: 17px;
-  background-image:
-    radial-gradient(
-      circle at 64% 26%,
-      rgba(255, 255, 255, 0.5) 0 9%,
-      rgba(255, 255, 255, 0) 42%
-    ),
-    linear-gradient(160deg, #a6a6a6 0%, #828282 46%, #565656 100%);
-  -webkit-mask: var(--alfinete) center / contain no-repeat;
-  mask: var(--alfinete) center / contain no-repeat;
-  filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.45));
-  transition:
-    transform 0.08s ease,
-    filter 0.12s ease;
+  top: calc(var(--alf) * 0.42);
+  width: var(--alf);
+  height: calc(var(--alf) * 0.7);
+  transform: translateX(-50%) rotate(-14deg);
+  border-radius: 50%;
+  background: linear-gradient(
+    158deg,
+    var(--a-claro) 0%,
+    var(--a-base) 44%,
+    var(--a-escuro) 100%
+  );
+  box-shadow:
+    inset 0 calc(var(--alf) * -0.07) calc(var(--alf) * 0.09)
+      rgba(0, 0, 0, 0.32),
+    calc(var(--alf) * -0.1) calc(var(--alf) * 0.15) calc(var(--alf) * 0.26)
+      rgba(0, 0, 0, 0.34);
+  transition: transform 0.08s ease;
 }
-.pin:hover::before {
-  transform: translateX(-50%) scale(1.16);
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)) brightness(1.12);
+/* CABEÇA: a ÚNICA esfera do desenho — é ela que dá o brilho e o volume.
+   Fica encaixada em cima e à direita, e a sombra curta que ela joga na base
+   é o que cola as duas peças num objeto só. */
+.pin::after,
+.qpin::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + var(--alf) * 0.13);
+  top: calc(var(--alf) * 0.04);
+  width: calc(var(--alf) * 0.6);
+  height: calc(var(--alf) * 0.6);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 33% 27%,
+    #fff 0 5%,
+    var(--a-claro) 24%,
+    var(--a-base) 60%,
+    var(--a-escuro) 100%
+  );
+  box-shadow:
+    calc(var(--alf) * -0.07) calc(var(--alf) * 0.09) calc(var(--alf) * 0.12)
+      rgba(0, 0, 0, 0.45),
+    inset calc(var(--alf) * -0.03) calc(var(--alf) * -0.04)
+      calc(var(--alf) * 0.07) rgba(0, 0, 0, 0.28);
+  transition: transform 0.08s ease;
+}
+.pin:hover::before,
+.pin:hover::after,
+.qpin:hover::before,
+.qpin:hover::after {
+  filter: brightness(1.1);
 }
 .pin:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
   border-radius: 6px;
-}
-.pin.fav::before {
-  background-image:
-    radial-gradient(
-      circle at 64% 26%,
-      rgba(255, 255, 255, 0.55) 0 9%,
-      rgba(255, 255, 255, 0) 42%
-    ),
-    linear-gradient(160deg, #dbb570 0%, var(--gold) 46%, #82632d 100%);
 }
 .chead {
   display: flex;
@@ -4870,12 +4900,16 @@ select:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-/* O alfinete da ficha no quadro é a MESMA silhueta da grade (variável
-   --alfinete), só que vermelha e maior, porque aqui ele também é a alça de
-   arrastar o barbante. Mesmo arranjo: o span é a área de pega (grande,
-   senão é impossível acertar com o mouse ou o dedo) e o ::before é o
-   desenho. */
+/* O alfinete da ficha no quadro é o MESMO desenho da grade (as regras de
+   .pin::before/::after valem para ele também): muda só a cor, vermelha, e
+   o tamanho, maior, porque aqui ele também é a alça de arrastar o
+   barbante. O span é a área de pega — grande, senão é impossível acertar
+   com o mouse ou o dedo. */
 .qpin {
+  --alf: 19px;
+  --a-claro: #ec8b74;
+  --a-base: var(--manual);
+  --a-escuro: #6f1f12;
   position: absolute;
   left: 50%;
   top: 0;
@@ -4884,32 +4918,6 @@ select:focus {
   height: 30px;
   z-index: 3;
   cursor: grab;
-}
-.qpin::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 3px;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 20px;
-  background-image:
-    radial-gradient(
-      circle at 64% 26%,
-      rgba(255, 255, 255, 0.5) 0 9%,
-      rgba(255, 255, 255, 0) 42%
-    ),
-    linear-gradient(160deg, #d4573a 0%, var(--manual) 46%, #7a2214 100%);
-  -webkit-mask: var(--alfinete) center / contain no-repeat;
-  mask: var(--alfinete) center / contain no-repeat;
-  filter: drop-shadow(0 2px 2.5px rgba(0, 0, 0, 0.55));
-  transition:
-    transform 0.08s ease,
-    filter 0.12s ease;
-}
-.qpin:hover::before {
-  transform: translateX(-50%) scale(1.16);
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)) brightness(1.12);
 }
 .qcod {
   font-family: var(--font-mono);
