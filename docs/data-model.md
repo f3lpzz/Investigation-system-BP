@@ -84,6 +84,13 @@ Cada quadro guarda **cartões** (`nodes`) e **barbantes** (`setas`).
 > Apagar um barbante (ou o cartão que o segura) **leva junto**, em cascata,
 > os que estavam pendurados nele — senão sobrariam linhas sem apoio.
 
+**Que ligações o app aceita.** Duas regras, aplicadas tanto ao criar quanto ao religar uma ponta (`qMotivoRecusa` no `app/app.js`):
+
+1. **As duas pontas têm de chegar a cartões diferentes.** Cada ponta "chega" a um conjunto de cartões: um cartão chega a ele mesmo; um barbante chega aos cartões das duas pontas dele, recursivamente. Se os conjuntos se cruzam, a ligação não diz nada de novo — é o caso de ligar o meio de um barbante a uma das fichas que ele já liga.
+2. **Não existe a mesma ligação duas vezes, em nenhum sentido.** Puxar de A para B e depois de B para A é o mesmo barbante.
+
+A recusa nunca é silenciosa: o app avisa o motivo na tela.
+
 ---
 
 ## 3. A regra de ouro (invariante "ler = salvar")

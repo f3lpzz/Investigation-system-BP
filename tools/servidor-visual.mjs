@@ -101,6 +101,41 @@ const SEED = (vista) => `
         document.getElementById("grade").scrollTop = 260;
       }, 200);
     }
+    // marquee-hit: o retângulo de seleção do quadro cai onde o mouse está?
+    // Arrasta de (600,400) a (820,560) em coordenadas de TELA e compara com
+    // onde o #selbox foi parar. Serve com a interface ampliada (zoom do body
+    // em telas grandes), que foi onde a seleção saía deslocada.
+    else if (base === "marquee-hit") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        function ev(t, x, y) { cv.dispatchEvent(new MouseEvent(t, {bubbles:true, clientX:x, clientY:y, button:0})); }
+        ev("mousedown", 600, 400); ev("mousemove", 820, 560);
+        var b = document.getElementById("selbox").getBoundingClientRect();
+        var z = getComputedStyle(document.body).zoom || "1";
+        ev("mouseup", 820, 560);
+        // 2) arrastar um CARTÃO: ele tem de andar o mesmo que o mouse andou
+        var q = quadroAtual();
+        q.nodes.length = 0; q.setas.length = 0;
+        q.cam = { x: 40, y: 40, s: 1 };
+        q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:100, y:100});
+        desenhaQuadro();
+        var el = document.querySelector('.qnode[data-id="qa"]');
+        var r0 = el.getBoundingClientRect();
+        // o mousedown sai DO CARTÃO (evento sintético não faz hit-test:
+        // quem manda no alvo é o elemento em que ele é disparado)
+        var px = Math.round(r0.left + 30), py = Math.round(r0.bottom - 12);
+        el.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:px, clientY:py, button:0}));
+        ev("mousemove", px + 120, py + 80);
+        ev("mouseup", px + 120, py + 80);
+        var r1 = el.getBoundingClientRect();
+        document.title = "ZOOM=" + z +
+          " | selbox esperado=600,400 obtido=" + Math.round(b.left) + "," + Math.round(b.top) +
+          " erro=" + Math.round(b.left - 600) + "," + Math.round(b.top - 400) +
+          " || cartao esperado=+120,+80 obtido=+" + Math.round(r1.left - r0.left) +
+          ",+" + Math.round(r1.top - r0.top);
+      }, 400);
+    }
     // quadro com fichas + barbantes, inclusive um barbante PRESO em outro
     // barbante (alfinete = alça da linha). Usado para conferir a issue #9.
     else if (base === "teorias-barbante") {

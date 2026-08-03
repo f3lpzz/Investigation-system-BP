@@ -94,6 +94,7 @@ g(`
   q.nodes.push({id:"qa",tipo:"ref",kind:"pista",ref:"f1",x:0,y:0});
   q.nodes.push({id:"qb",tipo:"ref",kind:"pista",ref:"f5",x:400,y:0});
   q.nodes.push({id:"qc",tipo:"ref",kind:"pista",ref:"f2",x:200,y:400});
+  q.nodes.push({id:"qd",tipo:"ref",kind:"pista",ref:"f1",x:640,y:400});
   desenhaQuadro();
 `);
 const qpin = w.document.querySelector('.qnode[data-id="qa"] .qpin');
@@ -214,7 +215,7 @@ ok(
 /* ===== 4. Barbante que SAI de outro barbante ===== */
 const saiu = g(`
   (function(){
-    var alvo = document.querySelector('.qnode[data-id="qb"]');
+    var alvo = document.querySelector('.qnode[data-id="qd"]');
     return qLigarBarbante("seta:sA", 0.7, alvo, null);
   })()
 `);
@@ -229,21 +230,84 @@ ok(
   g("quadroAtual().setas[2]"),
 );
 
-/* ===== 5. Travas: nada pode se pendurar em si mesmo ===== */
+/* ===== 5. Regras: só ligação ÚTIL, nada que se morda a si mesmo =====
+   O quadro aqui tem: sA = qa—qb · setas[1] = qc—(meio de sA) ·
+   setas[2] = (meio de sA)—qd. */
+const recusa = (expr) => g(expr) === false;
+
 ok(
-  "trava: um barbante não gruda nele mesmo",
-  g(
-    `qLigarBarbante("seta:" + quadroAtual().setas[2].id, 0.5, document.querySelector('[data-seta-id="' + quadroAtual().setas[2].id + '"]'), null)`,
-  ) === false,
+  "regra: barbante NÃO liga numa ficha que ele mesmo já liga",
+  recusa(
+    `qLigarBarbante("seta:sA", 0.5, document.querySelector('.qnode[data-id="qb"]'), null)`,
+  ),
 );
 ok(
-  "trava: nem em quem já depende dele (laço)",
+  "regra: …nem na outra ponta dele",
+  recusa(
+    `qLigarBarbante("seta:sA", 0.5, document.querySelector('.qnode[data-id="qa"]'), null)`,
+  ),
+);
+ok(
+  "regra: a recusa explica o motivo (não é silenciosa)",
+  typeof g("_qMotivo") === "string" && g("_qMotivo").length > 0,
+  g("_qMotivo"),
+);
+ok(
+  "regra: ficha não liga duas vezes na mesma ficha (mesmo sentido)",
+  recusa(
+    `qLigarBarbante("qa", null, document.querySelector('.qnode[data-id="qb"]'), null)`,
+  ),
+);
+ok(
+  "regra: nem no sentido CONTRÁRIO — puxar de qb para qa é o mesmo barbante",
+  recusa(
+    `qLigarBarbante("qb", null, document.querySelector('.qnode[data-id="qa"]'), null)`,
+  ),
+);
+ok(
+  "regra: um barbante não gruda nele mesmo",
+  recusa(
+    `qLigarBarbante("seta:sA", 0.5, document.querySelector('[data-seta-id="sA"]'), null)`,
+  ),
+);
+ok(
+  "regra: nem num barbante que já se apoia nele (laço)",
+  recusa(`
+    (function(){
+      var filho = quadroAtual().setas[1];
+      var el = document.querySelector('[data-seta-id="' + filho.id + '"]');
+      return qLigarBarbante("seta:sA", 0.5, el, null);
+    })()
+  `),
+);
+ok(
+  "regra: nem repetir a ligação cartão↔barbante que já existe",
+  recusa(`
+    (function(){
+      return qLigarBarbante("qc", null, document.querySelector('[data-seta-id="sA"]'), {x:0,y:0});
+    })()
+  `),
+);
+ok(
+  "regra: nenhuma dessas recusas criou seta",
+  g("quadroAtual().setas.length") === 3,
+  g("quadroAtual().setas.length"),
+);
+ok(
+  "regra: o que É útil continua passando (qb ↔ qc, ainda sem ligação)",
+  g(
+    `qLigarBarbante("qb", null, document.querySelector('.qnode[data-id="qc"]'), null)`,
+  ) === true,
+);
+g("var q=quadroAtual();q.setas.pop()"); // desfaz, para o resto do teste seguir
+ok(
+  "regra: religar uma ponta usa as MESMAS regras",
   g(`
     (function(){
       var q = quadroAtual();
-      var filho = q.setas[1];               // pendurado em sA
-      var el = document.querySelector('[data-seta-id="' + filho.id + '"]');
-      return qLigarBarbante("seta:sA", 0.5, el, null);
+      var i = q.setas.findIndex(function(s){ return s.id === "sA"; });
+      // levar a ponta "para" de sA para qa deixaria qa—qa
+      return qReligarSeta(i, "para", document.querySelector('.qnode[data-id="qa"]'), null);
     })()
   `) === false,
 );

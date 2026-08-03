@@ -1620,6 +1620,17 @@ function ensureSelBox() {
   }
   return b;
 }
+/* Em tela grande o CSS amplia a interface com `zoom` no <body> (1.08 / 1.22
+   / 1.45). Isso cria DUAS réguas: `clientX` e `getBoundingClientRect()` vêm
+   em pixels de TELA (já ampliados), enquanto `style.left`, a câmera do
+   quadro e do mapa trabalham em pixels de CSS. Misturar as duas desloca
+   tudo por "coordenada × (zoom − 1)" — some no monitor pequeno e cresce
+   quanto mais longe do canto superior esquerdo. Divida por este fator para
+   ir de tela → CSS; multiplique para o contrário. */
+function zoomIF() {
+  const z = parseFloat(getComputedStyle(document.body).zoom);
+  return isFinite(z) && z > 0 ? z : 1;
+}
 function showSelBox(m) {
   const b = ensureSelBox();
   b.style.display = "block";
@@ -1627,10 +1638,12 @@ function showSelBox(m) {
 }
 function updateSelBox(m) {
   const b = ensureSelBox();
-  const x = Math.min(m.x0, m.x1),
-    y = Math.min(m.y0, m.y1),
-    w = Math.abs(m.x1 - m.x0),
-    hh = Math.abs(m.y1 - m.y0);
+  // m vem em pixels de tela; a caixa é filha do <body> ampliado.
+  const z = zoomIF();
+  const x = Math.min(m.x0, m.x1) / z,
+    y = Math.min(m.y0, m.y1) / z,
+    w = Math.abs(m.x1 - m.x0) / z,
+    hh = Math.abs(m.y1 - m.y0) / z;
   b.style.left = x + "px";
   b.style.top = y + "px";
   b.style.width = w + "px";
@@ -1641,15 +1654,17 @@ function hideSelBox() {
   if (b) b.style.display = "none";
 }
 function nodesInRect(svg, m) {
-  const r = svg.getBoundingClientRect();
+  // m em pixels de TELA; o ponto do grafo em CSS — ver zoomIF.
+  const r = svg.getBoundingClientRect(),
+    z = zoomIF();
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
   nodes.forEach(function (n) {
-    const cx = r.left + (n.x * cam.s + cam.x),
-      cy = r.top + (n.y * cam.s + cam.y);
+    const cx = r.left + (n.x * cam.s + cam.x) * z,
+      cy = r.top + (n.y * cam.s + cam.y) * z;
     if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
   });
   return s;
@@ -2006,8 +2021,10 @@ function wireMap(svg) {
   if (_mapWired) return;
   _mapWired = true;
   const rel = (e) => {
-    const r = svg.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // Tela → CSS (ver zoomIF): a câmera do mapa vive em pixels de CSS.
+    const r = svg.getBoundingClientRect(),
+      z = zoomIF();
+    return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
   };
   const nodeFrom = (e) => {
     const g = e.target.closest(".gn");
@@ -2173,9 +2190,10 @@ function wireMap(svg) {
   if (mini)
     mini.addEventListener("click", (e) => {
       if (!_miniT) return;
-      const r = mini.getBoundingClientRect();
-      const wx = (e.clientX - r.left - _miniT.ox) / _miniT.s,
-        wy = (e.clientY - r.top - _miniT.oy) / _miniT.s;
+      const r = mini.getBoundingClientRect(),
+        z = zoomIF();
+      const wx = ((e.clientX - r.left) / z - _miniT.ox) / _miniT.s,
+        wy = ((e.clientY - r.top) / z - _miniT.oy) / _miniT.s;
       animarCamera(_viewW / 2 - wx * cam.s, _viewH / 2 - wy * cam.s, cam.s, 200);
     });
   // ===== Toque (P03/§3.2): um dedo move o canvas, pinça dá zoom, tap
@@ -2189,8 +2207,9 @@ function wireMap(svg) {
     },
     drag: function (e, dx, dy) {
       if (!_gpan) return;
-      cam.x = _gpan.x + dx;
-      cam.y = _gpan.y + dy;
+      const z = zoomIF(); // dx/dy vêm em pixels de tela
+      cam.x = _gpan.x + dx / z;
+      cam.y = _gpan.y + dy / z;
       aplicaCamMapa();
     },
     dragFim: function () {
@@ -2203,13 +2222,14 @@ function wireMap(svg) {
       _gpan = null;
     },
     pinch: function (p) {
-      const r = svg.getBoundingClientRect();
-      const cx = p.cx - r.left,
-        cy = p.cy - r.top;
+      const r = svg.getBoundingClientRect(),
+        z = zoomIF();
+      const cx = (p.cx - r.left) / z,
+        cy = (p.cy - r.top) / z;
       const w = s2w(cx, cy);
       const ns = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * p.fator));
-      cam.x = cx - w.x * ns + p.dx;
-      cam.y = cy - w.y * ns + p.dy;
+      cam.x = cx - w.x * ns + p.dx / z;
+      cam.y = cy - w.y * ns + p.dy / z;
       cam.s = ns;
       aplicaCamMapa();
     },
@@ -2225,8 +2245,9 @@ function wireMap(svg) {
       }
     },
     doubleTap: function (e) {
-      const r = svg.getBoundingClientRect();
-      zoomMapaEm(e.clientX - r.left, e.clientY - r.top, 1.6);
+      const r = svg.getBoundingClientRect(),
+        z = zoomIF();
+      zoomMapaEm((e.clientX - r.left) / z, (e.clientY - r.top) / z, 1.6);
     },
   });
 }
@@ -6872,7 +6893,10 @@ function markSelDom() {
   });
 }
 function qNodesInRect(cv, q, m) {
-  const r = cv.getBoundingClientRect();
+  // m está em pixels de TELA: leva o centro do cartão (pixels de CSS) para a
+  // mesma régua multiplicando pelo zoom da interface.
+  const r = cv.getBoundingClientRect(),
+    z = zoomIF();
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
@@ -6880,8 +6904,8 @@ function qNodesInRect(cv, q, m) {
   const s = new Set();
   q.nodes.forEach(function (n) {
     const c = nodeCenter(n);
-    const cx = r.left + (c.x * q.cam.s + q.cam.x),
-      cy = r.top + (c.y * q.cam.s + q.cam.y);
+    const cx = r.left + (c.x * q.cam.s + q.cam.x) * z,
+      cy = r.top + (c.y * q.cam.s + q.cam.y) * z;
     if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
   });
   return s;
@@ -7105,7 +7129,8 @@ let _qSetaSel = new Set(); // índices das setas selecionadas (transiente)
 let _qRebind = null, // religando uma ponta: { i, end: "de"|"para" }
   _qRebindCur = null;
 let _qSetaPull = null, // apertou num barbante: pode virar arraste (transiente)
-  _qIgnoraClickSeta = 0; // instante em que virou arraste (o clique não conta)
+  _qIgnoraClickSeta = 0, // instante em que virou arraste (o clique não conta)
+  _qMotivo = null; // por que a última ligação foi recusada (para avisar)
 // Do centro (cx,cy) em direção a (tx,ty): ponto onde o segmento cruza a
 // borda do retângulo r {x,y,w,h}, empurrado "folga" px para fora.
 function qClipRect(cx, cy, tx, ty, r, folga) {
@@ -7243,15 +7268,47 @@ function qSetaPontos(q, se, prof) {
     p2: B.rect ? qClipRect(cb.x, cb.y, ca.x, ca.y, B.rect, 7) : cb,
   };
 }
-// A seta `se` se apoia (direta ou indiretamente) na seta de id `id`?
-// Serve para não deixar um barbante acabar pendurado nele mesmo.
-function qSetaDependeDe(q, se, id, prof) {
-  if (!se || (prof || 0) > QSETA_PROF_MAX) return false;
-  if (se.id === id) return true;
-  return [se.de, se.para].some(function (ref) {
-    if (!qEhPontaSeta(ref)) return false;
-    return qSetaDependeDe(q, qSetaPorId(q, ref), id, (prof || 0) + 1);
+/* Em que CARTÕES uma ponta se apoia, no fim das contas: cartão devolve ele
+   mesmo; barbante devolve os cartões das duas pontas dele, recursivamente. */
+function qNosDaPonta(q, ref, prof, acc) {
+  acc = acc || new Set();
+  if ((prof || 0) > QSETA_PROF_MAX) return acc;
+  if (qEhPontaSeta(ref)) {
+    const s = qSetaPorId(q, ref);
+    if (s) {
+      qNosDaPonta(q, s.de, (prof || 0) + 1, acc);
+      qNosDaPonta(q, s.para, (prof || 0) + 1, acc);
+    }
+  } else if (ref) acc.add(ref);
+  return acc;
+}
+/* ---- Quais ligações fazem sentido ----
+   Duas regras, e elas dão conta de todos os casos de barbante que só se
+   morde a si mesmo:
+
+   1. As duas pontas têm de chegar a cartões DIFERENTES. Ligar o meio de um
+      barbante a uma das fichas que ele já liga não diz nada de novo — era
+      por aí que dava para empilhar ligação sobre ligação sem fim.
+   2. Não existe a mesma ligação duas vezes, em nenhum sentido: puxar de A
+      para B e depois de B para A é o MESMO barbante.
+
+   `ignorar` é o índice de uma seta que não deve contar (usado ao religar
+   uma ponta, senão a própria seta se acusaria de duplicata). */
+function qMotivoRecusa(q, de, para, ignorar) {
+  if (!de || !para || de === para) return "Uma ponta não pode ligar nela mesma.";
+  const a = qNosDaPonta(q, de, 0),
+    b = qNosDaPonta(q, para, 0);
+  if (!a.size || !b.size) return "Ligação sem apoio.";
+  for (const id of a)
+    if (b.has(id)) return "Sem efeito: as duas pontas levam à mesma ficha.";
+  const repetida = q.setas.some(function (s, i) {
+    if (i === ignorar) return false;
+    return (
+      (s.de === de && s.para === para) || (s.de === para && s.para === de)
+    );
   });
+  if (repetida) return "Esses dois já estão ligados.";
+  return null; // pode ligar
 }
 /* Apaga as setas escolhidas por `pred` E as que estavam penduradas nelas
    (senão sobrariam barbantes presos no vazio). */
@@ -7295,7 +7352,8 @@ function qSegCruzaRect(x1, y1, x2, y2, rx0, ry0, rx1, ry1) {
 }
 // Setas alcançadas pelo retângulo de seleção (coordenadas de TELA, como os nodes).
 function qSetasInRect(cv, q, m) {
-  const r = cv.getBoundingClientRect();
+  const r = cv.getBoundingClientRect(),
+    z = zoomIF(); // mesma conversão CSS → tela do qNodesInRect
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
@@ -7304,10 +7362,10 @@ function qSetasInRect(cv, q, m) {
   q.setas.forEach(function (se, i) {
     const pp = qSetaPontos(q, se);
     if (!pp) return;
-    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x),
-      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y),
-      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x),
-      by = r.top + (pp.p2.y * q.cam.s + q.cam.y);
+    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x) * z,
+      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y) * z,
+      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x) * z,
+      by = r.top + (pp.p2.y * q.cam.s + q.cam.y) * z;
     if (qSegCruzaRect(ax, ay, bx, by, x0, y0, x1, y1)) s.add(i);
   });
   return s;
@@ -7389,6 +7447,7 @@ function qAlvoNoPonto(e) {
    cartão OU outro barbante — nesse caso a ponta gruda no ponto exato da
    curva em que foi solta. Devolve true se ligou. */
 function qLigarBarbante(de, deT, elDestino, pMundo) {
+  _qMotivo = null;
   const q = quadroAtual();
   if (!q || !de || !elDestino || !elDestino.closest) return false;
   const setaEl = elDestino.closest("[data-seta-id]");
@@ -7398,24 +7457,13 @@ function qLigarBarbante(de, deT, elDestino, pMundo) {
   if (setaEl) {
     const alvo = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
     if (!alvo) return false;
-    // Um barbante não pode acabar pendurado em si mesmo (nem em quem já
-    // depende dele) — isso deixaria a linha sem apoio nenhum.
-    if (qEhPontaSeta(de) && qSetaDependeDe(q, alvo, String(de).slice(5), 0))
-      return false;
     para = "seta:" + alvo.id;
     paraT = qTNoBarbante(q, alvo, pMundo);
   } else if (noEl) {
     para = noEl.getAttribute("data-id");
-    if (!para || para === de) return false;
   } else return false;
-  // Duplicata só faz sentido entre dois cartões: em barbante, cada ponto
-  // da curva é uma ligação diferente.
-  if (
-    !qEhPontaSeta(de) &&
-    !qEhPontaSeta(para) &&
-    q.setas.some((s) => s.de === de && s.para === para)
-  )
-    return false;
+  _qMotivo = qMotivoRecusa(q, de, para);
+  if (_qMotivo) return false;
   const nova = { id: qNovoSetaId(), de: de, para: para };
   if (qEhPontaSeta(de)) nova.deT = Math.round((deT == null ? 0.5 : deT) * 1000) / 1000;
   if (paraT != null) nova.paraT = Math.round(paraT * 1000) / 1000;
@@ -7428,6 +7476,7 @@ function qLigarBarbante(de, deT, elDestino, pMundo) {
    ponto onde foi solta. Aceita o ELEMENTO de destino (cartão ou linha).
    Valida auto-laço e duplicata. */
 function qReligarSeta(i, end, destino, pMundo) {
+  _qMotivo = null;
   const q = quadroAtual();
   const se = q && q.setas[i];
   if (!se || !destino) return false;
@@ -7446,8 +7495,7 @@ function qReligarSeta(i, end, destino, pMundo) {
     novoT = null;
   if (setaEl) {
     const alvo = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
-    // Não pode se apoiar em si mesmo nem em quem depende dele.
-    if (!alvo || qSetaDependeDe(q, alvo, se.id, 0)) return false;
+    if (!alvo || alvo === se) return false;
     novo = "seta:" + alvo.id;
     novoT = qTNoBarbante(q, alvo, pMundo);
   } else if (noEl) {
@@ -7456,13 +7504,12 @@ function qReligarSeta(i, end, destino, pMundo) {
   if (!novo) return false;
   const de = end === "de" ? novo : se.de,
     para = end === "para" ? novo : se.para;
-  if (de === para) return false;
-  if (
-    !qEhPontaSeta(de) &&
-    !qEhPontaSeta(para) &&
-    q.setas.some((s2, j) => j !== i && s2.de === de && s2.para === para)
-  )
+  // Mesmas regras de quem cria do zero (a própria seta não conta).
+  _qMotivo = qMotivoRecusa(q, de, para, i);
+  if (_qMotivo) {
+    toast(_qMotivo);
     return false;
+  }
   se[end] = novo;
   if (novoT == null) delete se[end + "T"];
   else se[end + "T"] = Math.round(novoT * 1000) / 1000;
@@ -7477,6 +7524,8 @@ function qMouseUpGlobal(e) {
   if (_qArrow) {
     // Solta sobre um cartão OU sobre outro barbante (gruda no ponto exato).
     qLigarBarbante(_qArrow.de, _qArrow.deT, qAlvoNoPonto(e), _qArrowCur);
+    // Recusa por regra não pode ser silenciosa: diga por quê.
+    if (_qMotivo) toast(_qMotivo);
     _qArrow = null;
     _qArrowCur = null;
     desenhaSetas();
@@ -7509,8 +7558,10 @@ function wireQuadro() {
   const cv = document.getElementById("qcanvas");
   if (!cv) return;
   const rel = (e) => {
-    const r = cv.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // Tela → CSS: a câmera (cam.x/cam.s) vive em pixels de CSS.
+    const r = cv.getBoundingClientRect(),
+      z = zoomIF();
+    return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
   };
   const toW = (p) => {
     const q = quadroAtual();
@@ -7706,8 +7757,9 @@ function wireQuadro() {
   // ou texto); arrastar o fundo move o quadro; pinça dá zoom; tap abre o
   // menu do item; SEGURAR o toque num cartão puxa o barbante até outro.
   const toWxy = (x, y) => {
-    const r = cv.getBoundingClientRect();
-    return toW({ x: x - r.left, y: y - r.top });
+    const r = cv.getBoundingClientRect(),
+      z = zoomIF();
+    return toW({ x: (x - r.left) / z, y: (y - r.top) / z });
   };
   let _gqPan = null,
     _gqDrag = null,
@@ -7778,7 +7830,9 @@ function wireQuadro() {
         return;
       }
       if (_gqDrag) {
-        const s = q.cam.s || 1;
+        // dx/dy vêm em pixels de TELA: dividir pelo zoom da interface antes
+        // de dividir pela escala do quadro.
+        const s = (q.cam.s || 1) * zoomIF();
         _gqDrag.ids.forEach(function (id) {
           const n = q.nodes.find((x) => x.id === id),
             o = _gqDrag.orig[id];
@@ -7796,8 +7850,9 @@ function wireQuadro() {
         return;
       }
       if (!_gqPan) return;
-      q.cam.x = _gqPan.x + dx;
-      q.cam.y = _gqPan.y + dy;
+      const zp = zoomIF();
+      q.cam.x = _gqPan.x + dx / zp;
+      q.cam.y = _gqPan.y + dy / zp;
       aplicaCam();
     },
     dragFim: function (e) {
@@ -7813,7 +7868,7 @@ function wireQuadro() {
         _qArrow = null;
         _qArrowCur = null;
         desenhaSetas();
-        toast(ok ? "Barbante criado." : "Ligação cancelada.");
+        toast(ok ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
         return;
       }
       if (_gqDrag) marcarAlterado();
@@ -7877,22 +7932,23 @@ function wireQuadro() {
       // Com pointer capture o e.target é o canvas; quem diz onde o dedo
       // soltou é o elementFromPoint (fallback: e.target, p/ testes).
       const ok = qLigarBarbante(de, deT, qAlvoNoPonto(e), cur);
-      toast(ok ? "Barbante criado." : "Ligação cancelada.");
+      toast(ok ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
       desenhaSetas();
     },
     pinch: function (p) {
       const q = quadroAtual();
-      const r = cv.getBoundingClientRect();
-      const cx = p.cx - r.left,
-        cy = p.cy - r.top;
+      const r = cv.getBoundingClientRect(),
+        z = zoomIF();
+      const cx = (p.cx - r.left) / z,
+        cy = (p.cy - r.top) / z;
       const wx = (cx - q.cam.x) / q.cam.s,
         wy = (cy - q.cam.y) / q.cam.s;
       const ns = Math.max(
         QUADRO_ZOOM_MIN,
         Math.min(QUADRO_ZOOM_MAX, q.cam.s * p.fator),
       );
-      q.cam.x = cx - wx * ns + p.dx;
-      q.cam.y = cy - wy * ns + p.dy;
+      q.cam.x = cx - wx * ns + p.dx / z;
+      q.cam.y = cy - wy * ns + p.dy / z;
       q.cam.s = ns;
       aplicaCam();
       qAgendaSalvarCam();
@@ -7971,11 +8027,8 @@ function qTapToque(e, alvo, rel, toW) {
     const de = _qConectarDe;
     _qConectarDe = null;
     // Destino pode ser um cartão OU um barbante (gruda onde tocou).
-    toast(
-      qLigarBarbante(de, null, noEl || setaEl, p)
-        ? "Barbante criado."
-        : "Ligação cancelada.",
-    );
+    const fez = qLigarBarbante(de, null, noEl || setaEl, p);
+    toast(fez ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
     return;
   }
   if (_qReligar) {
