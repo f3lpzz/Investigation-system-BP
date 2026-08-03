@@ -1231,8 +1231,10 @@ function renderGrade() {
   }
   vis.forEach((f) => {
     const c = document.createElement("div");
-    // "com-alfinete": só o card de ficha reserva a faixa do alfinete no topo
-    // (os cards de personagem/grupo usam .card e não têm alfinete nenhum).
+    // "com-alfinete": no celular, só o card de ficha reserva a faixa do
+    // alfinete no topo (os cards de personagem/grupo usam .card e não têm
+    // alfinete nenhum). No computador o alfinete sobe acima da borda e a
+    // faixa não é preciso.
     c.className = "card com-alfinete";
     if (state.sel.has(f.id)) c.classList.add("selected");
     const falta = fichaIncompleta(f);
