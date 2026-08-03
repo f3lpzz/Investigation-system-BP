@@ -109,14 +109,16 @@ ok(
   w.document.querySelectorAll(".qnode.qref .qconn").length === 0,
 );
 ok(
-  "quadros: texto/nota continuam com a bolinha ● (não têm alfinete)",
+  "quadros: texto e nota também têm alfinete, e a bolinha ● não existe mais",
   (function () {
     g('qNovoTextoEm(600,600,"nota");desenhaQuadro()');
-    const n = w.document.querySelector(".qnode.qtexto .qconn");
+    const alf = w.document.querySelector(".qnode.qtexto .qpin");
+    const bolinha = w.document.querySelector(".qconn");
+    const conecta = alf && alf.hasAttribute("data-conn");
     g(
       'var q=quadroAtual();q.nodes=q.nodes.filter(function(n){return n.tipo!=="texto"});desenhaQuadro()',
     );
-    return !!n;
+    return !!alf && !bolinha && conecta;
   })(),
 );
 
@@ -339,18 +341,21 @@ ok(
   `),
 );
 ok(
-  "ponta: texto/nota (sem alfinete) seguem mirando o meio e cortando na borda",
+  "ponta: caixa de texto também amarra no alfinete dela",
   g(`
     (function(){
       var q = quadroAtual();
       var n = qNovoTextoEm(900, 900);
       desenhaQuadro();
-      var semAlf = qAlfineteCentro(n, qNodeRect(n)) === null;
+      var r = qNodeRect(n);
+      var alf = qAlfineteCentro(n, r);
       var p = qPonta(q, n.id, null, 0);
-      var temRect = !!(p && p.rect);
+      var ok = alf && p && !p.rect &&
+               Math.abs(p.centro.x - alf.x) < 0.01 &&
+               Math.abs(p.centro.y - alf.y) < 0.01 && alf.y < r.y;
       q.nodes = q.nodes.filter(function(x){ return x.id !== n.id; });
       desenhaQuadro();
-      return semAlf && temRect;
+      return !!ok;
     })()
   `),
 );

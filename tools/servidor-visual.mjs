@@ -161,6 +161,11 @@ const SEED = (vista) => `
       _q.setas.push({id:"sA", de:"qa", para:"qb", rotulo:"mesma letra"});
       // sai do meio do barbante sA e desce até a terceira ficha
       _q.setas.push({id:"sB", de:"seta:sA", deT:0.5, para:"qc"});
+      // caixa de texto e nota adesiva, para conferir o alfinete nelas
+      _q.nodes.push({id:"qt", tipo:"texto", texto:"Quem estava na ala oeste?", x:60, y:430, w:230});
+      _q.nodes.push({id:"qn", tipo:"texto", estilo:"nota", cor:0, texto:"conferir o relógio", x:760, y:400, w:190});
+      _q.setas.push({id:"sC", de:"qt", para:"qc"});
+      _q.setas.push({id:"sD", de:"qn", para:"qb"});
       desenhaQuadro();
     }
     // lista de quadros aberta pelo seletor do celular (2 quadros)

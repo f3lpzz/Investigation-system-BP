@@ -2455,12 +2455,9 @@ select:focus {
   top: 0;
   transform-origin: 0 0;
 }
-/* O barbante é amarrado no ALFINETE, que fica na borda de cima do papel:
-   se as linhas ficassem atrás das fichas, esse pedaço sumiria embaixo do
-   cartão e pareceria que a linha sai do meio dele. Num mural o barbante
-   passa POR CIMA dos papéis — é o que esta camada faz. Só a linha grossa
-   invisível de acerto e as alças de religar pegam clique (o resto tem
-   `pointer-events: none`), então arrastar cartão continua funcionando. */
+/* O barbante fica ATRÁS das fichas e dos alfinetes: o trecho final some
+   sob o papel de propósito, e o que se vê sai da borda já apontando para o
+   alfinete (a ponta da linha, no cálculo, é o centro dele). */
 .qsvg {
   position: absolute;
   left: 0;
@@ -2469,10 +2466,6 @@ select:focus {
   height: 8000px;
   overflow: visible;
   pointer-events: none;
-  z-index: 2;
-}
-.qnodes {
-  z-index: 1;
 }
 .qnodes {
   position: absolute;
@@ -2575,25 +2568,6 @@ select:focus {
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
-}
-.qconn {
-  position: absolute;
-  right: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--info);
-  border: 2px solid var(--canvas);
-  cursor: crosshair;
-  color: transparent;
-  font-size: 0;
-  line-height: 0;
-}
-.qnode.qtexto .qconn {
-  top: 8px;
-  transform: none;
 }
 .qdel {
   position: absolute;
@@ -4989,9 +4963,6 @@ select:focus {
 .qnode .qdel {
   background: rgba(43, 35, 23, 0.75);
   color: var(--papel);
-}
-.qnode .qconn {
-  color: var(--manual);
 }
 
 /* ---------- Arquivo (Salas · Personagens · Grupos) ---------- */
