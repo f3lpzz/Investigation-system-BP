@@ -312,6 +312,49 @@ ok(
   `) === false,
 );
 
+/* ===== 5b. A ponta nasce no ALFINETE, não no meio da ficha ===== */
+ok(
+  "ponta: o barbante começa no centro do alfinete do cartão",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var sA = q.setas.find(function(s){ return s.id === "sA"; });
+      var pp = qSetaPontos(q, sA);
+      var n = q.nodes.find(function(x){ return x.id === "qa"; });
+      var alf = qAlfineteCentro(n, qNodeRect(n));
+      return Math.abs(pp.p1.x - alf.x) < 0.01 && Math.abs(pp.p1.y - alf.y) < 0.01;
+    })()
+  `),
+);
+ok(
+  "ponta: o alfinete fica no meio da largura e ACIMA da borda de cima",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var n = q.nodes.find(function(x){ return x.id === "qa"; });
+      var r = qNodeRect(n);
+      var alf = qAlfineteCentro(n, r);
+      return Math.abs(alf.x - (r.x + r.w / 2)) < 0.01 && alf.y < r.y;
+    })()
+  `),
+);
+ok(
+  "ponta: texto/nota (sem alfinete) seguem mirando o meio e cortando na borda",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var n = qNovoTextoEm(900, 900);
+      desenhaQuadro();
+      var semAlf = qAlfineteCentro(n, qNodeRect(n)) === null;
+      var p = qPonta(q, n.id, null, 0);
+      var temRect = !!(p && p.rect);
+      q.nodes = q.nodes.filter(function(x){ return x.id !== n.id; });
+      desenhaQuadro();
+      return semAlf && temRect;
+    })()
+  `),
+);
+
 /* ===== 6. Apagar leva junto quem estava pendurado ===== */
 g("desenhaSetas()");
 const antesDel = g("quadroAtual().setas.length");

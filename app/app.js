@@ -7252,7 +7252,27 @@ function qPonta(q, ref, t, prof) {
   const n = q.nodes.find((x) => x.id === ref);
   if (!n) return null;
   const r = qNodeRect(n);
+  // Ficha: o barbante nasce no CENTRO DO ALFINETE, como num mural de
+  // verdade — a linha é amarrada no alfinete, não no meio do papel. Sem
+  // retângulo: não há o que cortar, a ponta acaba exatamente ali (e a
+  // cabeça do alfinete, que é desenhada por cima do SVG, esconde o nó).
+  const alf = qAlfineteCentro(n, r);
+  if (alf) return { centro: alf, rect: null };
+  // Caixa de texto e nota adesiva não têm alfinete: seguem mirando o meio,
+  // com a linha cortada na borda.
   return { centro: { x: r.x + r.w / 2, y: r.y + r.h / 2 }, rect: r };
+}
+/* Centro do alfinete de um cartão, em coordenadas do quadro. Devolve null
+   para quem não tem alfinete (texto/nota). O alfinete é centrado na
+   horizontal pelo CSS; na vertical ele sobe acima da borda, e a medida sai
+   do próprio elemento para não repetir número que já está no estilo. */
+function qAlfineteCentro(n, r) {
+  const el = nodeEl(n.id);
+  const p = el && el.querySelector(".qpin");
+  if (!p) return null;
+  const topo = p.offsetTop || -7, // recuo do .qpin no estilos.css
+    alt = p.offsetHeight || 13;
+  return { x: r.x + r.w / 2, y: r.y + topo + alt / 2 };
 }
 // Pontas visíveis de uma seta (geometria derivada; null se o apoio sumiu).
 function qSetaPontos(q, se, prof) {

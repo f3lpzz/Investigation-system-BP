@@ -129,7 +129,17 @@ const SEED = (vista) => `
         ev("mousemove", px + 120, py + 80);
         ev("mouseup", px + 120, py + 80);
         var r1 = el.getBoundingClientRect();
-        document.title = "ZOOM=" + z +
+        // 3) com o barbante desenhado POR CIMA das fichas, o alfinete de uma
+        // ficha que já tem linha continua sendo pegável?
+        q.nodes.push({id:"qb2", tipo:"ref", kind:"pista", ref:"f5", x:520, y:120});
+        q.setas.push({id:"sZ", de:"qa", para:"qb2"});
+        desenhaQuadro();
+        var pin = document.querySelector('.qnode[data-id="qa"] .qpin');
+        var rp = pin.getBoundingClientRect();
+        var alvo = document.elementFromPoint(rp.left + rp.width/2, rp.top + rp.height/2);
+        var pega = alvo && alvo.closest && alvo.closest("[data-conn]") ? "ALFINETE" :
+                   (alvo && alvo.closest && alvo.closest("[data-seta-id]") ? "BARBANTE" : "outro");
+        document.title = "ZOOM=" + z + " | centro do alfinete pega=" + pega +
           " | selbox esperado=600,400 obtido=" + Math.round(b.left) + "," + Math.round(b.top) +
           " erro=" + Math.round(b.left - 600) + "," + Math.round(b.top - 400) +
           " || cartao esperado=+120,+80 obtido=+" + Math.round(r1.left - r0.left) +
