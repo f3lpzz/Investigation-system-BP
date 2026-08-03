@@ -6939,18 +6939,31 @@ function desenhaSetas() {
     const sel = _qSetaSel.has(i);
     const cor = sel ? "#e0be7a" : "#b8452e";
     const dPath = qCurvaD(p1, p2);
-    s += `<path d="${dPath}" fill="none" stroke="${cor}" stroke-width="${sel ? 3.2 : 2.5}"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
+    /* Fibra do barbante: seis camadas sobre o MESMO dPath — sombra no quadro,
+       alma, corpo, brilho e o par torção/vale que dá o grão da corda.
+       Religando, ficam só as quatro primeiras: as fibras atrapalhariam a
+       leitura do tracejado de arraste. */
+    const w = sel ? 3.2 : 2.6;
+    const L = (c, lw, extra) =>
+      `<path d="${dPath}" fill="none" stroke="${c}" stroke-width="${lw}" stroke-linecap="round" ${extra || ""}/>`;
+    s += L("#241408", w + 1.8, 'stroke-opacity=".42" transform="translate(1.5,3)"');
+    s += L(sel ? "#8a6a1e" : "#7d2417", w + 1);
+    s += L(cor, w, religando ? 'stroke-dasharray="5 4"' : "");
+    s += L("#e8a68d", 0.9, 'stroke-opacity=".32" transform="translate(-.6,-.9)"');
+    if (!religando) {
+      s += L("#f2bda6", 0.9, 'stroke-opacity=".3" stroke-dasharray="1 1.5" transform="translate(-.4,-.6)"');
+      s += L("#3f1108", 0.9, 'stroke-opacity=".22" stroke-dasharray="1 1.5" stroke-dashoffset="1.25"');
+    }
     s += `<path d="${dPath}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:crosshair" data-seta="${i}" data-seta-id="${esc(se.id)}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo · arraste: puxa outro barbante daqui</title></path>`;
     // Nó no meio do barbante: é daqui que se puxa um barbante NOVO (o
     // arraste funciona em qualquer ponto da linha; o nó é a dica visual).
+    const meio = qPontoNaCurva(p1, qCurvaCtrl(p1, p2), p2, 0.5);
     if (!religando) {
-      const meio = qPontoNaCurva(p1, qCurvaCtrl(p1, p2), p2, 0.5);
       s += `<circle cx="${meio.x}" cy="${meio.y}" r="${sel ? 4.5 : 3.5}" fill="${cor}" stroke="#3a1a12" stroke-width="1" style="pointer-events:none"/>`;
     }
     if (se.rotulo) {
-      const mx = (p1.x + p2.x) / 2,
-        my = (p1.y + p2.y) / 2;
-      s += `<text x="${mx}" y="${my - 8}" text-anchor="middle" font-size="12" fill="#f0d878" font-family="'Special Elite',monospace" paint-order="stroke" stroke="#3a281a" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
+      // O rótulo desce junto com a linha: fica logo acima do nó do meio.
+      s += `<text x="${meio.x}" y="${meio.y - 10}" text-anchor="middle" font-size="12" fill="#f0d878" font-family="'Special Elite',monospace" paint-order="stroke" stroke="#3a281a" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
     }
     if (sel && _qSetaSel.size === 1 && !religando) {
       // Alças das pontas (só com UMA seta selecionada): arrastar reconecta.
@@ -7188,15 +7201,13 @@ function qSetaPorId(q, ref) {
   const id = String(ref).slice(5);
   return q.setas.find((s) => s.id === id) || null;
 }
-// Curva do barbante: quadrática com uma "barriga" para o lado.
+// Curva do barbante: quadrática que só CAI (o controle desce na vertical).
 function qCurvaCtrl(p1, p2) {
   const mx = (p1.x + p2.x) / 2,
     my = (p1.y + p2.y) / 2;
-  const dx = p2.x - p1.x,
-    dy = p2.y - p1.y;
-  const len = Math.max(1, Math.hypot(dx, dy));
-  const sag = Math.min(34, len * 0.14);
-  return { x: mx - (dy / len) * sag, y: my + (dx / len) * sag + sag * 0.6 };
+  const len = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+  // só gravidade: barbante pendurado, não curva de seta
+  return { x: mx, y: my + Math.min(90, len * 0.16) };
 }
 function qCurvaD(p1, p2) {
   const c = qCurvaCtrl(p1, p2);
