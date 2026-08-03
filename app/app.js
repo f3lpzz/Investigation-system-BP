@@ -1231,7 +1231,11 @@ function renderGrade() {
   }
   vis.forEach((f) => {
     const c = document.createElement("div");
-    c.className = "card";
+    // "com-alfinete": no celular, só o card de ficha reserva a faixa do
+    // alfinete no topo (os cards de personagem/grupo usam .card e não têm
+    // alfinete nenhum). No computador o alfinete sobe acima da borda e a
+    // faixa não é preciso.
+    c.className = "card com-alfinete";
     if (state.sel.has(f.id)) c.classList.add("selected");
     const falta = fichaIncompleta(f);
     const soTrad = falta.length === 1 && falta[0] === "tradução";
@@ -1278,11 +1282,10 @@ function renderGrade() {
     );
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
-      <span class="pin${f.fav ? " fav" : ""}"></span>
+      <button class="pin${f.fav ? " fav" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="${f.fav ? "Tirar de favoritas" : "Favoritar"}" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar"></button>
       <div class="chead">
         <span class="cid">${esc(idVis)}</span>
         <span class="csala">${f.sala ? esc(f.sala) : "—"}</span>
-        <span class="cstar${f.fav ? " on" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="Favoritar">★</span>
       </div>
       <h3 class="ctit">${esc(f.titulo)}</h3>
       <div class="cthumb">${
@@ -1617,6 +1620,17 @@ function ensureSelBox() {
   }
   return b;
 }
+/* Em tela grande o CSS amplia a interface com `zoom` no <body> (1.08 / 1.22
+   / 1.45). Isso cria DUAS réguas: `clientX` e `getBoundingClientRect()` vêm
+   em pixels de TELA (já ampliados), enquanto `style.left`, a câmera do
+   quadro e do mapa trabalham em pixels de CSS. Misturar as duas desloca
+   tudo por "coordenada × (zoom − 1)" — some no monitor pequeno e cresce
+   quanto mais longe do canto superior esquerdo. Divida por este fator para
+   ir de tela → CSS; multiplique para o contrário. */
+function zoomIF() {
+  const z = parseFloat(getComputedStyle(document.body).zoom);
+  return isFinite(z) && z > 0 ? z : 1;
+}
 function showSelBox(m) {
   const b = ensureSelBox();
   b.style.display = "block";
@@ -1624,10 +1638,12 @@ function showSelBox(m) {
 }
 function updateSelBox(m) {
   const b = ensureSelBox();
-  const x = Math.min(m.x0, m.x1),
-    y = Math.min(m.y0, m.y1),
-    w = Math.abs(m.x1 - m.x0),
-    hh = Math.abs(m.y1 - m.y0);
+  // m vem em pixels de tela; a caixa é filha do <body> ampliado.
+  const z = zoomIF();
+  const x = Math.min(m.x0, m.x1) / z,
+    y = Math.min(m.y0, m.y1) / z,
+    w = Math.abs(m.x1 - m.x0) / z,
+    hh = Math.abs(m.y1 - m.y0) / z;
   b.style.left = x + "px";
   b.style.top = y + "px";
   b.style.width = w + "px";
@@ -1638,15 +1654,17 @@ function hideSelBox() {
   if (b) b.style.display = "none";
 }
 function nodesInRect(svg, m) {
-  const r = svg.getBoundingClientRect();
+  // m em pixels de TELA; o ponto do grafo em CSS — ver zoomIF.
+  const r = svg.getBoundingClientRect(),
+    z = zoomIF();
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
   nodes.forEach(function (n) {
-    const cx = r.left + (n.x * cam.s + cam.x),
-      cy = r.top + (n.y * cam.s + cam.y);
+    const cx = r.left + (n.x * cam.s + cam.x) * z,
+      cy = r.top + (n.y * cam.s + cam.y) * z;
     if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
   });
   return s;
@@ -2003,8 +2021,10 @@ function wireMap(svg) {
   if (_mapWired) return;
   _mapWired = true;
   const rel = (e) => {
-    const r = svg.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // Tela → CSS (ver zoomIF): a câmera do mapa vive em pixels de CSS.
+    const r = svg.getBoundingClientRect(),
+      z = zoomIF();
+    return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
   };
   const nodeFrom = (e) => {
     const g = e.target.closest(".gn");
@@ -2170,9 +2190,10 @@ function wireMap(svg) {
   if (mini)
     mini.addEventListener("click", (e) => {
       if (!_miniT) return;
-      const r = mini.getBoundingClientRect();
-      const wx = (e.clientX - r.left - _miniT.ox) / _miniT.s,
-        wy = (e.clientY - r.top - _miniT.oy) / _miniT.s;
+      const r = mini.getBoundingClientRect(),
+        z = zoomIF();
+      const wx = ((e.clientX - r.left) / z - _miniT.ox) / _miniT.s,
+        wy = ((e.clientY - r.top) / z - _miniT.oy) / _miniT.s;
       animarCamera(_viewW / 2 - wx * cam.s, _viewH / 2 - wy * cam.s, cam.s, 200);
     });
   // ===== Toque (P03/§3.2): um dedo move o canvas, pinça dá zoom, tap
@@ -2186,8 +2207,9 @@ function wireMap(svg) {
     },
     drag: function (e, dx, dy) {
       if (!_gpan) return;
-      cam.x = _gpan.x + dx;
-      cam.y = _gpan.y + dy;
+      const z = zoomIF(); // dx/dy vêm em pixels de tela
+      cam.x = _gpan.x + dx / z;
+      cam.y = _gpan.y + dy / z;
       aplicaCamMapa();
     },
     dragFim: function () {
@@ -2200,13 +2222,14 @@ function wireMap(svg) {
       _gpan = null;
     },
     pinch: function (p) {
-      const r = svg.getBoundingClientRect();
-      const cx = p.cx - r.left,
-        cy = p.cy - r.top;
+      const r = svg.getBoundingClientRect(),
+        z = zoomIF();
+      const cx = (p.cx - r.left) / z,
+        cy = (p.cy - r.top) / z;
       const w = s2w(cx, cy);
       const ns = Math.max(MAPA_ZOOM_MIN, Math.min(MAPA_ZOOM_MAX, cam.s * p.fator));
-      cam.x = cx - w.x * ns + p.dx;
-      cam.y = cy - w.y * ns + p.dy;
+      cam.x = cx - w.x * ns + p.dx / z;
+      cam.y = cy - w.y * ns + p.dy / z;
       cam.s = ns;
       aplicaCamMapa();
     },
@@ -2222,8 +2245,9 @@ function wireMap(svg) {
       }
     },
     doubleTap: function (e) {
-      const r = svg.getBoundingClientRect();
-      zoomMapaEm(e.clientX - r.left, e.clientY - r.top, 1.6);
+      const r = svg.getBoundingClientRect(),
+        z = zoomIF();
+      zoomMapaEm((e.clientX - r.left) / z, (e.clientY - r.top) / z, 1.6);
     },
   });
 }
@@ -6823,15 +6847,19 @@ function nodeHTML(n) {
     const btnCor = nota
       ? `<button class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor" aria-label="Mudar a cor da nota">🎨</button>`
       : "";
-    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}<span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+    // Texto e nota também são espetados no quadro: mesmo alfinete da ficha,
+    // e é dele que se puxa o barbante (a bolinha ● antiga saiu de cena).
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}</div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
     ? `<div class="qthumb"><img src="${esc(info.img)}" onerror="this.parentNode.style.display='none'"></div>`
     : "";
-  // Ficha no quadro = papel com alfinete vermelho, código e título serif
+  // Ficha no quadro = papel com alfinete vermelho, código e título serif.
+  // O alfinete É a alça do barbante: segurar nele e arrastar puxa a linha
+  // (por isso a ficha não tem mais a bolinha ● de conectar).
   const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button><span class="qconn" data-conn="${n.id}" title="Arraste para ligar">●</span></div>`;
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -6867,7 +6895,10 @@ function markSelDom() {
   });
 }
 function qNodesInRect(cv, q, m) {
-  const r = cv.getBoundingClientRect();
+  // m está em pixels de TELA: leva o centro do cartão (pixels de CSS) para a
+  // mesma régua multiplicando pelo zoom da interface.
+  const r = cv.getBoundingClientRect(),
+    z = zoomIF();
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
@@ -6875,8 +6906,8 @@ function qNodesInRect(cv, q, m) {
   const s = new Set();
   q.nodes.forEach(function (n) {
     const c = nodeCenter(n);
-    const cx = r.left + (c.x * q.cam.s + q.cam.x),
-      cy = r.top + (c.y * q.cam.s + q.cam.y);
+    const cx = r.left + (c.x * q.cam.s + q.cam.x) * z,
+      cy = r.top + (c.y * q.cam.s + q.cam.y) * z;
     if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
   });
   return s;
@@ -6893,15 +6924,7 @@ function desenhaSetas() {
   if (!svg || !q) return;
   // Barbante vermelho: curva com leve "barriga", sem ponta de seta
   let s = "";
-  const _curva = (p1, p2) => {
-    const mx = (p1.x + p2.x) / 2,
-      my = (p1.y + p2.y) / 2;
-    const dx = p2.x - p1.x,
-      dy = p2.y - p1.y;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    const sag = Math.min(34, len * 0.14);
-    return `M ${p1.x} ${p1.y} Q ${mx - (dy / len) * sag} ${my + (dx / len) * sag + sag * 0.6}, ${p2.x} ${p2.y}`;
-  };
+  qIdsSetas(q);
   q.setas.forEach(function (se, i) {
     // Geometria derivada (estilo tldraw): mira o centro, corta na borda.
     const pp = qSetaPontos(q, se);
@@ -6915,9 +6938,15 @@ function desenhaSetas() {
     }
     const sel = _qSetaSel.has(i);
     const cor = sel ? "#e0be7a" : "#b8452e";
-    const dPath = _curva(p1, p2);
+    const dPath = qCurvaD(p1, p2);
     s += `<path d="${dPath}" fill="none" stroke="${cor}" stroke-width="${sel ? 3.2 : 2.5}"${religando ? ' stroke-dasharray="5 4"' : ""}/>`;
-    s += `<path d="${dPath}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:pointer" data-seta="${i}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo</title></path>`;
+    s += `<path d="${dPath}" fill="none" stroke="transparent" stroke-width="14" style="pointer-events:stroke;cursor:crosshair" data-seta="${i}" data-seta-id="${esc(se.id)}" onclick="qSelSeta(${i})" ondblclick="qRotuloSeta(${i})"><title>Clique: selecionar (Del apaga) · 2 cliques: rótulo · arraste: puxa outro barbante daqui</title></path>`;
+    // Nó no meio do barbante: é daqui que se puxa um barbante NOVO (o
+    // arraste funciona em qualquer ponto da linha; o nó é a dica visual).
+    if (!religando) {
+      const meio = qPontoNaCurva(p1, qCurvaCtrl(p1, p2), p2, 0.5);
+      s += `<circle cx="${meio.x}" cy="${meio.y}" r="${sel ? 4.5 : 3.5}" fill="${cor}" stroke="#3a1a12" stroke-width="1" style="pointer-events:none"/>`;
+    }
     if (se.rotulo) {
       const mx = (p1.x + p2.x) / 2,
         my = (p1.y + p2.y) / 2;
@@ -6930,9 +6959,10 @@ function desenhaSetas() {
     }
   });
   if (_qArrow && _qArrowCur) {
-    const a = q.nodes.find((n) => n.id === _qArrow.de);
-    if (a) {
-      const ca = nodeCenter(a);
+    // A origem pode ser um cartão OU um ponto de outro barbante.
+    const A = qPonta(q, _qArrow.de, _qArrow.deT, 0);
+    if (A) {
+      const ca = A.centro;
       s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#b8452e" stroke-width="2" stroke-dasharray="5 4"/>`;
     }
   }
@@ -7058,15 +7088,17 @@ function qCorNota(id) {
 function qApagarSelecao() {
   const q = quadroAtual();
   if (!q || (!_qSelSet.size && !_qSetaSel.size)) return;
-  // Setas selecionadas: remove por índice, do maior pro menor.
-  [..._qSetaSel]
-    .sort((a, b) => b - a)
-    .forEach(function (i) {
-      q.setas.splice(i, 1);
-    });
+  // Barbantes marcados + os dos cartões apagados + os que estavam
+  // pendurados em qualquer um deles (cascata).
+  const marcados = new Set(
+    [..._qSetaSel].map((i) => q.setas[i]).filter(Boolean),
+  );
   const ids = new Set(_qSelSet);
   q.nodes = q.nodes.filter((n) => !ids.has(n.id));
-  q.setas = q.setas.filter((s) => !ids.has(s.de) && !ids.has(s.para));
+  qRemoverSetas(
+    q,
+    (s) => marcados.has(s) || ids.has(s.de) || ids.has(s.para),
+  );
   _qSelSet = new Set();
   _qSetaSel = new Set();
   marcarAlterado();
@@ -7098,6 +7130,9 @@ function qDuplicarSelecao() {
 let _qSetaSel = new Set(); // índices das setas selecionadas (transiente)
 let _qRebind = null, // religando uma ponta: { i, end: "de"|"para" }
   _qRebindCur = null;
+let _qSetaPull = null, // apertou num barbante: pode virar arraste (transiente)
+  _qIgnoraClickSeta = 0, // instante em que virou arraste (o clique não conta)
+  _qMotivo = null; // por que a última ligação foi recusada (para avisar)
 // Do centro (cx,cy) em direção a (tx,ty): ponto onde o segmento cruza a
 // borda do retângulo r {x,y,w,h}, empurrado "folga" px para fora.
 function qClipRect(cx, cy, tx, ty, r, folga) {
@@ -7123,19 +7158,199 @@ function qNodeRect(n) {
     h: (el && el.offsetHeight) || 40,
   };
 }
-// Pontas visíveis de uma seta (geometria derivada; null se um nó sumiu).
-function qSetaPontos(q, se) {
-  const a = q.nodes.find((n) => n.id === se.de),
-    b = q.nodes.find((n) => n.id === se.para);
-  if (!a || !b) return null;
-  const ra = qNodeRect(a),
-    rb = qNodeRect(b);
-  const ca = { x: ra.x + ra.w / 2, y: ra.y + ra.h / 2 },
-    cb = { x: rb.x + rb.w / 2, y: rb.y + rb.h / 2 };
+/* ---- Barbante preso em barbante ----
+   Uma ponta ({de,para}) é o id de um cartão (como sempre) OU "seta:<id>",
+   um ponto grudado em OUTRO barbante. Campos ADITIVOS: cada seta ganha um
+   `id` fixo (antes só existia a posição na lista, que muda ao apagar) e
+   `deT`/`paraT` guardam ONDE na curva do outro barbante a ponta grudou
+   (0 = começo, 1 = fim). A posição é derivada a cada render, então o nó
+   escorrega junto quando os cartões se mexem. */
+const QSETA_PROF_MAX = 6; // barbante pendurado em barbante: limite de camadas
+function qNovoSetaId() {
+  return (
+    "s" + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36)
+  );
+}
+// Toda seta precisa de id para poder ser alvo de outra. Dados antigos não
+// têm: completa em silêncio (o próximo salvamento grava).
+function qIdsSetas(q) {
+  if (!q || !Array.isArray(q.setas)) return;
+  const vistos = new Set();
+  q.setas.forEach(function (se) {
+    if (!se.id || vistos.has(se.id)) se.id = qNovoSetaId();
+    vistos.add(se.id);
+  });
+}
+function qEhPontaSeta(ref) {
+  return typeof ref === "string" && ref.indexOf("seta:") === 0;
+}
+function qSetaPorId(q, ref) {
+  const id = String(ref).slice(5);
+  return q.setas.find((s) => s.id === id) || null;
+}
+// Curva do barbante: quadrática com uma "barriga" para o lado.
+function qCurvaCtrl(p1, p2) {
+  const mx = (p1.x + p2.x) / 2,
+    my = (p1.y + p2.y) / 2;
+  const dx = p2.x - p1.x,
+    dy = p2.y - p1.y;
+  const len = Math.max(1, Math.hypot(dx, dy));
+  const sag = Math.min(34, len * 0.14);
+  return { x: mx - (dy / len) * sag, y: my + (dx / len) * sag + sag * 0.6 };
+}
+function qCurvaD(p1, p2) {
+  const c = qCurvaCtrl(p1, p2);
+  return `M ${p1.x} ${p1.y} Q ${c.x} ${c.y}, ${p2.x} ${p2.y}`;
+}
+function qPontoNaCurva(p1, c, p2, t) {
+  const u = 1 - t;
   return {
-    p1: qClipRect(ca.x, ca.y, cb.x, cb.y, ra, 4),
-    p2: qClipRect(cb.x, cb.y, ca.x, ca.y, rb, 7),
+    x: u * u * p1.x + 2 * u * t * c.x + t * t * p2.x,
+    y: u * u * p1.y + 2 * u * t * c.y + t * t * p2.y,
   };
+}
+// Qual t (0..1) da curva fica mais perto do ponto pt — usado para grudar a
+// ponta EXATAMENTE onde o dedo/mouse soltou. Amostra e depois refina.
+function qTMaisPerto(p1, c, p2, pt) {
+  let melhor = 0.5,
+    dist = Infinity;
+  for (let i = 0; i <= 40; i++) {
+    const t = i / 40,
+      p = qPontoNaCurva(p1, c, p2, t);
+    const d = (p.x - pt.x) * (p.x - pt.x) + (p.y - pt.y) * (p.y - pt.y);
+    if (d < dist) {
+      dist = d;
+      melhor = t;
+    }
+  }
+  let passo = 1 / 80;
+  for (let k = 0; k < 12; k++) {
+    [melhor - passo, melhor + passo].forEach(function (t) {
+      if (t < 0 || t > 1) return;
+      const p = qPontoNaCurva(p1, c, p2, t);
+      const d = (p.x - pt.x) * (p.x - pt.x) + (p.y - pt.y) * (p.y - pt.y);
+      if (d < dist) {
+        dist = d;
+        melhor = t;
+      }
+    });
+    passo /= 2;
+  }
+  return Math.max(0, Math.min(1, melhor));
+}
+/* Onde uma ponta se apoia. Cartão → devolve o centro e o retângulo (a linha
+   ainda vai ser cortada na borda). Barbante → devolve o ponto exato na
+   curva dele, sem retângulo (a linha encosta ali mesmo). */
+function qPonta(q, ref, t, prof) {
+  if (qEhPontaSeta(ref)) {
+    const alvo = qSetaPorId(q, ref);
+    if (!alvo) return null;
+    const pp = qSetaPontos(q, alvo, (prof || 0) + 1);
+    if (!pp) return null;
+    const c = qCurvaCtrl(pp.p1, pp.p2);
+    const p = qPontoNaCurva(pp.p1, c, pp.p2, t == null ? 0.5 : t);
+    return { centro: p, rect: null };
+  }
+  const n = q.nodes.find((x) => x.id === ref);
+  if (!n) return null;
+  const r = qNodeRect(n);
+  // Ficha: o barbante nasce no CENTRO DO ALFINETE, como num mural de
+  // verdade — a linha é amarrada no alfinete, não no meio do papel. Sem
+  // retângulo: não há o que cortar, a ponta acaba exatamente ali (e a
+  // cabeça do alfinete, que é desenhada por cima do SVG, esconde o nó).
+  const alf = qAlfineteCentro(n, r);
+  if (alf) return { centro: alf, rect: null };
+  // Caixa de texto e nota adesiva não têm alfinete: seguem mirando o meio,
+  // com a linha cortada na borda.
+  return { centro: { x: r.x + r.w / 2, y: r.y + r.h / 2 }, rect: r };
+}
+/* Centro do alfinete de um cartão, em coordenadas do quadro. Devolve null
+   para quem não tem alfinete (texto/nota). O alfinete é centrado na
+   horizontal pelo CSS; na vertical ele sobe acima da borda, e a medida sai
+   do próprio elemento para não repetir número que já está no estilo. */
+function qAlfineteCentro(n, r) {
+  const el = nodeEl(n.id);
+  const p = el && el.querySelector(".qpin");
+  if (!p) return null;
+  const topo = p.offsetTop || -7, // recuo do .qpin no estilos.css
+    alt = p.offsetHeight || 13;
+  return { x: r.x + r.w / 2, y: r.y + topo + alt / 2 };
+}
+// Pontas visíveis de uma seta (geometria derivada; null se o apoio sumiu).
+function qSetaPontos(q, se, prof) {
+  prof = prof || 0;
+  if (prof > QSETA_PROF_MAX) return null; // aninhamento absurdo/laço: não desenha
+  const A = qPonta(q, se.de, se.deT, prof),
+    B = qPonta(q, se.para, se.paraT, prof);
+  if (!A || !B) return null;
+  const ca = A.centro,
+    cb = B.centro;
+  return {
+    p1: A.rect ? qClipRect(ca.x, ca.y, cb.x, cb.y, A.rect, 4) : ca,
+    p2: B.rect ? qClipRect(cb.x, cb.y, ca.x, ca.y, B.rect, 7) : cb,
+  };
+}
+/* Em que CARTÕES uma ponta se apoia, no fim das contas: cartão devolve ele
+   mesmo; barbante devolve os cartões das duas pontas dele, recursivamente. */
+function qNosDaPonta(q, ref, prof, acc) {
+  acc = acc || new Set();
+  if ((prof || 0) > QSETA_PROF_MAX) return acc;
+  if (qEhPontaSeta(ref)) {
+    const s = qSetaPorId(q, ref);
+    if (s) {
+      qNosDaPonta(q, s.de, (prof || 0) + 1, acc);
+      qNosDaPonta(q, s.para, (prof || 0) + 1, acc);
+    }
+  } else if (ref) acc.add(ref);
+  return acc;
+}
+/* ---- Quais ligações fazem sentido ----
+   Duas regras, e elas dão conta de todos os casos de barbante que só se
+   morde a si mesmo:
+
+   1. As duas pontas têm de chegar a cartões DIFERENTES. Ligar o meio de um
+      barbante a uma das fichas que ele já liga não diz nada de novo — era
+      por aí que dava para empilhar ligação sobre ligação sem fim.
+   2. Não existe a mesma ligação duas vezes, em nenhum sentido: puxar de A
+      para B e depois de B para A é o MESMO barbante.
+
+   `ignorar` é o índice de uma seta que não deve contar (usado ao religar
+   uma ponta, senão a própria seta se acusaria de duplicata). */
+function qMotivoRecusa(q, de, para, ignorar) {
+  if (!de || !para || de === para) return "Uma ponta não pode ligar nela mesma.";
+  const a = qNosDaPonta(q, de, 0),
+    b = qNosDaPonta(q, para, 0);
+  if (!a.size || !b.size) return "Ligação sem apoio.";
+  for (const id of a)
+    if (b.has(id)) return "Sem efeito: as duas pontas levam à mesma ficha.";
+  const repetida = q.setas.some(function (s, i) {
+    if (i === ignorar) return false;
+    return (
+      (s.de === de && s.para === para) || (s.de === para && s.para === de)
+    );
+  });
+  if (repetida) return "Esses dois já estão ligados.";
+  return null; // pode ligar
+}
+/* Apaga as setas escolhidas por `pred` E as que estavam penduradas nelas
+   (senão sobrariam barbantes presos no vazio). */
+function qRemoverSetas(q, pred) {
+  let mudou = false;
+  let corta = pred;
+  qIdsSetas(q); // a cascata precisa dos ids
+  for (let volta = 0; volta < QSETA_PROF_MAX + 2; volta++) {
+    const vivas = q.setas.filter((s) => !corta(s));
+    if (vivas.length === q.setas.length) break;
+    const ids = new Set(vivas.map((s) => s.id));
+    q.setas = vivas;
+    mudou = true;
+    // Volta seguinte: cai fora quem ficou pendurado em quem já saiu.
+    corta = (s) =>
+      [s.de, s.para].some(
+        (r) => qEhPontaSeta(r) && !ids.has(String(r).slice(5)),
+      );
+  }
+  return mudou;
 }
 // O segmento (x1,y1)-(x2,y2) toca o retângulo (rx0,ry0)-(rx1,ry1)?
 function qSegCruzaRect(x1, y1, x2, y2, rx0, ry0, rx1, ry1) {
@@ -7159,7 +7374,8 @@ function qSegCruzaRect(x1, y1, x2, y2, rx0, ry0, rx1, ry1) {
 }
 // Setas alcançadas pelo retângulo de seleção (coordenadas de TELA, como os nodes).
 function qSetasInRect(cv, q, m) {
-  const r = cv.getBoundingClientRect();
+  const r = cv.getBoundingClientRect(),
+    z = zoomIF(); // mesma conversão CSS → tela do qNodesInRect
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
@@ -7168,16 +7384,18 @@ function qSetasInRect(cv, q, m) {
   q.setas.forEach(function (se, i) {
     const pp = qSetaPontos(q, se);
     if (!pp) return;
-    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x),
-      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y),
-      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x),
-      by = r.top + (pp.p2.y * q.cam.s + q.cam.y);
+    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x) * z,
+      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y) * z,
+      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x) * z,
+      by = r.top + (pp.p2.y * q.cam.s + q.cam.y) * z;
     if (qSegCruzaRect(ax, ay, bx, by, x0, y0, x1, y1)) s.add(i);
   });
   return s;
 }
 // Clique numa seta: seleciona só ela / desseleciona (Delete apaga; Esc desmarca).
 function qSelSeta(i) {
+  // O clique que fecha um ARRASTE saído do barbante não seleciona nada.
+  if (Date.now() - _qIgnoraClickSeta < 400) return;
   if (_qSetaSel.size === 1 && _qSetaSel.has(i)) _qSetaSel = new Set();
   else _qSetaSel = new Set([i]);
   desenhaSetas();
@@ -7232,17 +7450,91 @@ function qRotuloSalvar(i) {
   }
   qRotuloFechar();
 }
-// Reconecta uma ponta da seta a outro cartão (valida auto-loop e duplicata).
-function qReligarSeta(i, end, novoId) {
+// Em que ponto (0..1) da curva do barbante `se` cai o ponto pt do mundo.
+function qTNoBarbante(q, se, pt) {
+  const pp = qSetaPontos(q, se);
+  if (!pp || !pt) return 0.5;
+  return qTMaisPerto(pp.p1, qCurvaCtrl(pp.p1, pp.p2), pp.p2, pt);
+}
+// Onde o dedo/mouse soltou (o pointer capture faz e.target virar o canvas).
+function qAlvoNoPonto(e) {
+  let t = null;
+  try {
+    t = document.elementFromPoint(e.clientX, e.clientY);
+  } catch (err) {}
+  return t || e.target;
+}
+/* Cria um barbante da origem `de` (cartão, ou "seta:<id>" + deT quando sai
+   de outro barbante) até onde o arraste terminou. O destino pode ser um
+   cartão OU outro barbante — nesse caso a ponta gruda no ponto exato da
+   curva em que foi solta. Devolve true se ligou. */
+function qLigarBarbante(de, deT, elDestino, pMundo) {
+  _qMotivo = null;
+  const q = quadroAtual();
+  if (!q || !de || !elDestino || !elDestino.closest) return false;
+  const setaEl = elDestino.closest("[data-seta-id]");
+  const noEl = elDestino.closest(".qnode");
+  let para = null,
+    paraT = null;
+  if (setaEl) {
+    const alvo = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
+    if (!alvo) return false;
+    para = "seta:" + alvo.id;
+    paraT = qTNoBarbante(q, alvo, pMundo);
+  } else if (noEl) {
+    para = noEl.getAttribute("data-id");
+  } else return false;
+  _qMotivo = qMotivoRecusa(q, de, para);
+  if (_qMotivo) return false;
+  const nova = { id: qNovoSetaId(), de: de, para: para };
+  if (qEhPontaSeta(de)) nova.deT = Math.round((deT == null ? 0.5 : deT) * 1000) / 1000;
+  if (paraT != null) nova.paraT = Math.round(paraT * 1000) / 1000;
+  q.setas.push(nova);
+  marcarAlterado();
+  desenhaSetas();
+  return true;
+}
+/* Reconecta uma ponta da seta a outro cartão — ou a outro barbante, no
+   ponto onde foi solta. Aceita o ELEMENTO de destino (cartão ou linha).
+   Valida auto-laço e duplicata. */
+function qReligarSeta(i, end, destino, pMundo) {
+  _qMotivo = null;
   const q = quadroAtual();
   const se = q && q.setas[i];
-  if (!se || !novoId) return false;
-  const de = end === "de" ? novoId : se.de,
-    para = end === "para" ? novoId : se.para;
-  if (de === para) return false;
-  if (q.setas.some((s2, j) => j !== i && s2.de === de && s2.para === para))
+  if (!se || !destino) return false;
+  // Compatibilidade: quem chama com um id de cartão (modo guiado do toque)
+  // continua funcionando.
+  const el =
+    typeof destino === "string"
+      ? nodeEl(destino)
+      : destino.closest
+        ? destino
+        : null;
+  if (!el) return false;
+  const setaEl = el.closest("[data-seta-id]");
+  const noEl = el.closest(".qnode");
+  let novo = null,
+    novoT = null;
+  if (setaEl) {
+    const alvo = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
+    if (!alvo || alvo === se) return false;
+    novo = "seta:" + alvo.id;
+    novoT = qTNoBarbante(q, alvo, pMundo);
+  } else if (noEl) {
+    novo = noEl.getAttribute("data-id");
+  }
+  if (!novo) return false;
+  const de = end === "de" ? novo : se.de,
+    para = end === "para" ? novo : se.para;
+  // Mesmas regras de quem cria do zero (a própria seta não conta).
+  _qMotivo = qMotivoRecusa(q, de, para, i);
+  if (_qMotivo) {
+    toast(_qMotivo);
     return false;
-  se[end] = novoId;
+  }
+  se[end] = novo;
+  if (novoT == null) delete se[end + "T"];
+  else se[end + "T"] = Math.round(novoT * 1000) / 1000;
   marcarAlterado();
   desenhaSetas();
   return true;
@@ -7252,17 +7544,10 @@ function qReligarSeta(i, end, novoId) {
 let _qWinWired = false;
 function qMouseUpGlobal(e) {
   if (_qArrow) {
-    const t = e.target.closest && e.target.closest(".qnode");
-    if (t) {
-      const para = t.getAttribute("data-id");
-      if (para && para !== _qArrow.de) {
-        const q = quadroAtual();
-        if (!q.setas.some((s) => s.de === _qArrow.de && s.para === para)) {
-          q.setas.push({ de: _qArrow.de, para: para });
-          marcarAlterado();
-        }
-      }
-    }
+    // Solta sobre um cartão OU sobre outro barbante (gruda no ponto exato).
+    qLigarBarbante(_qArrow.de, _qArrow.deT, qAlvoNoPonto(e), _qArrowCur);
+    // Recusa por regra não pode ser silenciosa: diga por quê.
+    if (_qMotivo) toast(_qMotivo);
     _qArrow = null;
     _qArrowCur = null;
     desenhaSetas();
@@ -7270,13 +7555,13 @@ function qMouseUpGlobal(e) {
     if (_qTool === "seta") qSetTool("select");
   }
   if (_qRebind) {
-    // Soltou a alça: sobre um cartão religa; no vazio, mantém como estava.
-    const alvo = e.target.closest && e.target.closest(".qnode");
-    if (alvo) qReligarSeta(_qRebind.i, _qRebind.end, alvo.getAttribute("data-id"));
+    // Soltou a alça: sobre um cartão ou barbante religa; no vazio, mantém.
+    qReligarSeta(_qRebind.i, _qRebind.end, qAlvoNoPonto(e), _qRebindCur);
     _qRebind = null;
     _qRebindCur = null;
     desenhaSetas();
   }
+  _qSetaPull = null; // apertou no barbante mas não arrastou: era clique
   if (_qDrag) {
     if (_qDrag.moved) marcarAlterado();
     _qDrag = null;
@@ -7295,8 +7580,10 @@ function wireQuadro() {
   const cv = document.getElementById("qcanvas");
   if (!cv) return;
   const rel = (e) => {
-    const r = cv.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // Tela → CSS: a câmera (cam.x/cam.s) vive em pixels de CSS.
+    const r = cv.getBoundingClientRect(),
+      z = zoomIF();
+    return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
   };
   const toW = (p) => {
     const q = quadroAtual();
@@ -7323,6 +7610,22 @@ function wireQuadro() {
       return;
     }
     // Clique numa seta: o onclick/ondblclick dela cuida — não inicia marquee.
+    // ARRASTAR a partir dela, porém, puxa um barbante NOVO daquele ponto
+    // (fica pendente até o mouse andar: sem andar, continua sendo clique).
+    // (a ferramenta Mão e o espaço+arraste continuam navegando, não ligando)
+    const setaEl = e.target.closest && e.target.closest("[data-seta-id]");
+    if (setaEl && e.button === 0 && _qTool !== "hand" && !_space) {
+      const alvo = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
+      if (alvo)
+        _qSetaPull = {
+          id: alvo.id,
+          t: qTNoBarbante(q, alvo, toW(rel(e))),
+          x: e.clientX,
+          y: e.clientY,
+        };
+      e.preventDefault();
+      return;
+    }
     if (e.target.closest && e.target.closest("[data-seta]")) {
       e.preventDefault();
       return;
@@ -7397,6 +7700,16 @@ function wireQuadro() {
   cv.addEventListener("mousemove", function (e) {
     const q = quadroAtual();
     const p = rel(e);
+    // Andou o suficiente depois de apertar em cima de um barbante? Então
+    // não era clique: está puxando um barbante novo a partir daquele ponto.
+    if (_qSetaPull) {
+      if (Math.hypot(e.clientX - _qSetaPull.x, e.clientY - _qSetaPull.y) > 6) {
+        _qArrow = { de: "seta:" + _qSetaPull.id, deT: _qSetaPull.t };
+        _qArrowCur = toW(p);
+        _qSetaPull = null;
+        _qIgnoraClickSeta = Date.now();
+      } else return;
+    }
     if (_qDrag) {
       const w = toW(p),
         dx = w.x - _qDrag.sw.x,
@@ -7466,11 +7779,13 @@ function wireQuadro() {
   // ou texto); arrastar o fundo move o quadro; pinça dá zoom; tap abre o
   // menu do item; SEGURAR o toque num cartão puxa o barbante até outro.
   const toWxy = (x, y) => {
-    const r = cv.getBoundingClientRect();
-    return toW({ x: x - r.left, y: y - r.top });
+    const r = cv.getBoundingClientRect(),
+      z = zoomIF();
+    return toW({ x: (x - r.left) / z, y: (y - r.top) / z });
   };
   let _gqPan = null,
-    _gqDrag = null;
+    _gqDrag = null,
+    _gqConn = false; // arraste que puxa barbante (alfinete, ● ou outro barbante)
   ligarGestos(cv, {
     mouseProprio: true,
     ignorar: function (e) {
@@ -7483,7 +7798,34 @@ function wireQuadro() {
     dragInicio: function (e, alvo, x0, y0) {
       qMenuCancela(); // virou arraste: o menu pendente não abre
       _gqDrag = null;
+      _gqConn = false;
       const q = quadroAtual();
+      // Dedo no ALFINETE (ou na bolinha ● de texto/nota): puxa o barbante
+      // em vez de mover o cartão — mesmo gesto do mouse.
+      const connEl = alvo && alvo.closest ? alvo.closest("[data-conn]") : null;
+      if (connEl && x0 != null) {
+        _gqConn = true;
+        _qArrow = { de: connEl.getAttribute("data-conn") };
+        _qArrowCur = toWxy(x0, y0);
+        desenhaSetas();
+        return;
+      }
+      // Dedo em cima de um BARBANTE: puxa um barbante novo daquele ponto.
+      const setaEl =
+        alvo && alvo.closest ? alvo.closest("[data-seta-id]") : null;
+      if (setaEl && x0 != null) {
+        const s0 = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
+        if (s0) {
+          _gqConn = true;
+          _qArrow = {
+            de: "seta:" + s0.id,
+            deT: qTNoBarbante(q, s0, toWxy(x0, y0)),
+          };
+          _qArrowCur = toWxy(x0, y0);
+          desenhaSetas();
+          return;
+        }
+      }
       const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
       if (noEl && x0 != null) {
         // Dedo num cartão: arrasta o cartão (e o resto da seleção junto)
@@ -7504,8 +7846,15 @@ function wireQuadro() {
     },
     drag: function (e, dx, dy) {
       const q = quadroAtual();
+      if (_gqConn) {
+        _qArrowCur = toWxy(e.clientX, e.clientY);
+        desenhaSetas();
+        return;
+      }
       if (_gqDrag) {
-        const s = q.cam.s || 1;
+        // dx/dy vêm em pixels de TELA: dividir pelo zoom da interface antes
+        // de dividir pela escala do quadro.
+        const s = (q.cam.s || 1) * zoomIF();
         _gqDrag.ids.forEach(function (id) {
           const n = q.nodes.find((x) => x.id === id),
             o = _gqDrag.orig[id];
@@ -7523,11 +7872,27 @@ function wireQuadro() {
         return;
       }
       if (!_gqPan) return;
-      q.cam.x = _gqPan.x + dx;
-      q.cam.y = _gqPan.y + dy;
+      const zp = zoomIF();
+      q.cam.x = _gqPan.x + dx / zp;
+      q.cam.y = _gqPan.y + dy / zp;
       aplicaCam();
     },
-    dragFim: function () {
+    dragFim: function (e) {
+      if (_gqConn) {
+        // Soltou o alfinete/barbante: liga onde parou.
+        const ok = qLigarBarbante(
+          _qArrow && _qArrow.de,
+          _qArrow && _qArrow.deT,
+          qAlvoNoPonto(e),
+          _qArrowCur,
+        );
+        _gqConn = false;
+        _qArrow = null;
+        _qArrowCur = null;
+        desenhaSetas();
+        toast(ok ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
+        return;
+      }
       if (_gqDrag) marcarAlterado();
       if (_gqPan) qAgendaSalvarCam();
       _gqDrag = null;
@@ -7536,28 +7901,44 @@ function wireQuadro() {
     dragCancela: function () {
       _gqDrag = null;
       _gqPan = null;
+      if (_gqConn) {
+        _gqConn = false;
+        _qArrow = null;
+        _qArrowCur = null;
+        desenhaSetas();
+      }
     },
     cancelar: function () {
       _gqDrag = null;
       _gqPan = null;
+      _gqConn = false;
       if (_qArrow) {
         _qArrow = null;
         _qArrowCur = null;
         desenhaSetas();
       }
     },
-    // Segurar o toque num cartão: puxa o barbante até outro cartão
+    // Segurar o toque num cartão (ou num barbante) puxa a linha até o alvo
     longPress: function (alvo, pt) {
+      const q = quadroAtual();
+      const setaEl = alvo && alvo.closest ? alvo.closest("[data-seta-id]") : null;
       const noEl = alvo && alvo.closest ? alvo.closest(".qnode") : null;
-      if (!noEl) return false;
+      if (!noEl && !setaEl) return false;
       qMenuCancela(); // segurou: puxa barbante, não abre menu
-      _qArrow = { de: noEl.getAttribute("data-id") };
+      if (setaEl) {
+        const s0 = qSetaPorId(q, "seta:" + setaEl.getAttribute("data-seta-id"));
+        if (!s0) return false;
+        _qArrow = {
+          de: "seta:" + s0.id,
+          deT: qTNoBarbante(q, s0, toWxy(pt.x, pt.y)),
+        };
+      } else _qArrow = { de: noEl.getAttribute("data-id") };
       _qArrowCur = toWxy(pt.x, pt.y);
       desenhaSetas();
       try {
         if (navigator.vibrate) navigator.vibrate(30);
       } catch (err) {}
-      toast("Puxe a linha até outro cartão.");
+      toast("Puxe a linha até outro cartão ou barbante.");
       return true;
     },
     longDrag: function (e) {
@@ -7565,41 +7946,31 @@ function wireQuadro() {
       desenhaSetas();
     },
     longFim: function (e) {
-      const de = _qArrow && _qArrow.de;
+      const de = _qArrow && _qArrow.de,
+        deT = _qArrow && _qArrow.deT,
+        cur = _qArrowCur;
       _qArrow = null;
       _qArrowCur = null;
       // Com pointer capture o e.target é o canvas; quem diz onde o dedo
       // soltou é o elementFromPoint (fallback: e.target, p/ testes).
-      let t = null;
-      try {
-        t = document.elementFromPoint(e.clientX, e.clientY);
-      } catch (err) {}
-      if (!t) t = e.target;
-      const noEl = t && t.closest ? t.closest(".qnode") : null;
-      const para = noEl && noEl.getAttribute("data-id");
-      if (de && para && para !== de) {
-        const q = quadroAtual();
-        if (!q.setas.some((s) => s.de === de && s.para === para)) {
-          q.setas.push({ de: de, para: para });
-          marcarAlterado();
-        }
-        toast("Barbante criado.");
-      } else toast("Ligação cancelada.");
+      const ok = qLigarBarbante(de, deT, qAlvoNoPonto(e), cur);
+      toast(ok ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
       desenhaSetas();
     },
     pinch: function (p) {
       const q = quadroAtual();
-      const r = cv.getBoundingClientRect();
-      const cx = p.cx - r.left,
-        cy = p.cy - r.top;
+      const r = cv.getBoundingClientRect(),
+        z = zoomIF();
+      const cx = (p.cx - r.left) / z,
+        cy = (p.cy - r.top) / z;
       const wx = (cx - q.cam.x) / q.cam.s,
         wy = (cy - q.cam.y) / q.cam.s;
       const ns = Math.max(
         QUADRO_ZOOM_MIN,
         Math.min(QUADRO_ZOOM_MAX, q.cam.s * p.fator),
       );
-      q.cam.x = cx - wx * ns + p.dx;
-      q.cam.y = cy - wy * ns + p.dy;
+      q.cam.x = cx - wx * ns + p.dx / z;
+      q.cam.y = cy - wy * ns + p.dy / z;
       q.cam.s = ns;
       aplicaCam();
       qAgendaSalvarCam();
@@ -7677,21 +8048,15 @@ function qTapToque(e, alvo, rel, toW) {
   if (_qConectarDe) {
     const de = _qConectarDe;
     _qConectarDe = null;
-    if (noEl && noEl.getAttribute("data-id") !== de) {
-      const para = noEl.getAttribute("data-id");
-      if (!q.setas.some((s) => s.de === de && s.para === para)) {
-        q.setas.push({ de: de, para: para });
-        marcarAlterado();
-        desenhaSetas();
-      }
-      toast("Barbante criado.");
-    } else toast("Ligação cancelada.");
+    // Destino pode ser um cartão OU um barbante (gruda onde tocou).
+    const fez = qLigarBarbante(de, null, noEl || setaEl, p);
+    toast(fez ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
     return;
   }
   if (_qReligar) {
     const rl = _qReligar;
     _qReligar = null;
-    if (noEl) qReligarSeta(rl.i, rl.end, noEl.getAttribute("data-id"));
+    if (noEl || setaEl) qReligarSeta(rl.i, rl.end, noEl || setaEl, p);
     else toast("Religação cancelada.");
     return;
   }
@@ -7775,7 +8140,7 @@ function qNoMenu(id) {
       rotulo: "Conectar (barbante)",
       fn: function () {
         _qConectarDe = id;
-        toast("Toque no cartão de DESTINO para ligar o barbante.");
+        toast("Toque no cartão — ou no barbante — de DESTINO.");
       },
     },
     {
@@ -7850,17 +8215,26 @@ function qSetaMenu(i) {
       },
     },
     {
+      // Caminho sem gesto para "barbante que sai de barbante": sai do meio.
+      rotulo: "Puxar barbante daqui",
+      fn: function () {
+        qIdsSetas(q);
+        _qConectarDe = "seta:" + se.id;
+        toast("Toque no cartão — ou no barbante — de DESTINO.");
+      },
+    },
+    {
       rotulo: "Religar origem",
       fn: function () {
         _qReligar = { i: i, end: "de" };
-        toast("Toque no cartão que passa a ser a ORIGEM.");
+        toast("Toque no cartão (ou barbante) que passa a ser a ORIGEM.");
       },
     },
     {
       rotulo: "Religar destino",
       fn: function () {
         _qReligar = { i: i, end: "para" };
-        toast("Toque no cartão que passa a ser o DESTINO.");
+        toast("Toque no cartão (ou barbante) que passa a ser o DESTINO.");
       },
     },
     {
@@ -7896,14 +8270,17 @@ function qSetTexto(id, v) {
 function qDelNode(id) {
   const q = quadroAtual();
   q.nodes = q.nodes.filter((n) => n.id !== id);
-  q.setas = q.setas.filter((s) => s.de !== id && s.para !== id);
+  // Some com os barbantes do cartão E com os que estavam pendurados neles.
+  qRemoverSetas(q, (s) => s.de === id || s.para === id);
   _qSetaSel = new Set(); // setas podem ter mudado de índice
   marcarAlterado();
   desenhaQuadro();
 }
 function qDelSeta(i) {
   const q = quadroAtual();
-  q.setas.splice(i, 1);
+  const alvo = q.setas[i];
+  if (!alvo) return;
+  qRemoverSetas(q, (s) => s === alvo);
   _qSetaSel = new Set(); // índices mudaram; evita destacar/apagar a seta errada
   marcarAlterado();
   desenhaSetas();

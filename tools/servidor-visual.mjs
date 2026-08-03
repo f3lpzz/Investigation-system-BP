@@ -101,6 +101,73 @@ const SEED = (vista) => `
         document.getElementById("grade").scrollTop = 260;
       }, 200);
     }
+    // marquee-hit: o retângulo de seleção do quadro cai onde o mouse está?
+    // Arrasta de (600,400) a (820,560) em coordenadas de TELA e compara com
+    // onde o #selbox foi parar. Serve com a interface ampliada (zoom do body
+    // em telas grandes), que foi onde a seleção saía deslocada.
+    else if (base === "marquee-hit") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        function ev(t, x, y) { cv.dispatchEvent(new MouseEvent(t, {bubbles:true, clientX:x, clientY:y, button:0})); }
+        ev("mousedown", 600, 400); ev("mousemove", 820, 560);
+        var b = document.getElementById("selbox").getBoundingClientRect();
+        var z = getComputedStyle(document.body).zoom || "1";
+        ev("mouseup", 820, 560);
+        // 2) arrastar um CARTÃO: ele tem de andar o mesmo que o mouse andou
+        var q = quadroAtual();
+        q.nodes.length = 0; q.setas.length = 0;
+        q.cam = { x: 40, y: 40, s: 1 };
+        q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:100, y:100});
+        desenhaQuadro();
+        var el = document.querySelector('.qnode[data-id="qa"]');
+        var r0 = el.getBoundingClientRect();
+        // o mousedown sai DO CARTÃO (evento sintético não faz hit-test:
+        // quem manda no alvo é o elemento em que ele é disparado)
+        var px = Math.round(r0.left + 30), py = Math.round(r0.bottom - 12);
+        el.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:px, clientY:py, button:0}));
+        ev("mousemove", px + 120, py + 80);
+        ev("mouseup", px + 120, py + 80);
+        var r1 = el.getBoundingClientRect();
+        // 3) com o barbante desenhado POR CIMA das fichas, o alfinete de uma
+        // ficha que já tem linha continua sendo pegável?
+        q.nodes.push({id:"qb2", tipo:"ref", kind:"pista", ref:"f5", x:520, y:120});
+        q.setas.push({id:"sZ", de:"qa", para:"qb2"});
+        desenhaQuadro();
+        var pin = document.querySelector('.qnode[data-id="qa"] .qpin');
+        var rp = pin.getBoundingClientRect();
+        var alvo = document.elementFromPoint(rp.left + rp.width/2, rp.top + rp.height/2);
+        var pega = alvo && alvo.closest && alvo.closest("[data-conn]") ? "ALFINETE" :
+                   (alvo && alvo.closest && alvo.closest("[data-seta-id]") ? "BARBANTE" : "outro");
+        document.title = "ZOOM=" + z + " | centro do alfinete pega=" + pega +
+          " | selbox esperado=600,400 obtido=" + Math.round(b.left) + "," + Math.round(b.top) +
+          " erro=" + Math.round(b.left - 600) + "," + Math.round(b.top - 400) +
+          " || cartao esperado=+120,+80 obtido=+" + Math.round(r1.left - r0.left) +
+          ",+" + Math.round(r1.top - r0.top);
+      }, 400);
+    }
+    // quadro com fichas + barbantes, inclusive um barbante PRESO em outro
+    // barbante (alfinete = alça da linha). Usado para conferir a issue #9.
+    else if (base === "teorias-barbante") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 40, y: 40, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:60},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:430, y:70},
+        {id:"qc", tipo:"ref", kind:"pista", ref:"f2", x:250, y:330}
+      );
+      _q.setas.push({id:"sA", de:"qa", para:"qb", rotulo:"mesma letra"});
+      // sai do meio do barbante sA e desce até a terceira ficha
+      _q.setas.push({id:"sB", de:"seta:sA", deT:0.5, para:"qc"});
+      // caixa de texto e nota adesiva, para conferir o alfinete nelas
+      _q.nodes.push({id:"qt", tipo:"texto", texto:"Quem estava na ala oeste?", x:60, y:430, w:230});
+      _q.nodes.push({id:"qn", tipo:"texto", estilo:"nota", cor:0, texto:"conferir o relógio", x:760, y:400, w:190});
+      _q.setas.push({id:"sC", de:"qt", para:"qc"});
+      _q.setas.push({id:"sD", de:"qn", para:"qb"});
+      desenhaQuadro();
+    }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
     // quadro arrastado: prova que a textura do fundo anda com a câmera

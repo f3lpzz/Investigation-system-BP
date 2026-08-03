@@ -79,6 +79,37 @@
   --alvo: 44px; /* alvo de toque padrão */
   --alvo-lg: 48px; /* alvo de toque crítico (mapa, fechar, salvar) */
   --foco-cor: #e0be7a; /* foco visível (≥3:1 sobre superfícies escuras) */
+  /* alfinete: cabeça esférica — o volume é do gradiente, não da borda.
+     O stop do MEIO de cada um é a cor de identidade (--gold, --manual);
+     os stops claros e escuros só fazem o brilho e a base. Mudou a cor da
+     marca? Mexa no stop do meio. */
+  --pin-osso: radial-gradient(
+    circle at 34% 26%,
+    #fffaf0 0%,
+    #ece0c9 16%,
+    #c0b49c 46%,
+    #6f6555 82%,
+    #453d33 100%
+  );
+  --pin-ouro: radial-gradient(
+    circle at 34% 26%,
+    #fdf0cf 0%,
+    #e0be7a 18%,
+    #c9a35c 46%,
+    #7d6027 84%,
+    #4e3c17 100%
+  );
+  --pin-vermelho: radial-gradient(
+    circle at 34% 26%,
+    #f7d3c6 0%,
+    #d9856f 18%,
+    #b8452e 48%,
+    #7d2417 84%,
+    #4d150c 100%
+  );
+  --pin-sh:
+    0 2px 3px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(0, 0, 0, 0.4),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.28);
 }
 /* Foco visível consistente (teclado) — não some sobre fundos escuros */
 :focus-visible {
@@ -102,6 +133,7 @@
 :where(
     button.et,
     button.dstar,
+    button.pin,
     button.fio-x,
     button.pcard-m,
     button.dosx,
@@ -120,12 +152,6 @@
   color: inherit;
   cursor: pointer;
   text-align: inherit;
-}
-/* Sem hover (toque): controles revelados no hover ficam sempre visíveis */
-@media (hover: none) {
-  .cstar {
-    opacity: 1;
-  }
 }
 /* Movimento reduzido: corta transições/animações espaciais */
 @media (prefers-reduced-motion: reduce) {
@@ -2429,6 +2455,9 @@ select:focus {
   top: 0;
   transform-origin: 0 0;
 }
+/* O barbante fica ATRÁS das fichas e dos alfinetes: o trecho final some
+   sob o papel de propósito, e o que se vê sai da borda já apontando para o
+   alfinete (a ponta da linha, no cálculo, é o centro dele). */
 .qsvg {
   position: absolute;
   left: 0;
@@ -2539,25 +2568,6 @@ select:focus {
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
-}
-.qconn {
-  position: absolute;
-  right: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--info);
-  border: 2px solid var(--canvas);
-  cursor: crosshair;
-  color: transparent;
-  font-size: 0;
-  line-height: 0;
-}
-.qnode.qtexto .qconn {
-  top: 8px;
-  transform: none;
 }
 .qdel {
   position: absolute;
@@ -3638,10 +3648,12 @@ select:focus {
   padding: 18px 24px 24px;
   overflow: auto;
   /* Na rolagem o card some suave junto ao cabeçalho, sem corte seco.
-     12px (não 18px, o padding): o alfinete do card sobe 5px acima dele e
-     um fade maior comia a metade de cima da cabeça do alfinete. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+     O fade termina em 11px, NÃO nos 18px do padding: o card começa em 18px
+     e o alfinete sobe 6px acima dele (7px no favorito, que é maior), então
+     a cabeça começa em y=11. Fade que passe disso come a metade de cima
+     dela. Mexeu no `top` do alfinete? Reveja este número. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 11px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 11px);
 }
 .card {
   background: var(--papel);
@@ -3653,28 +3665,69 @@ select:focus {
   color: var(--papel-ink);
   cursor: pointer;
   transition: transform 0.08s ease;
+  /* Solta o recorte herdado da regra base (`overflow: hidden`): era ele que
+     cortava o alfinete ao meio na borda de cima. Quem precisa de recorte
+     aqui dentro já tem o seu — a foto (.cthumb) e a miniatura antiga
+     (.thumbwrap) fecham o próprio overflow. */
+  overflow: visible;
 }
 .card:hover {
   transform: translateY(-2px);
   border: 0;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
 }
+/* ===== Alfinete (grade e quadro) =====
+   Cabeça esférica: o volume vem do GRADIENTE, não de borda — por isso
+   `border: 0`. A regra antiga desenhava um aro com a borda, e o favorito
+   só trocava a cor dela; se a borda voltar, o aro cinza cobre o gradiente.
+
+   O alfinete sobe 6px acima da borda do card de propósito: é ele que
+   "prende" o papel. Como também é BOTÃO (favoritar) e ALÇA (puxar o
+   barbante no quadro), tem cursor, foco visível e uma área de clique
+   invisível maior que a cabeça de 13px — o ::before. Sem transição de
+   movimento própria: no hover o card sobe 2px e o alfinete sobe junto,
+   senão a cabeça parece descolar do papel. */
 .pin {
   position: absolute;
   left: 50%;
-  top: -5px;
+  top: -6px;
   transform: translateX(-50%);
-  width: 11px;
-  height: 11px;
+  width: 13px;
+  height: 13px;
+  border: 0;
   border-radius: 50%;
-  background: #9c9c9c;
-  border: 2px solid #6e6e6e;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+  padding: 0;
+  background: var(--pin-osso);
+  box-shadow: var(--pin-sh);
   z-index: 2;
+  cursor: pointer;
 }
+/* área de clique invisível, bem maior que a cabeça */
+.pin::before,
+.qpin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+}
+/* Favorito: dourado E um pouco maior. O tamanho existe porque, sem a
+   estrela, a cor sozinha diria o estado — e cor sozinha não basta para
+   quem enxerga pouca diferença entre tons. */
 .pin.fav {
-  background: var(--gold);
-  border-color: #8a6c34;
+  width: 16px;
+  height: 16px;
+  top: -7px;
+  background: var(--pin-ouro);
+}
+.pin:hover {
+  filter: brightness(1.1);
+}
+.pin:focus-visible {
+  outline: 2px solid var(--foco-cor);
+  outline-offset: 2px;
 }
 .chead {
   display: flex;
@@ -3696,21 +3749,6 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.cstar {
-  margin-left: auto;
-  color: #b8ac8f;
-  font-size: 14px;
-  cursor: pointer;
-  opacity: 0;
-  line-height: 1;
-}
-.cstar.on {
-  color: var(--gold);
-  opacity: 1;
-}
-.card:hover .cstar {
-  opacity: 1;
 }
 .card h3.ctit {
   font-family: var(--font-serif);
@@ -4812,7 +4850,9 @@ select:focus {
   border: 0;
   border-radius: 3px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
-  padding: 12px;
+  /* Faixa de cima reservada ao alfinete, igual ao card da grade: ele
+     aparece INTEIRO no meio do topo (o card corta o que passa da borda). */
+  padding: 26px 12px 12px;
   color: var(--papel-ink);
   width: 210px;
   transform: rotate(-1deg);
@@ -4824,18 +4864,35 @@ select:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
+/* O nó do quadro: mesma cabeça esférica, em vermelho. Ele flutua sobre a
+   ficha, então a sombra é 1px mais longa que na grade. Também é a ALÇA do
+   barbante — daí o cursor e a área de pega do ::before (herdada da regra
+   do .pin, logo acima). */
 .qpin {
   position: absolute;
   left: 50%;
-  top: -6px;
+  top: -7px;
   transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
+  border: 0;
   border-radius: 50%;
-  background: var(--manual);
-  border: 2px solid #7d2417;
-  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.45);
+  background: var(--pin-vermelho);
+  box-shadow:
+    0 3px 5px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(0, 0, 0, 0.4),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.3);
   z-index: 2;
+  cursor: grab;
+}
+.qpin:hover {
+  filter: brightness(1.1);
+}
+/* A ficha do quadro recortava o que passasse da borda (`overflow: hidden`
+   herdado da regra base), e isso cortava o alfinete ao meio — ele sobe
+   7px acima do papel. Aqui não há nada que precise de recorte: a foto tem
+   o overflow dela. */
+.qnode.qref {
+  overflow: visible;
 }
 .qcod {
   font-family: var(--font-mono);
@@ -4906,9 +4963,6 @@ select:focus {
 .qnode .qdel {
   background: rgba(43, 35, 23, 0.75);
   color: var(--papel);
-}
-.qnode .qconn {
-  color: var(--manual);
 }
 
 /* ---------- Arquivo (Salas · Personagens · Grupos) ---------- */
@@ -5988,8 +6042,25 @@ body.view-conta .filtros-panel {
     align-content: center;
     min-height: 96px;
   }
+  /* No celular o card é uma LINHA compacta, encostada na de cima: aqui o
+     alfinete não pode subir acima da borda, senão invade o card anterior.
+     Ele desce para dentro de uma faixa reservada no topo — mesmo desenho,
+     só outro lugar. */
+  .card.com-alfinete {
+    padding-top: 24px;
+  }
   .pin {
-    display: none;
+    top: 6px;
+  }
+  .pin.fav {
+    top: 5px;
+  }
+  /* Alvo de toque de 44px (P12): quem cresce é a área invisível, não a
+     cabeça. A altura para em 32px de propósito — mais que isso roubaria o
+     toque do título, logo abaixo, e tocar no título tem de abrir a ficha. */
+  .pin::before {
+    width: var(--alvo);
+    height: 32px;
   }
   .chead {
     grid-area: head;
@@ -5997,35 +6068,12 @@ body.view-conta .filtros-panel {
     display: flex;
     align-items: center;
     gap: 8px;
-    /* espaço para a estrela fixa no canto superior direito */
-    padding-right: 26px;
   }
   .csala {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  /* Estrela sempre visível no canto superior direito: fraca sem favorito,
-     dourada com. .chead na frente vence a regra de alvo de toque (P12). */
-  .chead .cstar {
-    display: grid;
-    place-items: center;
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 40px;
-    height: 40px;
-    min-width: 0;
-    min-height: 0;
-    margin: 0;
-    opacity: 1;
-    font-size: 15px;
-    color: rgba(184, 172, 143, 0.5);
-    z-index: 2;
-  }
-  .chead .cstar.on {
-    color: var(--gold);
   }
   /* Título: UMA linha até quase a borda (corta no meio da palavra com
      "…"); segurar o dedo mostra o nome inteiro */
@@ -6537,15 +6585,6 @@ body.view-conta .filtros-panel {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-  /* Favorito do card e chave de idioma com alvo de 44px (P12) —
-     margens negativas mantêm o layout visual do card */
-  .cstar {
-    display: inline-grid;
-    place-items: center;
-    min-width: var(--alvo);
-    min-height: var(--alvo);
-    margin: -12px -10px -12px auto;
   }
   .langsw,
   #conta .langsw {

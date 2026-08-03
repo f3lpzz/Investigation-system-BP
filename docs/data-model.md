@@ -17,7 +17,7 @@ Todo o catálogo vive num único objeto global chamado `DADOS`. Ele tem **8 list
 | `grupos` | Conjuntos de pistas (ex.: "Cartas Vermelhas") | `nome`, `cor`, `imagem`, `descricao`, `fatos[]`, `notas` |
 | `colecoes` | Coleções ordenadas (legado; migrado p/ grupos) | `nome`, `ordenada`, … |
 | `teorias` | Anotações de teoria | `titulo`, `texto` |
-| `quadros` | Quadros estilo Miro | `nome`, `cam{x,y,s}`, `nodes[]`, `setas[]` |
+| `quadros` | Quadros estilo Miro | `nome`, `cam{x,y,s}`, `nodes[]`, `setas[]` (ver seção 2.1) |
 | `tipos` | Tipos (legado de versões antigas) | `id`, `nome`, `cor` |
 
 Há também um campo de versão (`DADOS.version`) e a constante `SCHEMA_VERSION` (hoje **6**) no `app/app.js`. **Não fixe o número** no código novo — leia do `app/app.js`.
@@ -67,6 +67,29 @@ Os campos `paginas[]` são o coração (cada página = uma face/imagem da carta,
 | `paginas` | lista | Cada página: `imagem`, `original`, `traducao`, `explica`, `rotulo`. |
 
 (As regras de **conteúdo** das fichas — como transcrever sem spoiler — estão em `content-guide.md`.)
+
+### 2.1 Um quadro por dentro (`nodes[]` e `setas[]`)
+
+Cada quadro guarda **cartões** (`nodes`) e **barbantes** (`setas`).
+
+| Campo da seta | Tipo | O que é |
+|---|---|---|
+| `id` | texto | Identidade fixa do barbante. Serve para **outro barbante se pendurar nele** — a posição na lista não serve, porque muda quando algum é apagado. Setas antigas sem `id` ganham um ao serem desenhadas. |
+| `de` / `para` | texto | As duas pontas. Ou o **id de um cartão** (como sempre foi), ou **`"seta:<id>"`** — uma ponta grudada em outro barbante. |
+| `deT` / `paraT` | número 0–1 | Só quando a ponta correspondente é `"seta:<id>"`: **onde** na curva do outro barbante ela grudou (0 = começo, 1 = fim). A posição na tela é derivada a cada render, então o nó escorrega junto quando os cartões se movem. |
+| `rotulo` | texto | Opcional, o texto escrito sobre a linha. |
+
+> **Todos aditivos.** Um quadro salvo antes desses campos continua abrindo:
+> sem `id` ele ganha um, e sem `deT`/`paraT` as pontas seguem sendo cartões.
+> Apagar um barbante (ou o cartão que o segura) **leva junto**, em cascata,
+> os que estavam pendurados nele — senão sobrariam linhas sem apoio.
+
+**Que ligações o app aceita.** Duas regras, aplicadas tanto ao criar quanto ao religar uma ponta (`qMotivoRecusa` no `app/app.js`):
+
+1. **As duas pontas têm de chegar a cartões diferentes.** Cada ponta "chega" a um conjunto de cartões: um cartão chega a ele mesmo; um barbante chega aos cartões das duas pontas dele, recursivamente. Se os conjuntos se cruzam, a ligação não diz nada de novo — é o caso de ligar o meio de um barbante a uma das fichas que ele já liga.
+2. **Não existe a mesma ligação duas vezes, em nenhum sentido.** Puxar de A para B e depois de B para A é o mesmo barbante.
+
+A recusa nunca é silenciosa: o app avisa o motivo na tela.
 
 ---
 
