@@ -2149,13 +2149,24 @@ function wireMap(svg) {
     if (g && g.dataset.trunc === "1") {
       t.textContent = g.dataset.full;
       t.style.display = "block";
-      var pad = 14,
-        x = e.clientX + pad,
-        y = e.clientY + pad,
+      /* Duas réguas (ver zoomIF): `clientX/Y` e `innerWidth/Height` vêm em
+         pixels de TELA, mas a dica é filha do <body> ampliado — o `left`
+         dela conta em pixels de CSS. Sem dividir pelo zoom, a dica saía
+         cada vez mais longe do mouse quanto mais para a direita/baixo do
+         canto superior esquerdo (e ficava certinha só no monitor pequeno,
+         onde o zoom é 1). */
+      var z = zoomIF(),
+        pad = 14,
+        cx = e.clientX / z,
+        cy = e.clientY / z,
+        vw = window.innerWidth / z,
+        vh = window.innerHeight / z,
+        x = cx + pad,
+        y = cy + pad,
         bw = t.offsetWidth,
         bh = t.offsetHeight;
-      if (x + bw > window.innerWidth - 8) x = e.clientX - pad - bw;
-      if (y + bh > window.innerHeight - 8) y = e.clientY - pad - bh;
+      if (x + bw > vw - 8) x = cx - pad - bw;
+      if (y + bh > vh - 8) y = cy - pad - bh;
       t.style.left = x + "px";
       t.style.top = y + "px";
     } else t.style.display = "none";
