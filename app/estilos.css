@@ -408,7 +408,11 @@ select option:checked {
 main {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  /* `clip` e não `hidden`: com `hidden` a caixa continua sendo uma área
+     ROLÁVEL por dentro (só sem barra), e qualquer foco/scrollIntoView num
+     painel que ainda está fora da tela empurrava a grade para o lado.
+     `clip` corta e pronto — não há o que rolar. */
+  overflow: clip;
 }
 /* GRADE */
 #grade {

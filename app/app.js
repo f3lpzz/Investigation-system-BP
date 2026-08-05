@@ -668,11 +668,16 @@ function overlayAbrir(el, opts) {
     el.querySelector("[autofocus]") ||
     (opts.focoEm && el.querySelector(opts.focoEm)) ||
     _ovFocaveis(el)[0];
+  /* `preventScroll` NÃO é detalhe: o painel entra deslizando (transform), e
+     no instante do foco ele ainda está fora da tela, à direita. Sem isto o
+     navegador "corre atrás" do elemento focado e ROLA o <main> uns 530px —
+     a grade de fichas dá um pulo para a esquerda e volta junto com o
+     painel. Era esse o tremor das fichas atrás da ficha aberta. */
   try {
-    if (foco) foco.focus();
+    if (foco) foco.focus({ preventScroll: true });
     else {
       el.tabIndex = -1;
-      el.focus();
+      el.focus({ preventScroll: true });
     }
   } catch (e) {}
   navPushOverlay(id, function () {
@@ -2712,7 +2717,7 @@ function abrir(id) {
   d.innerHTML = `
     <div class="dh">
       <div class="dh-top">
-        <span class="did">${esc(f.id)}</span>
+        <span class="did">${esc(idVisual(f.id))}</span>
         <span class="dsala">${f.sala ? esc(f.sala) : "—"}</span>
         <div class="dgrow"></div>
         <button class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar">★</button>
