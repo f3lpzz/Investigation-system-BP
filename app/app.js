@@ -1275,10 +1275,7 @@ function renderGrade() {
     else if (f.status === "importante")
       stamp = `<span class="stamp imp">IMPORTANTE</span>`;
     // Identificador no estilo do carimbo do design: f3 → F-003
-    const idVis = String(f.id).replace(
-      /^([a-z]+)(\d+)$/i,
-      (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
-    );
+    const idVis = idVisual(f.id);
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
       <button class="pin${f.fav ? " fav" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="${f.fav ? "Tirar de favoritas" : "Favoritar"}" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar"></button>
@@ -2877,6 +2874,15 @@ function esc(s) {
   return String(s == null ? "" : s).replace(
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+  );
+}
+/* Identificador no estilo do carimbo do design: f3 → F-003. É só VISUAL —
+   o id gravado no DADOS continua "f3". Vale para todo lugar que mostra o
+   código de uma ficha (card da grade, ficha do quadro). */
+function idVisual(id) {
+  return String(id == null ? "" : id).replace(
+    /^([a-z]+)(\d+)$/i,
+    (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
   );
 }
 
@@ -6867,8 +6873,10 @@ function nodeHTML(n) {
   // Ficha no quadro = papel com alfinete vermelho, código e título serif.
   // O alfinete É a alça do barbante: segurar nele e arrastar puxa a linha
   // (por isso a ficha não tem mais a bolinha ● de conectar).
-  // O código anda junto do título, na mesma linha (span, não bloco).
-  const cod = n.kind === "pista" ? `<span class="qcod">${esc(n.ref)}</span>` : "";
+  // O código anda junto do título, na mesma linha (span, não bloco), no
+  // mesmo molde do card da grade: f1 → F-001.
+  const cod =
+    n.kind === "pista" ? `<span class="qcod">${esc(idVisual(n.ref))}</span>` : "";
   return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
 }
 function desenhaQuadro() {

@@ -4959,9 +4959,12 @@ select:focus {
   border: 0;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
   transform: rotate(-1deg);
-  /* Mesma faixa de cima da ficha: o alfinete da nota também fica inteiro
-     dentro do papel, e a alça "≡ texto" começa abaixo dele. */
-  padding-top: 28px;
+}
+/* Texto e nota NÃO ganham faixa reservada: a alça "≡ texto" continua
+   colada no topo e o alfinete fica DENTRO dela, no meio da largura (a
+   etiqueta é curta e mora na esquerda, então um não cobre o outro). */
+.qnode.qtexto .qpin {
+  top: 4px;
 }
 .qnode.qtexto .qtxt {
   font-family: var(--font-type);
