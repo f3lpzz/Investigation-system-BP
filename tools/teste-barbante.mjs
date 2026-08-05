@@ -232,6 +232,96 @@ ok(
   g("quadroAtual().setas[2]"),
 );
 
+/* ===== 4b. O NÓ da amarra (voltas + ponta cortada) e o arraste dele =====
+   O quadro aqui tem: sA = qa—qb (as duas pontas em CARTÃO) ·
+   setas[1] = qc—(sA em 0,25) · setas[2] = (sA em 0,7)—qd. */
+g("desenhaSetas()");
+ok(
+  "nó: só as pontas amarradas em BARBANTE ganham pega de nó (2, não 4)",
+  g('document.querySelectorAll("[data-no-i]").length') === 2,
+  g('document.querySelectorAll("[data-no-i]").length'),
+);
+ok(
+  "nó: as pegas são das setas certas (a ponta em cartão não tem nó)",
+  g(`
+    JSON.stringify([...document.querySelectorAll("[data-no-i]")]
+      .map(function(c){ return c.getAttribute("data-no-i") + ":" + c.getAttribute("data-no-end"); }).sort())
+  `) === JSON.stringify(["1:para", "2:de"]),
+  g(`
+    JSON.stringify([...document.querySelectorAll("[data-no-i]")]
+      .map(function(c){ return c.getAttribute("data-no-i") + ":" + c.getAttribute("data-no-end"); }).sort())
+  `),
+);
+ok(
+  "nó: a geometria entrega a tangente da hospedeira (e null em cartão)",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var a = qSetaPontos(q, q.setas[0]), b = qSetaPontos(q, q.setas[1]);
+      return !a.tan1 && !a.tan2 && !b.tan1 && !!b.tan2 &&
+             Math.hypot(b.tan2.x, b.tan2.y) > 0;
+    })()
+  `),
+);
+// a pega fica EXATAMENTE onde a ponta encosta na hospedeira
+ok(
+  "nó: a pega do nó fica em cima do ponto de amarra",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var pp = qSetaPontos(q, q.setas[1]);
+      var c = document.querySelector('[data-no-i="1"]');
+      return Math.hypot(+c.getAttribute("cx") - pp.p2.x, +c.getAttribute("cy") - pp.p2.y) < 0.01;
+    })()
+  `),
+);
+// a ponta cortada PENDE: em qualquer sentido da hospedeira ela desce
+const pende = (tx, ty) =>
+  g(`
+    (function(){
+      var svg = qNoAmarra({x:100,y:100}, {x:${tx},y:${ty}}, "#b8452e");
+      var ys = [];
+      (svg.match(/d="[^"]*"/g) || []).forEach(function(d){
+        var n = (d.match(/-?\\d+(\\.\\d+)?/g) || []).map(Number);
+        for (var i = 1; i < n.length; i += 2) ys.push(n[i]);
+      });
+      return Math.max.apply(null, ys);
+    })()
+  `);
+ok(
+  "nó: a ponta cortada pende para baixo, venha a linha de onde vier",
+  pende(1, 0) > 106 && pende(-1, 0) > 106,
+  [pende(1, 0), pende(-1, 0)],
+);
+// arrastar o nó: muda ONDE ele está na linha, não em QUE linha
+const moveu = g(`
+  (function(){
+    var q = quadroAtual();
+    var pp = qSetaPontos(q, q.setas[0]);
+    var p = qPontoNaCurva(pp.p1, qCurvaCtrl(pp.p1, pp.p2), pp.p2, 0.3);
+    return qMoverNo(2, "de", p);
+  })()
+`);
+ok("nó: consigo escorregar o nó pela linha (qMoverNo)", moveu === true);
+ok(
+  "nó: escorregar mudou o ponto (deT ≈ 0,3) e manteve a ligação",
+  g('quadroAtual().setas[2].de') === "seta:sA" &&
+    Math.abs(g("quadroAtual().setas[2].deT") - 0.3) < 0.06,
+  g("quadroAtual().setas[2]"),
+);
+ok(
+  "nó: soltar no mesmo lugar não conta como mudança",
+  g(`
+    (function(){
+      var q = quadroAtual();
+      var pp = qSetaPontos(q, q.setas[0]);
+      var p = qPontoNaCurva(pp.p1, qCurvaCtrl(pp.p1, pp.p2), pp.p2, q.setas[2].deT);
+      return qMoverNo(2, "de", p);
+    })()
+  `) === false,
+);
+g('quadroAtual().setas[2].deT = 0.7; desenhaSetas()'); // devolve como estava
+
 /* ===== 5. Regras: só ligação ÚTIL, nada que se morda a si mesmo =====
    O quadro aqui tem: sA = qa—qb · setas[1] = qc—(meio de sA) ·
    setas[2] = (meio de sA)—qd. */

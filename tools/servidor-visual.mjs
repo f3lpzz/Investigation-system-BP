@@ -148,7 +148,9 @@ const SEED = (vista) => `
     }
     // quadro com fichas + barbantes, inclusive um barbante PRESO em outro
     // barbante (alfinete = alça da linha). Usado para conferir a issue #9.
-    else if (base === "teorias-barbante") {
+    // (teorias-no = a mesma cena, ampliada no cruzamento: confere o NÓ;
+    //  teorias-no-drag = arrasta o nó pela linha e diz no <title> onde parou)
+    else if (base === "teorias-barbante" || base === "teorias-no" || base === "teorias-no-drag") {
       setView("teorias");
       var _q = quadroAtual();
       _q.cam = { x: 40, y: 40, s: 1 };
@@ -167,6 +169,36 @@ const SEED = (vista) => `
       _q.setas.push({id:"sC", de:"qt", para:"qc"});
       _q.setas.push({id:"sD", de:"qn", para:"qb"});
       desenhaQuadro();
+      /* Arrastar o NÓ na tela de verdade: aperta na pega, anda até 0,82 da
+         hospedeira e solta (0,6). O <title> diz se deT foi junto e se a ligação
+         continuou a mesma (só o ponto muda, o hospedeiro não). */
+      if (base === "teorias-no-drag") setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var r = cv.getBoundingClientRect(), z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var toTela = function (p) {
+          return { x: r.left + (p.x*_q.cam.s + _q.cam.x)*z, y: r.top + (p.y*_q.cam.s + _q.cam.y)*z };
+        };
+        var pp = qSetaPontos(_q, _q.setas[0]), c = qCurvaCtrl(pp.p1, pp.p2);
+        var antes = _q.setas[1].deT;
+        var pega = document.querySelector('[data-no-i="1"][data-no-end="de"]');
+        var a = toTela(qPontoNaCurva(pp.p1, c, pp.p2, antes));
+        var b = toTela(qPontoNaCurva(pp.p1, c, pp.p2, 0.6));
+        // evento sintético não faz hit-test: o mousedown sai DA PEGA
+        pega.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(a.x), clientY:Math.round(a.y), button:0}));
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(b.x), clientY:Math.round(b.y), button:0}));
+        cv.dispatchEvent(new MouseEvent("mouseup", {bubbles:true, clientX:Math.round(b.x), clientY:Math.round(b.y), button:0}));
+        document.title = "pega=" + (pega ? "achei" : "SUMIU") +
+          " | deT antes=" + antes + " depois=" + _q.setas[1].deT + " (alvo 0,6)" +
+          " | ligacao=" + _q.setas[1].de + " | nos=" + document.querySelectorAll("[data-no-i]").length;
+      }, 350);
+      // Lupa no nó: centraliza o ponto de amarra de sB e amplia 5×.
+      if (base === "teorias-no") setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var pp = qSetaPontos(_q, _q.setas[1]);
+        var s = 5;
+        _q.cam = { x: cv.clientWidth/2 - pp.p1.x*s, y: cv.clientHeight/2 - pp.p1.y*s, s: s };
+        desenhaQuadro();
+      }, 300);
     }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }

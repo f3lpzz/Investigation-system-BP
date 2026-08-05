@@ -76,7 +76,7 @@ Cada quadro guarda **cartões** (`nodes`) e **barbantes** (`setas`).
 |---|---|---|
 | `id` | texto | Identidade fixa do barbante. Serve para **outro barbante se pendurar nele** — a posição na lista não serve, porque muda quando algum é apagado. Setas antigas sem `id` ganham um ao serem desenhadas. |
 | `de` / `para` | texto | As duas pontas. Ou o **id de um cartão** (como sempre foi), ou **`"seta:<id>"`** — uma ponta grudada em outro barbante. |
-| `deT` / `paraT` | número 0–1 | Só quando a ponta correspondente é `"seta:<id>"`: **onde** na curva do outro barbante ela grudou (0 = começo, 1 = fim). A posição na tela é derivada a cada render, então o nó escorrega junto quando os cartões se movem. |
+| `deT` / `paraT` | número 0–1 | Só quando a ponta correspondente é `"seta:<id>"`: **onde** na curva do outro barbante ela grudou (0 = começo, 1 = fim). A posição na tela é derivada a cada render, então o nó escorrega junto quando os cartões se movem. É aqui que a ponta desenha o **nó de amarra** (voltas em torno da linha + ponta cortada), e **arrastar esse nó** move-o pela linha hospedeira: muda só este número, nunca `de`/`para`. |
 | `rotulo` | texto | Opcional, o texto escrito sobre a linha. |
 
 > **Todos aditivos.** Um quadro salvo antes desses campos continua abrindo:

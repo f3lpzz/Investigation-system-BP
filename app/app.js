@@ -1715,6 +1715,16 @@ document.addEventListener("keydown", function (e) {
         _qSetaSel = new Set();
         _qRebind = null;
         _qRebindCur = null;
+        // Nó a meio arraste volta para onde estava.
+        if (_qNoDrag) {
+          const _q = quadroAtual(),
+            _se = _q && _q.setas[_qNoDrag.i];
+          if (_se) {
+            if (_qNoDrag.t0 == null) delete _se[_qNoDrag.end + "T"];
+            else _se[_qNoDrag.end + "T"] = _qNoDrag.t0;
+          }
+          _qNoDrag = null;
+        }
         if (typeof markSelDom === "function") markSelDom();
         if (typeof desenhaSetas === "function") desenhaSetas();
       } else if (e.code === "Delete" || e.code === "Backspace") {
@@ -6923,7 +6933,12 @@ function desenhaSetas() {
   const svg = document.getElementById("qsvg");
   if (!svg || !q) return;
   // Barbante vermelho: curva com leve "barriga", sem ponta de seta
-  let s = "";
+  // Três camadas de desenho, nesta ordem: linhas, nós de amarra, alças.
+  // Assim o nó nunca fica escondido sob o barbante hospedeiro (que pode ser
+  // desenhado depois), e a alça de religar continua por cima do nó.
+  let s = "",
+    sNo = "",
+    sAlca = "";
   qIdsSetas(q);
   q.setas.forEach(function (se, i) {
     // Geometria derivada (estilo tldraw): mira o centro, corta na borda.
@@ -6965,10 +6980,23 @@ function desenhaSetas() {
       // O rótulo desce junto com a linha: fica logo acima do nó do meio.
       s += `<text x="${meio.x}" y="${meio.y - 10}" text-anchor="middle" font-size="12" fill="#f0d878" font-family="'Special Elite',monospace" paint-order="stroke" stroke="#3a281a" stroke-width="3" style="pointer-events:none">${esc(se.rotulo)}</text>`;
     }
+    /* Nó de amarra: onde ESTA ponta se apoia em outro barbante, ela dá voltas
+       na linha hospedeira e sobra uma ponta cortada. Só aparece com a ponta
+       amarrada de verdade — religando, ela está no ar. A rodela invisível por
+       cima é a pega: arrastar escorrega o nó ao longo da hospedeira. */
+    const alma = sel ? "#8a6a1e" : "#7d2417";
+    if (!religando) {
+      if (qEhPontaSeta(se.de) && pp.tan1) {
+        sNo += qNoAmarra(p1, pp.tan1, cor, alma) + qNoPega(i, "de", p1);
+      }
+      if (qEhPontaSeta(se.para) && pp.tan2) {
+        sNo += qNoAmarra(p2, pp.tan2, cor, alma) + qNoPega(i, "para", p2);
+      }
+    }
     if (sel && _qSetaSel.size === 1 && !religando) {
       // Alças das pontas (só com UMA seta selecionada): arrastar reconecta.
-      s += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
-      s += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      sAlca += `<circle cx="${p1.x}" cy="${p1.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="de" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
+      sAlca += `<circle cx="${p2.x}" cy="${p2.y}" r="6" fill="#e3c074" stroke="#14100b" stroke-width="1.5" data-seta-end="para" data-seta-i="${i}" style="pointer-events:all;cursor:grab"><title>Arraste para reconectar</title></circle>`;
     }
   });
   if (_qArrow && _qArrowCur) {
@@ -6979,7 +7007,11 @@ function desenhaSetas() {
       s += `<line x1="${ca.x}" y1="${ca.y}" x2="${_qArrowCur.x}" y2="${_qArrowCur.y}" stroke="#b8452e" stroke-width="2" stroke-dasharray="5 4"/>`;
     }
   }
-  svg.innerHTML = s;
+  svg.innerHTML = s + sNo + sAlca;
+}
+// Pega invisível do nó de amarra: arrastar escorrega o nó pela hospedeira.
+function qNoPega(i, end, p) {
+  return `<circle cx="${p.x}" cy="${p.y}" r="9" fill="transparent" data-no-i="${i}" data-no-end="${end}" style="pointer-events:all;cursor:grab"><title>Arraste o nó para movê-lo pelo barbante</title></circle>`;
 }
 /* Câmera dos Quadros nas mesmas convenções do Mapa (canvas infinito):
    limites unificados, Shift+1 = enquadrar, Shift+0 = 100%, zoom persistido. */
@@ -7145,6 +7177,7 @@ let _qRebind = null, // religando uma ponta: { i, end: "de"|"para" }
   _qRebindCur = null;
 let _qSetaPull = null, // apertou num barbante: pode virar arraste (transiente)
   _qIgnoraClickSeta = 0, // instante em que virou arraste (o clique não conta)
+  _qNoDrag = null, // escorregando um nó de amarra: { i, end, t0, moveu }
   _qMotivo = null; // por que a última ligação foi recusada (para avisar)
 // Do centro (cx,cy) em direção a (tx,ty): ponto onde o segmento cruza a
 // borda do retângulo r {x,y,w,h}, empurrado "folga" px para fora.
@@ -7213,6 +7246,59 @@ function qCurvaD(p1, p2) {
   const c = qCurvaCtrl(p1, p2);
   return `M ${p1.x} ${p1.y} Q ${c.x} ${c.y}, ${p2.x} ${p2.y}`;
 }
+// Direção da curva no ponto t (derivada da quadrática) — é o "eixo" do
+// barbante ali, e é dela que sai a inclinação das voltas do nó.
+function qTangente(p1, c, p2, t) {
+  return {
+    x: 2 * (1 - t) * (c.x - p1.x) + 2 * t * (p2.x - c.x),
+    y: 2 * (1 - t) * (c.y - p1.y) + 2 * t * (p2.y - c.y),
+  };
+}
+/* Nó de amarra: a ponta que se apoia em OUTRO barbante dá três voltas em
+   torno da linha hospedeira e sobra uma ponta cortada. p = ponto na
+   hospedeira, tan = a tangente dela ali. Voltas e ponta levam a mesma
+   fibra da linha (alma, corpo, brilho, torção e vale) — sem isso o nó
+   fica liso e denuncia que é outro desenho. */
+function qNoAmarra(p, tan, cor, alma) {
+  const m = Math.hypot(tan.x, tan.y) || 1;
+  let t = { x: tan.x / m, y: tan.y / m }; // eixo da hospedeira
+  let n = { x: -t.y, y: t.x };
+  // A ponta cortada tem de PENDER: se a normal apontou para cima, olha-se a
+  // hospedeira do outro lado (gira o nó 180°, que é simétrico nas voltas).
+  if (n.y < 0) {
+    t = { x: -t.x, y: -t.y };
+    n = { x: -n.x, y: -n.y };
+  }
+  // volta inclinada 18° fora da perpendicular: cos18·n + sin18·t
+  const d = { x: n.x * 0.951 + t.x * 0.309, y: n.y * 0.951 + t.y * 0.309 };
+  const P = (a, b) => [p.x + t.x * a + n.x * b, p.y + t.y * a + n.y * b];
+  const volta = (k) => {
+    const [cx, cy] = P(k, 0),
+      r = 3.2;
+    return `M ${cx - d.x * r} ${cy - d.y * r} L ${cx + d.x * r} ${cy + d.y * r}`;
+  };
+  const vs = [volta(-3.2), volta(0), volta(3.2)].join(" ");
+  const [ax, ay] = P(-6, 0),
+    [bx, by] = P(6, 0); // sombra do bloco todo
+  const [tx, ty] = P(4.2, 2.6),
+    [ex, ey] = P(7, 9); // ponta cortada
+  const pt = `M ${tx} ${ty} Q ${tx + 3} ${ty + 2.6}, ${ex} ${ey}`;
+  const L = (dd, c, lw, extra) =>
+    `<path d="${dd}" fill="none" stroke="${c}" stroke-width="${lw}" stroke-linecap="round" ${extra || ""}/>`;
+  const fibra = (dd) =>
+    L(dd, "#e8a68d", 0.9, 'stroke-opacity=".34" transform="translate(-.6,-.9)"') +
+    L(dd, "#f2bda6", 0.9, 'stroke-opacity=".3" stroke-dasharray="1 1.5" transform="translate(-.4,-.6)"') +
+    L(dd, "#3f1108", 0.9, 'stroke-opacity=".22" stroke-dasharray="1 1.5" stroke-dashoffset="1.25"');
+  return (
+    L(`M ${ax} ${ay} L ${bx} ${by}`, "#241408", 9, 'stroke-opacity=".42" transform="translate(1.5,3)"') +
+    L(pt, alma || "#7d2417", 3.4) +
+    L(pt, cor, 2.3) +
+    fibra(pt) +
+    L(vs, alma || "#7d2417", 4) +
+    L(vs, cor, 2.8) +
+    fibra(vs)
+  );
+}
 function qPontoNaCurva(p1, c, p2, t) {
   const u = 1 - t;
   return {
@@ -7259,8 +7345,11 @@ function qPonta(q, ref, t, prof) {
     const pp = qSetaPontos(q, alvo, (prof || 0) + 1);
     if (!pp) return null;
     const c = qCurvaCtrl(pp.p1, pp.p2);
-    const p = qPontoNaCurva(pp.p1, c, pp.p2, t == null ? 0.5 : t);
-    return { centro: p, rect: null };
+    const tt = t == null ? 0.5 : t;
+    const p = qPontoNaCurva(pp.p1, c, pp.p2, tt);
+    // A tangente da hospedeira vai junto: é dela que o nó de amarra tira a
+    // inclinação das voltas.
+    return { centro: p, rect: null, tan: qTangente(pp.p1, c, pp.p2, tt) };
   }
   const n = q.nodes.find((x) => x.id === ref);
   if (!n) return null;
@@ -7299,6 +7388,9 @@ function qSetaPontos(q, se, prof) {
   return {
     p1: A.rect ? qClipRect(ca.x, ca.y, cb.x, cb.y, A.rect, 4) : ca,
     p2: B.rect ? qClipRect(cb.x, cb.y, ca.x, ca.y, B.rect, 7) : cb,
+    // Só quem se apoia em BARBANTE tem tangente (cartão devolve null).
+    tan1: A.tan || null,
+    tan2: B.tan || null,
   };
 }
 /* Em que CARTÕES uma ponta se apoia, no fim das contas: cartão devolve ele
@@ -7461,6 +7553,23 @@ function qRotuloSalvar(i) {
   }
   qRotuloFechar();
 }
+/* Escorrega o nó de uma ponta ao longo do barbante em que ela está amarrada,
+   até o ponto pt do mundo. Só mexe em deT/paraT — a ligação continua a mesma
+   (para trocar de hospedeiro, use a alça dourada da seta selecionada).
+   Devolve true se o nó mudou de lugar. */
+function qMoverNo(i, end, pt) {
+  const q = quadroAtual();
+  const se = q && q.setas[i];
+  if (!se || !pt) return false;
+  const ref = se[end];
+  if (!qEhPontaSeta(ref)) return false;
+  const hosp = qSetaPorId(q, ref);
+  if (!hosp) return false;
+  const t = Math.round(qTNoBarbante(q, hosp, pt) * 1000) / 1000;
+  if (se[end + "T"] === t) return false;
+  se[end + "T"] = t;
+  return true;
+}
 // Em que ponto (0..1) da curva do barbante `se` cai o ponto pt do mundo.
 function qTNoBarbante(q, se, pt) {
   const pp = qSetaPontos(q, se);
@@ -7572,6 +7681,12 @@ function qMouseUpGlobal(e) {
     _qRebindCur = null;
     desenhaSetas();
   }
+  if (_qNoDrag) {
+    // Soltou o nó: ele fica onde parou (só grava se realmente andou).
+    if (_qNoDrag.moveu) marcarAlterado();
+    _qNoDrag = null;
+    desenhaSetas();
+  }
   _qSetaPull = null; // apertou no barbante mas não arrastou: era clique
   if (_qDrag) {
     if (_qDrag.moved) marcarAlterado();
@@ -7617,6 +7732,22 @@ function wireQuadro() {
         end: alca.getAttribute("data-seta-end"),
       };
       _qRebindCur = toW(rel(e));
+      e.preventDefault();
+      return;
+    }
+    // Pega do NÓ DE AMARRA: arrastar escorrega o nó pelo barbante hospedeiro
+    // (a alça dourada, que troca de hospedeiro, fica desenhada por cima).
+    const pegaNo = e.target.closest && e.target.closest("[data-no-i]");
+    if (pegaNo && e.button === 0 && _qTool !== "hand" && !_space) {
+      const iNo = +pegaNo.getAttribute("data-no-i"),
+        endNo = pegaNo.getAttribute("data-no-end");
+      const seNo = q && q.setas[iNo];
+      _qNoDrag = {
+        i: iNo,
+        end: endNo,
+        t0: seNo ? seNo[endNo + "T"] : null,
+        moveu: false,
+      };
       e.preventDefault();
       return;
     }
@@ -7711,6 +7842,14 @@ function wireQuadro() {
   cv.addEventListener("mousemove", function (e) {
     const q = quadroAtual();
     const p = rel(e);
+    // Arrastando um nó de amarra: ele escorrega pela linha hospedeira.
+    if (_qNoDrag) {
+      if (qMoverNo(_qNoDrag.i, _qNoDrag.end, toW(p))) {
+        _qNoDrag.moveu = true;
+        desenhaSetas();
+      }
+      return;
+    }
     // Andou o suficiente depois de apertar em cima de um barbante? Então
     // não era clique: está puxando um barbante novo a partir daquele ponto.
     if (_qSetaPull) {
@@ -7796,6 +7935,7 @@ function wireQuadro() {
   };
   let _gqPan = null,
     _gqDrag = null,
+    _gqNo = null, // arraste que escorrega um nó de amarra pela hospedeira
     _gqConn = false; // arraste que puxa barbante (alfinete, ● ou outro barbante)
   ligarGestos(cv, {
     mouseProprio: true,
@@ -7809,8 +7949,19 @@ function wireQuadro() {
     dragInicio: function (e, alvo, x0, y0) {
       qMenuCancela(); // virou arraste: o menu pendente não abre
       _gqDrag = null;
+      _gqNo = null;
       _gqConn = false;
       const q = quadroAtual();
+      // Dedo no NÓ de amarra: escorrega o nó em vez de puxar linha nova.
+      const pegaNo = alvo && alvo.closest ? alvo.closest("[data-no-i]") : null;
+      if (pegaNo && x0 != null) {
+        _gqNo = {
+          i: +pegaNo.getAttribute("data-no-i"),
+          end: pegaNo.getAttribute("data-no-end"),
+          moveu: false,
+        };
+        return;
+      }
       // Dedo no ALFINETE (ou na bolinha ● de texto/nota): puxa o barbante
       // em vez de mover o cartão — mesmo gesto do mouse.
       const connEl = alvo && alvo.closest ? alvo.closest("[data-conn]") : null;
@@ -7857,6 +8008,13 @@ function wireQuadro() {
     },
     drag: function (e, dx, dy) {
       const q = quadroAtual();
+      if (_gqNo) {
+        if (qMoverNo(_gqNo.i, _gqNo.end, toWxy(e.clientX, e.clientY))) {
+          _gqNo.moveu = true;
+          desenhaSetas();
+        }
+        return;
+      }
       if (_gqConn) {
         _qArrowCur = toWxy(e.clientX, e.clientY);
         desenhaSetas();
@@ -7904,6 +8062,11 @@ function wireQuadro() {
         toast(ok ? "Barbante criado." : _qMotivo || "Ligação cancelada.");
         return;
       }
+      if (_gqNo) {
+        if (_gqNo.moveu) marcarAlterado();
+        _gqNo = null;
+        return;
+      }
       if (_gqDrag) marcarAlterado();
       if (_gqPan) qAgendaSalvarCam();
       _gqDrag = null;
@@ -7911,6 +8074,7 @@ function wireQuadro() {
     },
     dragCancela: function () {
       _gqDrag = null;
+      _gqNo = null;
       _gqPan = null;
       if (_gqConn) {
         _gqConn = false;
@@ -7921,6 +8085,7 @@ function wireQuadro() {
     },
     cancelar: function () {
       _gqDrag = null;
+      _gqNo = null;
       _gqPan = null;
       _gqConn = false;
       if (_qArrow) {
