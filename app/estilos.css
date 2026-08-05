@@ -4900,29 +4900,41 @@ select:focus {
   color: var(--manual);
   font-weight: 600;
 }
+/* Ritmo da ficha: código, título e foto começam na MESMA margem. A regra
+   base empurra o título 10px para a direita (padding herdado do tema
+   antigo), o que desencontrava o título do código. */
 .qnode.qref .qreftit {
-  margin: 4px 0 6px;
+  padding: 0;
+  margin: 5px 0 9px;
 }
 .qnode.qref .qicon {
   display: none;
 }
 .qnode.qref .qname {
   font-family: var(--font-serif);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
+  -webkit-line-clamp: 3;
   color: var(--papel-ink);
 }
+/* A foto manda na própria altura: sem caixa de altura fixa não há corte
+   nem esticão — sai na proporção original, na maior largura que a ficha
+   permite. O teto existe só para uma foto em pé não virar um cartaz. */
 .qnode.qref .qthumb {
-  height: 64px;
+  height: auto;
   border-radius: 2px;
   background: var(--papel-hachura);
   overflow: hidden;
+  /* o tema antigo usava a foto como faixa de topo e fechava com um risco */
+  border-bottom: 0;
 }
 .qnode.qref .qthumb img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 190px;
+  object-fit: contain;
+  display: block;
 }
 .qnode.qtexto {
   background: var(--papel-2);
