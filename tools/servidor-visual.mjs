@@ -202,6 +202,36 @@ const SEED = (vista) => `
     }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
+    // popover de quadros aberto no chip (com vários quadros para filtrar)
+    else if (base === "teorias-pop") {
+      setView("teorias");
+      for (var _i = 0; _i < 5; _i++) novoQuadro();
+      DADOS.quadros.forEach(function (q, i) {
+        q.nome = ["O apagão do farol","Linha do tempo — 12/03","Suspeitos","Doca 3","Rede do porto","Álibis cruzados"][i] || q.nome;
+      });
+      trocarQuadro(1);
+      setTimeout(function () { qPop(true); }, 60);
+    }
+    // painel de atalhos aberto (o que era a legenda fixa do rodapé)
+    else if (base === "teorias-atalhos") { setView("teorias"); setTimeout(function(){ qAtalhos(true); }, 60); }
+    // dica do alfinete: quadro com 2 cartões e NENHUM barbante (halo + anotação)
+    else if (base === "teorias-dica" || base === "teorias-acoes") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 40, y: 40, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:120, y:90},
+        {id:"qn", tipo:"texto", estilo:"nota", cor:0, texto:"A lanterna é da doca, mas a bateria é nova.", x:300, y:430, w:190}
+      );
+      desenhaQuadro();
+      // barra de ações: um item selecionado (e a dica do alfinete sai de cena)
+      if (base === "teorias-acoes") setTimeout(function () {
+        _q.setas.push({id:"sA", de:"qa", para:"qn"});
+        _qSelSet = new Set(["qn"]);
+        desenhaQuadro();
+      }, 120);
+    }
     // quadro arrastado: prova que a textura do fundo anda com a câmera
     else if (base === "teorias-pan") { setView("teorias"); var _q = quadroAtual(); _q.cam.x = -420; _q.cam.y = -260; aplicaCam(); }
     // zoom-hit: com a interface ampliada, o ponto clicado ainda cai no

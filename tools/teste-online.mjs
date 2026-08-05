@@ -339,11 +339,11 @@ const entrou = () =>
     '(function(){var q=quadroAtual();q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();})()',
   );
 
-  /* Teste 8.5 — Seletor de quadro do celular (lista no lugar das abas) */
+  /* Teste 8.5 — Chip do quadro: é o seletor único (celular e desktop) */
   ok(
-    "quadros: a barra tem o nome da área e o seletor com o quadro atual",
+    "quadros: o chip mostra o nome do quadro aberto e a contagem do que tem nele",
     g(
-      '(function(){var t=document.querySelector(".qtitulo"),s=document.querySelector(".qsel");return !!t && t.textContent==="Quadros" && !!s && s.textContent.indexOf(quadroAtual().nome)===0;})()',
+      '(function(){var c=document.querySelector(".qchip");if(!c)return false;var n=c.querySelector(".qchip-n"),m=c.querySelector(".qchip-m");var q=quadroAtual();return !!n && n.textContent===q.nome && !!m && m.textContent.indexOf((q.nodes||[]).length+" ")===0 && m.textContent.indexOf("barbante")>0;})()',
     ),
   );
   g("qEscolherQuadro()");
@@ -354,6 +354,38 @@ const entrou = () =>
     ),
   );
   g('(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()');
+
+  /* Teste 8.6 — Peças flutuantes do quadro (dock, dica, zoom, atalhos) */
+  ok(
+    "quadros: a dock tem as 6 ferramentas com a tecla impressa, e a ativa é a do _qTool",
+    g(
+      '(function(){var b=document.querySelectorAll(".qcanvas .qdockbtn");if(b.length!==6)return false;var ids=[].map.call(b,function(x){return x.getAttribute("data-tool")}).join(",");var k=[].every.call(b,function(x){return !!x.querySelector(".k")});var at=document.querySelector(".qdockbtn.active");return ids==="select,hand,ficha,nota,texto,seta" && k && !!at && at.getAttribute("data-tool")===_qTool;})()',
+    ),
+  );
+  ok(
+    "quadros: trocar de ferramenta reescreve a dica e marca o canvas (o CSS acende os alfinetes)",
+    g(
+      '(function(){qSetTool("seta");var h=document.getElementById("qhint"),cv=document.getElementById("qcanvas");var okS=h.querySelector(".ferr").textContent==="Barbante" && h.querySelector(".tx").textContent===QDICAS.seta && cv.dataset.qtool==="seta";qSetTool("select");var okV=h.querySelector(".ferr").textContent==="Selecionar" && cv.dataset.qtool==="select";return okS && okV;})()',
+    ),
+  );
+  ok(
+    "quadros: a etiqueta de zoom acompanha a câmera (quem manda é o aplicaCam)",
+    g(
+      '(function(){var q=quadroAtual();q.cam.s=1;aplicaCam();var a=document.getElementById("qzoomv").textContent;qZoomPasso(1.2);var b=document.getElementById("qzoomv").textContent;var c=Math.round(q.cam.s*100)+"%";q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();return a==="100%" && b===c && b!=="100%";})()',
+    ),
+  );
+  ok(
+    "quadros: o painel de atalhos abre no botão e fecha pelo Esc (pilha de overlays)",
+    g(
+      '(function(){qAtalhos(true);var ab=document.getElementById("qatalhos").classList.contains("open");overlayFecharTopo();var fe=!document.getElementById("qatalhos").classList.contains("open");return ab && fe;})()',
+    ),
+  );
+  ok(
+    "quadros: a contagem do chip não envelhece quando um item entra (desenhaQuadro atualiza)",
+    g(
+      '(function(){var q=quadroAtual();var antes=document.querySelector(".qchip-m").textContent;q.nodes.push({id:"tX",tipo:"texto",texto:"teste",x:10,y:10,w:200});desenhaQuadro();var dep=document.querySelector(".qchip-m").textContent;q.nodes=q.nodes.filter(function(n){return n.id!=="tX"});desenhaQuadro();var volta=document.querySelector(".qchip-m").textContent;return dep!==antes && dep.indexOf(q.nodes.length+1+" ")===0 && volta===antes;})()',
+    ),
+  );
 
   /* Teste 9 — Setas estilo tldraw (Etapa D) */
   ok(
