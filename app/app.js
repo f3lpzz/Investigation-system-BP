@@ -668,11 +668,16 @@ function overlayAbrir(el, opts) {
     el.querySelector("[autofocus]") ||
     (opts.focoEm && el.querySelector(opts.focoEm)) ||
     _ovFocaveis(el)[0];
+  /* `preventScroll` NÃO é detalhe: o painel entra deslizando (transform), e
+     no instante do foco ele ainda está fora da tela, à direita. Sem isto o
+     navegador "corre atrás" do elemento focado e ROLA o <main> uns 530px —
+     a grade de fichas dá um pulo para a esquerda e volta junto com o
+     painel. Era esse o tremor das fichas atrás da ficha aberta. */
   try {
-    if (foco) foco.focus();
+    if (foco) foco.focus({ preventScroll: true });
     else {
       el.tabIndex = -1;
-      el.focus();
+      el.focus({ preventScroll: true });
     }
   } catch (e) {}
   navPushOverlay(id, function () {
@@ -1231,10 +1236,9 @@ function renderGrade() {
   }
   vis.forEach((f) => {
     const c = document.createElement("div");
-    // "com-alfinete": no celular, só o card de ficha reserva a faixa do
-    // alfinete no topo (os cards de personagem/grupo usam .card e não têm
-    // alfinete nenhum). No computador o alfinete sobe acima da borda e a
-    // faixa não é preciso.
+    // "com-alfinete": só o card de ficha reserva a faixa do alfinete no
+    // topo (os cards de personagem/grupo usam .card e não têm alfinete
+    // nenhum). Em qualquer tela o alfinete fica dentro do papel.
     c.className = "card com-alfinete";
     if (state.sel.has(f.id)) c.classList.add("selected");
     const falta = fichaIncompleta(f);
@@ -1276,10 +1280,7 @@ function renderGrade() {
     else if (f.status === "importante")
       stamp = `<span class="stamp imp">IMPORTANTE</span>`;
     // Identificador no estilo do carimbo do design: f3 → F-003
-    const idVis = String(f.id).replace(
-      /^([a-z]+)(\d+)$/i,
-      (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
-    );
+    const idVis = idVisual(f.id);
     c.innerHTML = `
       <div class="selcheck">${state.sel.has(f.id) ? "✓" : ""}</div>
       <button class="pin${f.fav ? " fav" : ""}" onclick="event.stopPropagation();toggleFav('${f.id}')" title="${f.fav ? "Tirar de favoritas" : "Favoritar"}" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar"></button>
@@ -2148,13 +2149,24 @@ function wireMap(svg) {
     if (g && g.dataset.trunc === "1") {
       t.textContent = g.dataset.full;
       t.style.display = "block";
-      var pad = 14,
-        x = e.clientX + pad,
-        y = e.clientY + pad,
+      /* Duas réguas (ver zoomIF): `clientX/Y` e `innerWidth/Height` vêm em
+         pixels de TELA, mas a dica é filha do <body> ampliado — o `left`
+         dela conta em pixels de CSS. Sem dividir pelo zoom, a dica saía
+         cada vez mais longe do mouse quanto mais para a direita/baixo do
+         canto superior esquerdo (e ficava certinha só no monitor pequeno,
+         onde o zoom é 1). */
+      var z = zoomIF(),
+        pad = 14,
+        cx = e.clientX / z,
+        cy = e.clientY / z,
+        vw = window.innerWidth / z,
+        vh = window.innerHeight / z,
+        x = cx + pad,
+        y = cy + pad,
         bw = t.offsetWidth,
         bh = t.offsetHeight;
-      if (x + bw > window.innerWidth - 8) x = e.clientX - pad - bw;
-      if (y + bh > window.innerHeight - 8) y = e.clientY - pad - bh;
+      if (x + bw > vw - 8) x = cx - pad - bw;
+      if (y + bh > vh - 8) y = cy - pad - bh;
       t.style.left = x + "px";
       t.style.top = y + "px";
     } else t.style.display = "none";
@@ -2716,7 +2728,7 @@ function abrir(id) {
   d.innerHTML = `
     <div class="dh">
       <div class="dh-top">
-        <span class="did">${esc(f.id)}</span>
+        <span class="did">${esc(idVisual(f.id))}</span>
         <span class="dsala">${f.sala ? esc(f.sala) : "—"}</span>
         <div class="dgrow"></div>
         <button class="dstar${f.fav ? " on" : ""}" onclick="toggleFav('${f.id}');abrir('${f.id}')" title="Favoritar" aria-pressed="${f.fav ? "true" : "false"}" aria-label="Favoritar">★</button>
@@ -2878,6 +2890,15 @@ function esc(s) {
   return String(s == null ? "" : s).replace(
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+  );
+}
+/* Identificador no estilo do carimbo do design: f3 → F-003. É só VISUAL —
+   o id gravado no DADOS continua "f3". Vale para todo lugar que mostra o
+   código de uma ficha (card da grade, ficha do quadro). */
+function idVisual(id) {
+  return String(id == null ? "" : id).replace(
+    /^([a-z]+)(\d+)$/i,
+    (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
   );
 }
 
@@ -6868,8 +6889,11 @@ function nodeHTML(n) {
   // Ficha no quadro = papel com alfinete vermelho, código e título serif.
   // O alfinete É a alça do barbante: segurar nele e arrastar puxa a linha
   // (por isso a ficha não tem mais a bolinha ● de conectar).
-  const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
+  // O código anda junto do título, na mesma linha (span, não bloco), no
+  // mesmo molde do card da grade: f1 → F-001.
+  const cod =
+    n.kind === "pista" ? `<span class="qcod">${esc(idVisual(n.ref))}</span>` : "";
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -7366,14 +7390,15 @@ function qPonta(q, ref, t, prof) {
 }
 /* Centro do alfinete de um cartão, em coordenadas do quadro. Devolve null
    para quem não tem alfinete (texto/nota). O alfinete é centrado na
-   horizontal pelo CSS; na vertical ele sobe acima da borda, e a medida sai
-   do próprio elemento para não repetir número que já está no estilo. */
+   horizontal pelo CSS; na vertical ele fica na faixa de cima do papel, e a
+   medida sai do próprio elemento para não repetir número que já está no
+   estilo. */
 function qAlfineteCentro(n, r) {
   const el = nodeEl(n.id);
   const p = el && el.querySelector(".qpin");
   if (!p) return null;
-  const topo = p.offsetTop || -7, // recuo do .qpin no estilos.css
-    alt = p.offsetHeight || 13;
+  const topo = p.offsetTop || 8, // recuo do .qpin no estilos.css
+    alt = p.offsetHeight || 16;
   return { x: r.x + r.w / 2, y: r.y + topo + alt / 2 };
 }
 // Pontas visíveis de uma seta (geometria derivada; null se o apoio sumiu).
