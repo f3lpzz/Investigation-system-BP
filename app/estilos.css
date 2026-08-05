@@ -408,11 +408,14 @@ select option:checked {
 main {
   flex: 1;
   position: relative;
-  /* `clip` e não `hidden`: com `hidden` a caixa continua sendo uma área
-     ROLÁVEL por dentro (só sem barra), e qualquer foco/scrollIntoView num
-     painel que ainda está fora da tela empurrava a grade para o lado.
-     `clip` corta e pronto — não há o que rolar. */
-  overflow: clip;
+  /* NÃO troque por `overflow: clip` (já tentamos, e quebrou a rolagem das
+     Fichas). É o `hidden` que faz deste flex-item uma área de rolagem, e
+     com isso a altura automática mínima dele vira 0 — sem isso o <main>
+     cresce até caber a grade inteira, o `height: 100%` do #grade passa a
+     valer a altura do conteúdo e NADA rola. Quem impede o painel lateral
+     de empurrar a grade é o preventScroll no foco (ver overlayAbrir no
+     app.js), não o overflow daqui. */
+  overflow: hidden;
 }
 /* GRADE */
 #grade {
