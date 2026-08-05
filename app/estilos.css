@@ -3648,12 +3648,10 @@ select:focus {
   padding: 18px 24px 24px;
   overflow: auto;
   /* Na rolagem o card some suave junto ao cabeçalho, sem corte seco.
-     O fade termina em 11px, NÃO nos 18px do padding: o card começa em 18px
-     e o alfinete sobe 6px acima dele (7px no favorito, que é maior), então
-     a cabeça começa em y=11. Fade que passe disso come a metade de cima
-     dela. Mexeu no `top` do alfinete? Reveja este número. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 11px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 11px);
+     O fade termina nos 18px do padding: o alfinete agora fica DENTRO do
+     card (nada sobe acima da borda), então não há cabeça para proteger. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
 }
 .card {
   background: var(--papel);
@@ -3671,6 +3669,12 @@ select:focus {
      (.thumbwrap) fecham o próprio overflow. */
   overflow: visible;
 }
+/* Faixa reservada ao alfinete no topo: ele aparece INTEIRO dentro do papel
+   (8px de folga em cima, cabeça de 16px), e o conteúdo só começa depois
+   dela. Vale em qualquer tela — no celular era assim desde sempre. */
+.card.com-alfinete {
+  padding-top: 30px;
+}
 .card:hover {
   transform: translateY(-2px);
   border: 0;
@@ -3681,19 +3685,19 @@ select:focus {
    `border: 0`. A regra antiga desenhava um aro com a borda, e o favorito
    só trocava a cor dela; se a borda voltar, o aro cinza cobre o gradiente.
 
-   O alfinete sobe 6px acima da borda do card de propósito: é ele que
-   "prende" o papel. Como também é BOTÃO (favoritar) e ALÇA (puxar o
-   barbante no quadro), tem cursor, foco visível e uma área de clique
-   invisível maior que a cabeça de 13px — o ::before. Sem transição de
-   movimento própria: no hover o card sobe 2px e o alfinete sobe junto,
-   senão a cabeça parece descolar do papel. */
+   O alfinete fica INTEIRO dentro do papel, centrado na faixa de cima do
+   card (a folga vem do `padding-top` do .card.com-alfinete). Como também é
+   BOTÃO (favoritar) e ALÇA (puxar o barbante no quadro), tem cursor, foco
+   visível e uma área de clique invisível maior que a cabeça de 16px — o
+   ::before. Sem transição de movimento própria: no hover o card sobe 2px e
+   o alfinete sobe junto, senão a cabeça parece descolar do papel. */
 .pin {
   position: absolute;
   left: 50%;
-  top: -6px;
+  top: 8px;
   transform: translateX(-50%);
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   border: 0;
   border-radius: 50%;
   padding: 0;
@@ -3717,9 +3721,10 @@ select:focus {
    estrela, a cor sozinha diria o estado — e cor sozinha não basta para
    quem enxerga pouca diferença entre tons. */
 .pin.fav {
-  width: 16px;
-  height: 16px;
-  top: -7px;
+  width: 19px;
+  height: 19px;
+  /* mesmo CENTRO do alfinete comum (y=16): 16 − 19/2 = 6.5 */
+  top: 6.5px;
   background: var(--pin-ouro);
 }
 .pin:hover {
@@ -4851,8 +4856,9 @@ select:focus {
   border-radius: 3px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
   /* Faixa de cima reservada ao alfinete, igual ao card da grade: ele
-     aparece INTEIRO no meio do topo (o card corta o que passa da borda). */
-  padding: 26px 12px 12px;
+     aparece INTEIRO no meio do topo (8px de folga + cabeça de 16px, e o
+     conteúdo começa depois). */
+  padding: 32px 12px 12px;
   color: var(--papel-ink);
   width: 210px;
   transform: rotate(-1deg);
@@ -4867,14 +4873,15 @@ select:focus {
 /* O nó do quadro: mesma cabeça esférica, em vermelho. Ele flutua sobre a
    ficha, então a sombra é 1px mais longa que na grade. Também é a ALÇA do
    barbante — daí o cursor e a área de pega do ::before (herdada da regra
-   do .pin, logo acima). */
+   do .pin, logo acima). Fica INTEIRO dentro do papel, na faixa de cima
+   reservada pelo padding do cartão. */
 .qpin {
   position: absolute;
   left: 50%;
-  top: -7px;
+  top: 8px;
   transform: translateX(-50%);
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   border: 0;
   border-radius: 50%;
   background: var(--pin-vermelho);
@@ -4888,24 +4895,32 @@ select:focus {
   filter: brightness(1.1);
 }
 /* A ficha do quadro recortava o que passasse da borda (`overflow: hidden`
-   herdado da regra base), e isso cortava o alfinete ao meio — ele sobe
-   7px acima do papel. Aqui não há nada que precise de recorte: a foto tem
-   o overflow dela. */
+   herdado da regra base). Aqui não há nada que precise de recorte: a foto
+   tem o overflow dela, e o alfinete já fica dentro do papel. */
 .qnode.qref {
   overflow: visible;
 }
+/* O código anda na MESMA linha do título (não mais numa linha só dele):
+   fica inline, com um respiro à direita, e o título flui em seguida. */
 .qcod {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--manual);
   font-weight: 600;
+  margin-right: 6px;
 }
-/* Ritmo da ficha: código, título e foto começam na MESMA margem. A regra
-   base empurra o título 10px para a direita (padding herdado do tema
-   antigo), o que desencontrava o título do código. */
+/* Ritmo da ficha: título e foto começam na MESMA margem. A regra base
+   empurra o título 10px para a direita (padding herdado do tema antigo).
+   O corte de 3 linhas passou para cá porque agora a linha 1 é código +
+   título juntos — quem conta as linhas tem de ser a caixa, não o título. */
 .qnode.qref .qreftit {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   padding: 0;
-  margin: 5px 0 9px;
+  margin: 0 0 9px;
 }
 .qnode.qref .qicon {
   display: none;
@@ -4915,7 +4930,9 @@ select:focus {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
-  -webkit-line-clamp: 3;
+  /* inline para caber ao lado do código; quem corta em 3 linhas agora é
+     o .qreftit (a caixa dos dois) */
+  display: inline;
   color: var(--papel-ink);
 }
 /* A foto manda na própria altura: sem caixa de altura fixa não há corte
@@ -4942,6 +4959,9 @@ select:focus {
   border: 0;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
   transform: rotate(-1deg);
+  /* Mesma faixa de cima da ficha: o alfinete da nota também fica inteiro
+     dentro do papel, e a alça "≡ texto" começa abaixo dele. */
+  padding-top: 28px;
 }
 .qnode.qtexto .qtxt {
   font-family: var(--font-type);
@@ -6054,19 +6074,9 @@ body.view-conta .filtros-panel {
     align-content: center;
     min-height: 96px;
   }
-  /* No celular o card é uma LINHA compacta, encostada na de cima: aqui o
-     alfinete não pode subir acima da borda, senão invade o card anterior.
-     Ele desce para dentro de uma faixa reservada no topo — mesmo desenho,
-     só outro lugar. */
-  .card.com-alfinete {
-    padding-top: 24px;
-  }
-  .pin {
-    top: 6px;
-  }
-  .pin.fav {
-    top: 5px;
-  }
+  /* A faixa do alfinete (`.card.com-alfinete`) e o `top` dele vêm da regra
+     de cima — no computador o alfinete também ficou dentro do papel, então
+     o celular não precisa mais de posição própria. */
   /* Alvo de toque de 44px (P12): quem cresce é a área invisível, não a
      cabeça. A altura para em 32px de propósito — mais que isso roubaria o
      toque do título, logo abaixo, e tocar no título tem de abrir a ficha. */

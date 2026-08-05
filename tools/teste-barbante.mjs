@@ -419,14 +419,16 @@ ok(
   `),
 );
 ok(
-  "ponta: o alfinete fica no meio da largura e ACIMA da borda de cima",
+  "ponta: o alfinete fica no meio da largura e DENTRO da faixa de cima",
   g(`
     (function(){
       var q = quadroAtual();
       var n = q.nodes.find(function(x){ return x.id === "qa"; });
       var r = qNodeRect(n);
       var alf = qAlfineteCentro(n, r);
-      return Math.abs(alf.x - (r.x + r.w / 2)) < 0.01 && alf.y < r.y;
+      // inteiro dentro do papel: o centro cai na faixa reservada do topo
+      return Math.abs(alf.x - (r.x + r.w / 2)) < 0.01 &&
+             alf.y > r.y && alf.y < r.y + 32;
     })()
   `),
 );
@@ -442,7 +444,8 @@ ok(
       var p = qPonta(q, n.id, null, 0);
       var ok = alf && p && !p.rect &&
                Math.abs(p.centro.x - alf.x) < 0.01 &&
-               Math.abs(p.centro.y - alf.y) < 0.01 && alf.y < r.y;
+               Math.abs(p.centro.y - alf.y) < 0.01 &&
+               alf.y > r.y && alf.y < r.y + 32;
       q.nodes = q.nodes.filter(function(x){ return x.id !== n.id; });
       desenhaQuadro();
       return !!ok;

@@ -1231,10 +1231,9 @@ function renderGrade() {
   }
   vis.forEach((f) => {
     const c = document.createElement("div");
-    // "com-alfinete": no celular, só o card de ficha reserva a faixa do
-    // alfinete no topo (os cards de personagem/grupo usam .card e não têm
-    // alfinete nenhum). No computador o alfinete sobe acima da borda e a
-    // faixa não é preciso.
+    // "com-alfinete": só o card de ficha reserva a faixa do alfinete no
+    // topo (os cards de personagem/grupo usam .card e não têm alfinete
+    // nenhum). Em qualquer tela o alfinete fica dentro do papel.
     c.className = "card com-alfinete";
     if (state.sel.has(f.id)) c.classList.add("selected");
     const falta = fichaIncompleta(f);
@@ -6868,8 +6867,9 @@ function nodeHTML(n) {
   // Ficha no quadro = papel com alfinete vermelho, código e título serif.
   // O alfinete É a alça do barbante: segurar nele e arrastar puxa a linha
   // (por isso a ficha não tem mais a bolinha ● de conectar).
-  const cod = n.kind === "pista" ? `<div class="qcod">${esc(n.ref)}</div>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span>${cod}<div class="qreftit"><span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
+  // O código anda junto do título, na mesma linha (span, não bloco).
+  const cod = n.kind === "pista" ? `<span class="qcod">${esc(n.ref)}</span>` : "";
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -7366,14 +7366,15 @@ function qPonta(q, ref, t, prof) {
 }
 /* Centro do alfinete de um cartão, em coordenadas do quadro. Devolve null
    para quem não tem alfinete (texto/nota). O alfinete é centrado na
-   horizontal pelo CSS; na vertical ele sobe acima da borda, e a medida sai
-   do próprio elemento para não repetir número que já está no estilo. */
+   horizontal pelo CSS; na vertical ele fica na faixa de cima do papel, e a
+   medida sai do próprio elemento para não repetir número que já está no
+   estilo. */
 function qAlfineteCentro(n, r) {
   const el = nodeEl(n.id);
   const p = el && el.querySelector(".qpin");
   if (!p) return null;
-  const topo = p.offsetTop || -7, // recuo do .qpin no estilos.css
-    alt = p.offsetHeight || 13;
+  const topo = p.offsetTop || 8, // recuo do .qpin no estilos.css
+    alt = p.offsetHeight || 16;
   return { x: r.x + r.w / 2, y: r.y + topo + alt / 2 };
 }
 // Pontas visíveis de uma seta (geometria derivada; null se o apoio sumiu).
