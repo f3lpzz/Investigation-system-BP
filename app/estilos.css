@@ -137,8 +137,6 @@
     button.fio-x,
     button.pcard-m,
     button.dosx,
-    button.qdel,
-    button.qcor,
     button.mtog,
     button.t-abrir,
     button.t-x,
@@ -2369,21 +2367,6 @@ select:focus {
 .qnode.qnota .qtxt[contenteditable]:empty:before {
   color: rgba(28, 35, 48, 0.45);
 }
-.qnode.qnota .qdel {
-  color: #a02040;
-}
-.qcor {
-  position: absolute;
-  right: 22px;
-  top: 2px;
-  cursor: pointer;
-  font-size: 11px;
-  display: none;
-  z-index: 2;
-}
-.qnode:hover .qcor {
-  display: inline;
-}
 .qcanvas {
   flex: 1;
   position: relative;
@@ -2518,19 +2501,6 @@ select:focus {
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
-}
-.qdel {
-  position: absolute;
-  right: 5px;
-  top: 3px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: 12px;
-  display: none;
-  z-index: 2;
-}
-.qnode:hover .qdel {
-  display: inline;
 }
 .dimg {
   cursor: zoom-in;
@@ -5217,10 +5187,6 @@ select:focus {
   top: 0;
   margin-top: -42px;
 }
-/* O ✕ permanente do canto sai de cena: excluir mora na barra da seleção */
-.qnode .qdel {
-  display: none;
-}
 /* ---- O barbante fica descobrível ---- */
 @keyframes qhalo {
   0%,
@@ -5454,15 +5420,13 @@ select:focus {
   background: none;
   border: 0;
   font-size: 10px;
+  /* o recuo de 22px à direita guardava lugar para o ✕, que saiu do papel */
+  padding: 5px 9px 0;
 }
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
   border: 0;
-}
-.qnode .qdel {
-  background: rgba(43, 35, 23, 0.75);
-  color: var(--papel);
 }
 
 /* ---------- Arquivo (Salas · Personagens · Grupos) ---------- */

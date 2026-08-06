@@ -374,6 +374,67 @@ const entrou = () =>
       '(function(){var q=quadroAtual();q.cam.s=1;aplicaCam();var a=document.getElementById("qzoomv").textContent;qZoomPasso(1.2);var b=document.getElementById("qzoomv").textContent;var c=Math.round(q.cam.s*100)+"%";q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();return a==="100%" && b===c && b!=="100%";})()',
     ),
   );
+  /* Teste 8.7 — Seleção: o que o clique, o Shift e o laço marcam.
+     A nota é o caso que quebrava: clicar nela ia direto para a escrita,
+     então ela nunca ficava marcada e Del/Ctrl+D/Shift não pegavam nela. */
+  ok(
+    // O jsdom NÃO dispara o ondblclick inline (o atributo está no cartão, mas
+    // o evento sintético não o executa): aqui se prova que 1 clique marca sem
+    // focar e que o atributo aponta para o qFocarTexto, e se chama a função
+    // direto. O gesto de 2 cliques abrindo a escrita foi conferido no
+    // navegador real pela vista teorias-selecao do servidor-visual.
+    "quadros: 1 clique numa NOTA marca o cartão sem entrar na escrita (2 cliques é que escrevem)",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(600,300,"nota");desenhaQuadro();var el=nodeEl(n.id),ed=el.querySelector(".qtxt");_qSelSet=new Set();var r=ed.getBoundingClientRect();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left+20),clientY:Math.round(r.top+10),button:0}));var marcou=_qSelSet.has(n.id),semFoco=document.activeElement!==ed;qMouseUpGlobal();var fiado=(el.getAttribute("ondblclick")||"").indexOf("qFocarTexto")===0;qFocarTexto(n.id);var escreve=document.activeElement===ed;ed.blur();qDelNode(n.id);return marcou && semFoco && fiado && escreve;})()',
+    ),
+  );
+  ok(
+    // Pelo caminho de verdade: CLICAR na nota e então apertar Delete. Marcar
+    // _qSelSet na mão passaria mesmo com o defeito — o que quebrava era o
+    // clique não marcar nada.
+    "quadros: clicar numa nota e apertar Delete apaga a nota",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(620,320,"nota");desenhaQuadro();var ed=nodeEl(n.id).querySelector(".qtxt"),r=ed.getBoundingClientRect();_qSelSet=new Set();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left+20),clientY:Math.round(r.top+10),button:0}));qMouseUpGlobal();var antes=q.nodes.length;(document.activeElement||document.body).dispatchEvent(new KeyboardEvent("keydown",{bubbles:true,code:"Delete",key:"Delete"}));return q.nodes.length===antes-1 && !q.nodes.some(function(x){return x.id===n.id});})()',
+    ),
+  );
+  ok(
+    "quadros: Shift no clique soma à seleção (e tira quem já estava)",
+    g(
+      '(function(){var q=quadroAtual();var a=qNovoTextoEm(100,600,"nota"),b=qNovoTextoEm(400,600,"nota");desenhaQuadro();var elA=nodeEl(a.id),elB=nodeEl(b.id);_qSelSet=new Set();var rA=elA.getBoundingClientRect(),rB=elB.getBoundingClientRect();elA.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rA.left+20),clientY:Math.round(rA.top+10),button:0}));qMouseUpGlobal();elB.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rB.left+20),clientY:Math.round(rB.top+10),button:0,shiftKey:true}));qMouseUpGlobal();var somou=_qSelSet.size===2;elB.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rB.left+20),clientY:Math.round(rB.top+10),button:0,shiftKey:true}));qMouseUpGlobal();var tirou=_qSelSet.size===1 && _qSelSet.has(a.id);_qSelSet=new Set();qDelNode(a.id);qDelNode(b.id);return somou && tirou;})()',
+    ),
+  );
+  ok(
+    "quadros: o laço pega quem só ENCOSTA nele (não exige o centro do cartão)",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(200,700,"nota");desenhaQuadro();var el=nodeEl(n.id),r=el.getBoundingClientRect();var cv=document.getElementById("qcanvas");_qSelSet=new Set();' +
+        // laço que cobre só ~10px da quina superior esquerda do cartão
+        'cv.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left-40),clientY:Math.round(r.top-40),button:0}));' +
+        'cv.dispatchEvent(new MouseEvent("mousemove",{bubbles:true,clientX:Math.round(r.left+10),clientY:Math.round(r.top+10)}));' +
+        'var encostou=_qSelSet.has(n.id);qMouseUpGlobal();' +
+        // laço que passa LONGE não pode pegar
+        '_qSelSet=new Set();cv.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left-300),clientY:Math.round(r.top-300),button:0}));' +
+        'cv.dispatchEvent(new MouseEvent("mousemove",{bubbles:true,clientX:Math.round(r.left-200),clientY:Math.round(r.top-200)}));' +
+        'var longe=_qSelSet.has(n.id);qMouseUpGlobal();_qSelSet=new Set();qDelNode(n.id);return encostou && !longe;})()',
+    ),
+  );
+  ok(
+    "quadros: Esc sai da escrita e deixa o cartão marcado (o teclado do quadro volta a valer)",
+    g(
+      '(function(){var n=qNovoTextoEm(640,340,"nota");desenhaQuadro();var ed=nodeEl(n.id).querySelector(".qtxt");ed.focus();_qSelSet=new Set();ed.dispatchEvent(new KeyboardEvent("keydown",{bubbles:true,code:"Escape",key:"Escape"}));var saiu=document.activeElement!==ed,marcou=_qSelSet.has(n.id);_qSelSet=new Set();qDelNode(n.id);return saiu && marcou;})()',
+    ),
+  );
+  ok(
+    "quadros: o ✕ e o 🎨 saíram do papel dos cartões (as ações moram na barra da seleção)",
+    g(
+      '(function(){var n=qNovoTextoEm(660,360,"nota");desenhaQuadro();var semX=!document.querySelector(".qnode .qdel") && !document.querySelector(".qnode .qcor");qDelNode(n.id);return semX && document.querySelectorAll(".qnode").length>=0;})()',
+    ),
+  );
+  ok(
+    "quadros: o painel de atalhos também fecha ao clicar fora (padrão dos painéis da aba)",
+    g(
+      '(function(){qAtalhos(true);var ab=document.getElementById("qatalhos").classList.contains("open");document.getElementById("qcanvas").dispatchEvent(new MouseEvent("click",{bubbles:true}));var fe=!document.getElementById("qatalhos").classList.contains("open");return ab && fe;})()',
+    ),
+  );
   ok(
     "quadros: clicar fora do cartão solta o editor (senão as teclas de ferramenta viram texto)",
     g(

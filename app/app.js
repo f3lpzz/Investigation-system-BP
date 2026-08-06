@@ -1677,6 +1677,23 @@ document.addEventListener("keydown", function (e) {
     t === "textarea" ||
     t === "select" ||
     (e.target && e.target.isContentEditable);
+  /* Esc sai da escrita de um cartão do quadro e deixa o cartão MARCADO —
+     daí em diante o teclado do quadro (Del, Ctrl+D, V/H/F/N/T/A) volta a
+     valer. Sem isto, escrever prendia o teclado dentro do editor. */
+  if (
+    e.code === "Escape" &&
+    e.target &&
+    e.target.classList &&
+    e.target.classList.contains("qtxt") &&
+    e.target.dataset.qid
+  ) {
+    e.preventDefault();
+    const id = e.target.dataset.qid;
+    e.target.blur();
+    _qSelSet = new Set([id]);
+    if (typeof markSelDom === "function") markSelDom();
+    return;
+  }
   if (e.code === "Space") {
     if (digitando) return;
     _space = true;
@@ -6944,15 +6961,22 @@ function qPopFechado() {
   const chip = document.querySelector(".qchip");
   if (chip) chip.setAttribute("aria-expanded", "false");
 }
-/* Clicar fora fecha o painel — mesmo caminho do menu "···" (btnMore). O
-   próprio chip fica de fora: o onclick dele já alterna, e fechar aqui
-   depois faria o painel piscar e nunca abrir. */
+/* PADRÃO da aba Quadros: todo painel flutuante fecha ao clicar fora dele.
+   `abre` é o botão que o abre — o clique nele já alterna, e fechar aqui
+   depois faria o painel piscar e nunca abrir. Painel novo? basta somar
+   uma linha nesta lista. */
+const QPAINEIS_FORA = [
+  { id: "qpop", abre: ".qchip" },
+  { id: "qatalhos", abre: ".qhint .abrir" },
+];
 document.addEventListener("click", function (e) {
-  const el = document.getElementById("qpop");
-  if (!el || !el.classList.contains("open")) return;
-  if (el.contains(e.target)) return;
-  if (e.target.closest && e.target.closest(".qchip")) return;
-  overlayFechar("qpop");
+  QPAINEIS_FORA.forEach(function (p) {
+    const el = document.getElementById(p.id);
+    if (!el || !el.classList.contains("open")) return;
+    if (el.contains(e.target)) return;
+    if (p.abre && e.target.closest && e.target.closest(p.abre)) return;
+    overlayFechar(p.id);
+  });
 });
 /* Filtrar só troca a LISTA: o #qpop continua o mesmo elemento, então nem a
    pilha de overlays nem o foco do campo são mexidos a cada tecla. */
@@ -7087,12 +7111,12 @@ function nodeHTML(n) {
     const corBg = nota
       ? `;background:${QCORES_NOTA[(n.cor | 0) % QCORES_NOTA.length]}`
       : "";
-    const btnCor = nota
-      ? `<button class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor" aria-label="Mudar a cor da nota">🎨</button>`
-      : "";
     // Texto e nota também são espetados no quadro: mesmo alfinete da ficha,
     // e é dele que se puxa o barbante (a bolinha ● antiga saiu de cena).
-    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}</div>`;
+    // Excluir e trocar a cor moram na barra da seleção — o ✕ e o 🎨 que
+    // apareciam no hover saíram do papel (ver .qacoes).
+    // 2 cliques entram na escrita; 1 clique só marca o cartão.
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}" ondblclick="qFocarTexto('${n.id}')"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div></div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
@@ -7105,7 +7129,7 @@ function nodeHTML(n) {
   // mesmo molde do card da grade: f1 → F-001.
   const cod =
     n.kind === "pista" ? `<span class="qcod">${esc(idVisual(n.ref))}</span>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}</div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -7233,21 +7257,26 @@ function qAcoesSeta() {
     `<div class="qacoes qacoes-seta" style="position:absolute;left:${m.x}px;top:${m.y}px" onmousedown="event.stopPropagation()"><button onclick="qRotuloSeta(${i})" title="Rótulo do barbante" aria-label="Rótulo do barbante">Aa</button><span class="sep"></span><button class="del" onclick="qDelSeta(${i})" title="Excluir (Del)" aria-label="Excluir o barbante">${QICO.lixo}</button></div>`,
   );
 }
-function qNodesInRect(cv, q, m) {
-  // m está em pixels de TELA: leva o centro do cartão (pixels de CSS) para a
-  // mesma régua multiplicando pelo zoom da interface.
-  const r = cv.getBoundingClientRect(),
-    z = zoomIF();
+/* Quem o laço pega: basta ENCOSTAR. Antes exigia que o CENTRO do cartão
+   caísse dentro do retângulo, o que obrigava a cobrir quase o cartão
+   inteiro — e, pior, marcava cartão nenhum sobre o qual o laço passava
+   de raspão enquanto marcava outro que o laço mal tocava.
+   A medida sai do próprio elemento (getBoundingClientRect), que já vem
+   em pixels de tela com câmera e zoom da interface aplicados — sem
+   refazer a conta à mão, que era de onde vinha o desencontro. */
+function qNodesInRect(q, m) {
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
   q.nodes.forEach(function (n) {
-    const c = nodeCenter(n);
-    const cx = r.left + (c.x * q.cam.s + q.cam.x) * z,
-      cy = r.top + (c.y * q.cam.s + q.cam.y) * z;
-    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
+    const el = nodeEl(n.id);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // Retângulos que se cruzam (em qualquer pedaço) = selecionado.
+    if (r.right >= x0 && r.left <= x1 && r.bottom >= y0 && r.top <= y1)
+      s.add(n.id);
   });
   return s;
 }
@@ -8254,19 +8283,35 @@ function wireQuadro() {
         return;
       }
     }
-    if (
-      e.target.tagName === "TEXTAREA" ||
-      e.target.isContentEditable ||
-      (e.target.closest && e.target.closest(".qtxt"))
-    )
-      return;
+    if (e.target.tagName === "TEXTAREA") return;
+    /* Nota e texto: 1 clique SELECIONA o cartão (como qualquer outro), 2
+       cliques entram na escrita. Antes o clique caía direto no editor —
+       a nota nunca ficava selecionada, e por isso Del, Ctrl+D e o Shift
+       não pegavam nela. Já EDITANDO, o clique é do editor (posicionar o
+       cursor no texto), então este caminho sai de cena. */
+    const edAlvo = e.target.closest && e.target.closest(".qtxt");
+    if (edAlvo && document.activeElement === edAlvo) return;
     const dg = e.target.closest && e.target.closest("[data-drag]");
-    if (dg) {
-      const id = dg.getAttribute("data-drag");
-      if (!_qSelSet.has(id)) {
+    // O corpo da nota/texto não tem data-drag (só a alcinha ≡): aqui o
+    // cartão inteiro vale como pega, igual à ficha.
+    const cartao = e.target.closest && e.target.closest(".qnode");
+    const idAlvo = dg
+      ? dg.getAttribute("data-drag")
+      : cartao
+        ? cartao.getAttribute("data-id")
+        : null;
+    if (idAlvo) {
+      const id = idAlvo;
+      if (e.shiftKey) {
+        // Shift soma (ou tira) da seleção, sem descartar o resto.
+        if (_qSelSet.has(id)) _qSelSet.delete(id);
+        else _qSelSet.add(id);
+        markSelDom();
+      } else if (!_qSelSet.has(id)) {
         _qSelSet = new Set([id]);
         markSelDom();
       }
+      if (edAlvo) e.preventDefault(); // não deixa o editor roubar o foco
       _qDrag = { ids: [..._qSelSet], sw: toW(rel(e)), orig: {}, moved: false };
       _qDrag.ids.forEach(function (i) {
         const nn = q.nodes.find((x) => x.id === i);
@@ -8275,10 +8320,19 @@ function wireQuadro() {
       e.preventDefault();
       return;
     }
-    _qMarq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
-    _qSelSet = new Set();
-    // Clique no fundo também desmarca as setas selecionadas.
-    if (_qSetaSel.size) {
+    /* Laço de seleção. Com Shift ele SOMA ao que já estava marcado (a base
+       fica guardada no próprio laço); sem Shift, começa do zero. */
+    _qMarq = {
+      x0: e.clientX,
+      y0: e.clientY,
+      x1: e.clientX,
+      y1: e.clientY,
+      base: e.shiftKey ? new Set(_qSelSet) : new Set(),
+      baseSetas: e.shiftKey ? new Set(_qSetaSel) : new Set(),
+    };
+    _qSelSet = new Set(_qMarq.base);
+    // Clique no fundo (sem Shift) também desmarca as setas selecionadas.
+    if (_qSetaSel.size && !e.shiftKey) {
       _qSetaSel = new Set();
       desenhaSetas();
     }
@@ -8341,9 +8395,13 @@ function wireQuadro() {
       _qMarq.x1 = e.clientX;
       _qMarq.y1 = e.clientY;
       updateSelBox(_qMarq);
-      _qSelSet = qNodesInRect(cv, q, _qMarq);
+      // A base é o que já estava marcado quando o laço começou com Shift.
+      _qSelSet = new Set([..._qMarq.base, ...qNodesInRect(q, _qMarq)]);
       // O retângulo também seleciona as SETAS que ele alcança.
-      _qSetaSel = qSetasInRect(cv, q, _qMarq);
+      _qSetaSel = new Set([
+        ..._qMarq.baseSetas,
+        ...qSetasInRect(cv, q, _qMarq),
+      ]);
       markSelDom();
       desenhaSetas();
     }

@@ -212,6 +212,165 @@ const SEED = (vista) => `
       trocarQuadro(1);
       setTimeout(function () { qPop(true); }, 60);
     }
+    // GRADE: o painel de filtros fecha ao clicar fora, no desktop?
+    else if (base === "grade-filtros-fora") {
+      setView("grade"); render();
+      setTimeout(function () {
+        toggleFiltros();
+        var pn = document.getElementById("filtrosPanel");
+        var abriu = pn.classList.contains("open");
+        document.getElementById("grade").dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var fechou = !pn.classList.contains("open");
+        document.title = "FILTROS abre=" + abriu + " | fecha-clicando-fora=" + fechou;
+      }, 300);
+    }
+    // MAPA: o laço e o Shift têm os mesmos defeitos que os Quadros tinham?
+    // (só diagnóstico — a correção pedida foi na aba Quadros)
+    else if (base === "mapa-selecao") {
+      setView("mapa");
+      setTimeout(function () {
+        var svg = document.querySelector("#mapa svg") || document.querySelector("#mapa .mapsvg") || document.getElementsByTagName("svg")[0];
+        var r = svg.getBoundingClientRect(), z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var n0 = nodes[0];
+        var tela = function (wx, wy) { return { x: r.left + (wx*cam.s + cam.x)*z, y: r.top + (wy*cam.s + cam.y)*z }; };
+        var c = tela(n0.x, n0.y);
+        var md = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), button:0, shiftKey:!!sh})); };
+        var mv = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), shiftKey:!!sh})); };
+        // laço que cobre bem o ponto mas NÃO o centro dele (passa 12px à esquerda)
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x - 12, c.y + 60);
+        var pegouEncostando = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço cobrindo o centro: aí pega
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x + 60, c.y + 60);
+        var pegouCentro = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // Shift + laço soma ao que já estava?
+        var outro = nodes[1] ? nodes[1].id : null;
+        _selMap = new Set(outro ? [outro] : []);
+        md(c.x - 60, c.y - 60, true); mv(c.x + 60, c.y + 60, true);
+        var shiftSomou = outro ? (_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // painel de Camadas fecha ao clicar fora?
+        toggleCamadas();
+        var camAberto = document.getElementById("maptoggles").classList.contains("open");
+        document.body.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var camFechou = !document.getElementById("maptoggles").classList.contains("open");
+        document.title = "MAPA laco-pega-encostando=" + pegouEncostando +
+          " | laco-pega-centro=" + pegouCentro + " | shift-laco-soma=" + shiftSomou +
+          " | camadas-abre=" + camAberto + " camadas-fecha-fora=" + camFechou;
+      }, 500);
+    }
+    // seleção: Delete apaga? Shift soma? o laço pega quem ENCOSTA nele?
+    else if (base === "teorias-selecao") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:60},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:400, y:60},
+        {id:"qc", tipo:"ref", kind:"pista", ref:"f2", x:60,  y:400}
+      );
+      desenhaQuadro();
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas"), r = cv.getBoundingClientRect();
+        var z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var tela = function (wx, wy) { return { x: r.left + (wx*_q.cam.s + _q.cam.x)*z, y: r.top + (wy*_q.cam.s + _q.cam.y)*z }; };
+        var md = function (el, x, y, sh) { el.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:x, clientY:y, button:0, shiftKey:!!sh})); };
+        var tecla = function (code) { (document.activeElement||document.body).dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:code, key:code==="Delete"?"Delete":code})); };
+        var elA = document.querySelector('.qnode[data-id="qa"]');
+        var elB = document.querySelector('.qnode[data-id="qb"]');
+
+        // 1) Delete apaga o cartão selecionado?
+        var rA = elA.getBoundingClientRect();
+        md(elA, Math.round(rA.left+20), Math.round(rA.bottom-10));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var sel1 = _qSelSet.size;
+        var antes = _q.nodes.length;
+        tecla("Delete");
+        var apagou = _q.nodes.length === antes - 1;
+        // repõe o cartão para os testes seguintes
+        _q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60, y:60});
+        _qSelSet = new Set(); desenhaQuadro();
+        elA = document.querySelector('.qnode[data-id="qa"]');
+        elB = document.querySelector('.qnode[data-id="qb"]');
+
+        // 2) Shift+clique soma à seleção?
+        rA = elA.getBoundingClientRect();
+        var rB = elB.getBoundingClientRect();
+        md(elA, Math.round(rA.left+20), Math.round(rA.bottom-10));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        md(elB, Math.round(rB.left+20), Math.round(rB.bottom-10), true);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var somou = _qSelSet.size === 2;
+
+        // 3) laço encostando SÓ na quina do cartão qc (x 60..236, y 400..~480)
+        _qSelSet = new Set(); markSelDom();
+        var p0 = tela(20, 360), p1 = tela(100, 430);   // pega ~40x30 do canto
+        md(cv, Math.round(p0.x), Math.round(p0.y));
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(p1.x), clientY:Math.round(p1.y)}));
+        var pegouEncostando = _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 4) Shift + laço soma ao que já estava marcado?
+        _qSelSet = new Set(["qb"]); markSelDom();
+        var q0 = tela(20, 360), q1 = tela(300, 600);
+        md(cv, Math.round(q0.x), Math.round(q0.y), true);
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(q1.x), clientY:Math.round(q1.y), shiftKey:true}));
+        var lacoSomou = _qSelSet.has("qb") && _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 4b) sem Shift, o laço TROCA a seleção (não soma)
+        _qSelSet = new Set(["qb"]); markSelDom();
+        var s0 = tela(20, 360), s1 = tela(300, 600);
+        md(cv, Math.round(s0.x), Math.round(s0.y));
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(s1.x), clientY:Math.round(s1.y)}));
+        var lacoTroca = !_qSelSet.has("qb") && _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 5) e numa NOTA? clicar no corpo dela seleciona, ou só entra na escrita?
+        _qSelSet = new Set(); markSelDom();
+        var nn = qNovoTextoEm(600, 300, "nota"); desenhaQuadro();
+        var elN = document.querySelector('.qnode[data-id="' + nn.id + '"]');
+        var edN = elN.querySelector(".qtxt"), rN = edN.getBoundingClientRect();
+        md(edN, Math.round(rN.left + 20), Math.round(rN.top + 12));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var notaSelecionou = _qSelSet.has(nn.id);
+        var naoFocouNoClique = document.activeElement !== edN;
+        var antesN = _q.nodes.length;
+        tecla("Delete");
+        var notaApagou = _q.nodes.length === antesN - 1;
+
+        // 6) 2 cliques entram na escrita, e Esc sai dela deixando marcado
+        var nn2 = qNovoTextoEm(600, 300, "nota"); desenhaQuadro();
+        var el2 = document.querySelector('.qnode[data-id="' + nn2.id + '"]');
+        var ed2 = el2.querySelector(".qtxt");
+        ed2.blur(); _qSelSet = new Set(); markSelDom();
+        el2.dispatchEvent(new MouseEvent("dblclick", {bubbles:true}));
+        var doisCliquesEscreve = document.activeElement === ed2;
+        ed2.dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:"Escape", key:"Escape"}));
+        var escSaiu = document.activeElement !== ed2 && _qSelSet.has(nn2.id);
+
+        // 7) o ✕ e o 🎨 sumiram do papel?
+        var semX = !document.querySelector(".qnode .qdel") && !document.querySelector(".qnode .qcor");
+
+        // 8) painel de atalhos fecha ao clicar fora?
+        qAtalhos(true);
+        var atAberto = document.getElementById("qatalhos").classList.contains("open");
+        cv.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var atFechou = !document.getElementById("qatalhos").classList.contains("open");
+
+        document.title = "sel-clique=" + sel1 + " | delete-apaga=" + apagou +
+          " | shift-clique-soma=" + somou + " | laco-pega-encostando=" + pegouEncostando +
+          " | shift-laco-soma=" + lacoSomou + " | laco-sem-shift-troca=" + lacoTroca +
+          " || NOTA: clique-seleciona=" + notaSelecionou + " nao-focou=" + naoFocouNoClique +
+          " delete-apaga=" + notaApagou + " 2cliques-escreve=" + doisCliquesEscreve +
+          " esc-sai=" + escSaiu +
+          " || sem-X=" + semX + " | atalhos-abre=" + atAberto + " atalhos-fecha-fora=" + atFechou;
+      }, 350);
+    }
     // escrever numa nota e clicar fora: o foco sai do editor e as teclas de
     // ferramenta voltam a trocar de ferramenta em vez de virar texto?
     else if (base === "teorias-foco") {
