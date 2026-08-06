@@ -708,6 +708,30 @@ function _ovDesfaz(id) {
     } catch (e) {}
   }
 }
+/* PADRÃO DA CASA: painel flutuante fecha ao clicar fora dele.
+   - `abre` é o botão que o abre: o clique nele já alterna, e fechar aqui
+     depois faria o painel piscar e nunca abrir.
+   - `so` limita a regra (no compacto a folha de filtros é MODAL e já fecha
+     tocando no fundo escurecido — dois caminhos brigariam).
+   Painel novo? some uma linha nesta lista em vez de escrever outro ouvinte:
+   era assim que uns fechavam e outros não. */
+const PAINEIS_FECHA_FORA = [
+  { id: "moreMenu", abre: "#btnMore" },
+  { id: "filtrosPanel", abre: "#btnFiltros", so: () => !ehCompacto() },
+  { id: "maptoggles", abre: "#btnCamadas" },
+  { id: "qpop", abre: ".qchip" },
+  { id: "qatalhos", abre: ".qhint .abrir" },
+];
+document.addEventListener("click", function (e) {
+  PAINEIS_FECHA_FORA.forEach(function (p) {
+    const el = document.getElementById(p.id);
+    if (!el || !el.classList.contains("open")) return;
+    if (p.so && !p.so()) return;
+    if (el.contains(e.target)) return;
+    if (p.abre && e.target.closest && e.target.closest(p.abre)) return;
+    overlayFechar(p.id);
+  });
+});
 function overlayFecharTopo() {
   const topo = _ovStack[_ovStack.length - 1];
   if (!topo) return false;
@@ -1140,14 +1164,6 @@ function toggleMore(force) {
   if (abrir) overlayAbrir(m, { id: "moreMenu", modal: false });
   else overlayFechar("moreMenu");
 }
-document.addEventListener("click", function (e) {
-  const m = document.getElementById("moreMenu");
-  if (!m || !m.classList.contains("open")) return;
-  if (m.contains(e.target)) return;
-  const b = document.getElementById("btnMore");
-  if (b && b.contains(e.target)) return;
-  overlayFechar("moreMenu");
-});
 
 /* ---- filtro ---- */
 function fichaIncompleta(f) {
@@ -1654,6 +1670,10 @@ function hideSelBox() {
   const b = document.getElementById("selbox");
   if (b) b.style.display = "none";
 }
+/* Quem o laço do Mapa pega: basta ENCOSTAR no disco desenhado. Antes exigia
+   que o CENTRO do ponto caísse dentro do retângulo, então passar o laço por
+   cima da bolinha não bastava — era preciso cobrir o miolo dela.
+   (Mesma regra do laço dos Quadros, ver qNodesInRect.) */
 function nodesInRect(svg, m) {
   // m em pixels de TELA; o ponto do grafo em CSS — ver zoomIF.
   const r = svg.getBoundingClientRect(),
@@ -1665,8 +1685,15 @@ function nodesInRect(svg, m) {
   const s = new Set();
   nodes.forEach(function (n) {
     const cx = r.left + (n.x * cam.s + cam.x) * z,
-      cy = r.top + (n.y * cam.s + cam.y) * z;
-    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
+      cy = r.top + (n.y * cam.s + cam.y) * z,
+      rr = (n.r || 6) * cam.s * z;
+    // Ponto do retângulo mais perto do centro do nó; se ele cai dentro do
+    // disco, retângulo e bolinha se cruzam.
+    const px = Math.max(x0, Math.min(cx, x1)),
+      py = Math.max(y0, Math.min(cy, y1));
+    const dx = cx - px,
+      dy = cy - py;
+    if (dx * dx + dy * dy <= rr * rr) s.add(n.id);
   });
   return s;
 }
@@ -2075,7 +2102,13 @@ function wireMap(svg) {
     }
     if (e.button !== 0) return;
     if (d) {
-      if (_selMap.has(d.id)) {
+      // Shift soma (ou tira) da seleção, sem descartar o resto — mesma
+      // regra dos Quadros.
+      if (e.shiftKey) {
+        if (_selMap.has(d.id)) _selMap.delete(d.id);
+        else _selMap.add(d.id);
+        draw(svg);
+      } else if (_selMap.has(d.id)) {
         _drag = {
           ids: [..._selMap],
           moved: false,
@@ -2093,8 +2126,16 @@ function wireMap(svg) {
       }
     } else {
       _focus = null;
-      _selMap = new Set();
-      _marq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+      // Com Shift o laço SOMA ao que já estava marcado (a base fica
+      // guardada nele); sem Shift, começa do zero.
+      _marq = {
+        x0: e.clientX,
+        y0: e.clientY,
+        x1: e.clientX,
+        y1: e.clientY,
+        base: e.shiftKey ? new Set(_selMap) : new Set(),
+      };
+      _selMap = new Set(_marq.base);
       showSelBox(_marq);
       draw(svg);
     }
@@ -2135,7 +2176,8 @@ function wireMap(svg) {
       _marq.x1 = e.clientX;
       _marq.y1 = e.clientY;
       updateSelBox(_marq);
-      _selMap = nodesInRect(svg, _marq);
+      // A base é o que já estava marcado quando o laço começou com Shift.
+      _selMap = new Set([..._marq.base, ...nodesInRect(svg, _marq)]);
       draw(svg);
     }
   });
@@ -2426,8 +2468,13 @@ function toggleCamadas() {
     );
     return;
   }
+  /* No desktop o painel entra na PILHA de overlays: assim o Esc e o Voltar
+     fecham, como em qualquer outro painel. Antes ele só alternava a classe
+     e ficava aberto até clicarem de novo no botão. */
   const mt = document.getElementById("maptoggles");
-  if (mt) mt.classList.toggle("open");
+  if (!mt) return;
+  if (mt.classList.contains("open")) overlayFechar("maptoggles");
+  else overlayAbrir(mt, { id: "maptoggles" });
 }
 /* Alternativa por LISTA aos gestos do mapa (P03): toca num item, o mapa
    centraliza e abre o detalhe. */
@@ -6961,23 +7008,6 @@ function qPopFechado() {
   const chip = document.querySelector(".qchip");
   if (chip) chip.setAttribute("aria-expanded", "false");
 }
-/* PADRÃO da aba Quadros: todo painel flutuante fecha ao clicar fora dele.
-   `abre` é o botão que o abre — o clique nele já alterna, e fechar aqui
-   depois faria o painel piscar e nunca abrir. Painel novo? basta somar
-   uma linha nesta lista. */
-const QPAINEIS_FORA = [
-  { id: "qpop", abre: ".qchip" },
-  { id: "qatalhos", abre: ".qhint .abrir" },
-];
-document.addEventListener("click", function (e) {
-  QPAINEIS_FORA.forEach(function (p) {
-    const el = document.getElementById(p.id);
-    if (!el || !el.classList.contains("open")) return;
-    if (el.contains(e.target)) return;
-    if (p.abre && e.target.closest && e.target.closest(p.abre)) return;
-    overlayFechar(p.id);
-  });
-});
 /* Filtrar só troca a LISTA: o #qpop continua o mesmo elemento, então nem a
    pilha de overlays nem o foco do campo são mexidos a cada tecla. */
 function qPopFiltrar(v) {
@@ -7948,14 +7978,30 @@ function qSetasInRect(cv, q, m) {
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
+  /* O barbante é DESENHADO em curva (qCurvaD), mas era medido pela reta
+     entre as pontas: onde a curva faz barriga, o laço pegava o que não
+     encostava e deixava passar o que encostava. Agora a curva é picada em
+     pedacinhos e cada pedaço é testado — o que se mede é o que se vê. */
+  const PASSOS = 12;
   q.setas.forEach(function (se, i) {
     const pp = qSetaPontos(q, se);
     if (!pp) return;
-    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x) * z,
-      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y) * z,
-      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x) * z,
-      by = r.top + (pp.p2.y * q.cam.s + q.cam.y) * z;
-    if (qSegCruzaRect(ax, ay, bx, by, x0, y0, x1, y1)) s.add(i);
+    const ctrl = qCurvaCtrl(pp.p1, pp.p2);
+    const tela = function (p) {
+      return {
+        x: r.left + (p.x * q.cam.s + q.cam.x) * z,
+        y: r.top + (p.y * q.cam.s + q.cam.y) * z,
+      };
+    };
+    let ant = tela(pp.p1);
+    for (let k = 1; k <= PASSOS; k++) {
+      const at = tela(qPontoNaCurva(pp.p1, ctrl, pp.p2, k / PASSOS));
+      if (qSegCruzaRect(ant.x, ant.y, at.x, at.y, x0, y0, x1, y1)) {
+        s.add(i);
+        return;
+      }
+      ant = at;
+    }
   });
   return s;
 }

@@ -464,6 +464,92 @@ const entrou = () =>
     ),
   );
 
+  /* Teste 8.8 — As MESMAS regras fora dos Quadros (Mapa e Grade).
+     Estes defeitos eram irmãos dos da aba Quadros: laço que exigia o
+     centro, Shift que não somava e painel que não fechava ao clicar fora. */
+  /* Os testes do Mapa entram e saem da vista sozinhos, e SEMEIAM dois pontos:
+     neste ponto do arquivo o catálogo da nuvem falsa ainda está vazio, então
+     o grafo não tem nada para selecionar. Ao sair, tudo volta como estava. */
+  const noMapa = (corpo) =>
+    g(
+      '(function(){var _v=state.view,_n=nodes;setView("mapa");render();' +
+        'nodes=[{id:"mA",x:120,y:120,r:9,cor:"#c9a35c",kind:"ficha",label:"A"},' +
+        '{id:"mB",x:320,y:220,r:9,cor:"#c9a35c",kind:"ficha",label:"B"}];' +
+        // com 0 fichas o mapa nem liga os eventos (sai antes do wireMap):
+        // depois de semear, liga na mão para que o clique chegue ao handler
+        'cam={x:0,y:0,s:1};var _svg=document.getElementById("svg");wireMap(_svg);draw(_svg);' +
+        'var _r=(function(){' +
+        corpo +
+        '})();nodes=_n;_selMap=new Set();setView(_v);render();return _r;})()',
+    );
+  ok(
+    "mapa: o laço pega o ponto que só ENCOSTA no disco (não exige o centro)",
+    noMapa(
+      'var svg=document.getElementById("svg");if(!svg||!nodes.length)return false;var r=svg.getBoundingClientRect(),z=zoomIF();var n=nodes[0];' +
+        'var cx=r.left+(n.x*cam.s+cam.x)*z, cy=r.top+(n.y*cam.s+cam.y)*z, rr=(n.r||6)*cam.s*z;' +
+        // laço que morde metade do disco, sem alcançar o centro
+        'var a=nodesInRect(svg,{x0:cx-80,y0:cy-80,x1:cx-rr*0.5,y1:cy+80});' +
+        // laço que para antes do disco
+        'var b=nodesInRect(svg,{x0:cx-80,y0:cy-80,x1:cx-rr*2,y1:cy+80});' +
+        'return a.has(n.id) && !b.has(n.id);',
+    ),
+  );
+  ok(
+    "mapa: Shift no clique soma ao que já estava marcado (e tira quem já estava)",
+    noMapa(
+      'var svg=document.getElementById("svg");if(!svg||nodes.length<2)return false;var r=svg.getBoundingClientRect(),z=zoomIF();' +
+        'var n0=nodes[0],n1=nodes[1];_selMap=new Set([n1.id]);draw(svg);' +
+        'var cx=r.left+(n0.x*cam.s+cam.x)*z, cy=r.top+(n0.y*cam.s+cam.y)*z;' +
+        // o handler chama draw(), que REFAZ os .gn: um elemento guardado de
+        // antes fica solto do documento e o clique nele não chega ao mapa.
+        'var alvo=function(){return document.querySelector(\'.gn[data-id="\'+(window.CSS&&CSS.escape?CSS.escape(n0.id):n0.id)+\'"]\')};' +
+        'var clicaShift=function(){var el=alvo();if(!el)return false;el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(cx),clientY:Math.round(cy),button:0,shiftKey:true}));window.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));return true};' +
+        'if(!clicaShift())return false;' +
+        'var somou=_selMap.has(n0.id)&&_selMap.has(n1.id);' +
+        'if(!clicaShift())return false;' +
+        'var tirou=!_selMap.has(n0.id)&&_selMap.has(n1.id);' +
+        'return somou&&tirou;',
+    ),
+  );
+  ok(
+    "mapa: o painel de Camadas entra na pilha de overlays (fecha pelo Esc)",
+    g(
+      '(function(){var mt=document.getElementById("maptoggles");if(!mt)return false;mt.classList.remove("open");toggleCamadas();var abriu=mt.classList.contains("open");var fechou=overlayFecharTopo()&&!mt.classList.contains("open");return abriu&&fechou;})()',
+    ),
+  );
+  ok(
+    "painéis: a lista única fecha ao clicar fora (menu ···, filtros, camadas, quadros, atalhos)",
+    g(
+      '(function(){if(typeof PAINEIS_FECHA_FORA==="undefined")return false;' +
+        'var ids=PAINEIS_FECHA_FORA.map(function(p){return p.id}).join(",");' +
+        'var mm=document.getElementById("moreMenu");overlayAbrir(mm,{id:"moreMenu"});' +
+        'var dentro=(mm.dispatchEvent(new MouseEvent("click",{bubbles:true})),mm.classList.contains("open"));' +
+        'document.body.dispatchEvent(new MouseEvent("click",{bubbles:true}));' +
+        'var fora=!mm.classList.contains("open");' +
+        'return ids==="moreMenu,filtrosPanel,maptoggles,qpop,qatalhos" && dentro && fora;})()',
+    ),
+  );
+  ok(
+    "quadros: o laço segue a CURVA do barbante, não a reta entre as pontas",
+    g(
+      '(function(){var q=quadroAtual();var antesN=q.nodes.slice(),antesS=q.setas.slice();' +
+        'q.nodes=[{id:"cA",tipo:"ref",kind:"pista",ref:"f1",x:60,y:120},{id:"cB",tipo:"ref",kind:"pista",ref:"f5",x:800,y:120}];' +
+        'q.setas=[{id:"sCurva",de:"cA",para:"cB"}];q.cam={x:0,y:0,s:1};desenhaQuadro();' +
+        'var cv=document.getElementById("qcanvas"),r=cv.getBoundingClientRect(),z=zoomIF();' +
+        'var pp=qSetaPontos(q,q.setas[0]),ctrl=qCurvaCtrl(pp.p1,pp.p2);' +
+        'var tela=function(p){return{x:r.left+(p.x*q.cam.s+q.cam.x)*z,y:r.top+(p.y*q.cam.s+q.cam.y)*z}};' +
+        'var mc=tela(qPontoNaCurva(pp.p1,ctrl,pp.p2,0.5)),mr=tela({x:(pp.p1.x+pp.p2.x)/2,y:(pp.p1.y+pp.p2.y)/2});' +
+        'var barriga=Math.abs(mc.y-mr.y);' +
+        'var caixa=function(p){return{x0:p.x-6,y0:p.y-6,x1:p.x+6,y1:p.y+6}};' +
+        'var naCurva=qSetasInRect(cv,q,caixa(mc)).size>0;' +
+        // espelha a barriga para o outro lado: lá a curva não passa
+        'var espelho={x:mr.x,y:mr.y-(mc.y-mr.y)};' +
+        'var foraDaCurva=qSetasInRect(cv,q,caixa(espelho)).size>0;' +
+        'q.nodes=antesN;q.setas=antesS;desenhaQuadro();' +
+        'return barriga>10 && naCurva && !foraDaCurva;})()',
+    ),
+  );
+
   /* Teste 9 — Setas estilo tldraw (Etapa D) */
   ok(
     "seta: geometria corta na BORDA do cartão (não no centro)",

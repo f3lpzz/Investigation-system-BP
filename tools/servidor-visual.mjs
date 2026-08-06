@@ -212,6 +212,45 @@ const SEED = (vista) => `
       trocarQuadro(1);
       setTimeout(function () { qPop(true); }, 60);
     }
+    // O laço mede a CURVA do barbante ou a reta entre as pontas?
+    // Compara dois lugares: onde a curva passa (tem de pegar) e onde só a
+    // reta passa, longe da curva (não pode pegar).
+    else if (base === "teorias-curva") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:120},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:800, y:120}
+      );
+      _q.setas.push({id:"sA", de:"qa", para:"qb"});
+      desenhaQuadro();
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas"), r = cv.getBoundingClientRect();
+        var z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var tela = function (p) { return { x: r.left + (p.x*_q.cam.s + _q.cam.x)*z, y: r.top + (p.y*_q.cam.s + _q.cam.y)*z }; };
+        var pp = qSetaPontos(_q, _q.setas[0]);
+        var ctrl = qCurvaCtrl(pp.p1, pp.p2);
+        var meioCurva = tela(qPontoNaCurva(pp.p1, ctrl, pp.p2, 0.5));
+        var meioReta = tela({ x: (pp.p1.x + pp.p2.x)/2, y: (pp.p1.y + pp.p2.y)/2 });
+        var barriga = Math.round(Math.abs(meioCurva.y - meioReta.y));
+        var laco = function (cx, cy, raio) {
+          _qSetaSel = new Set();
+          cv.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(cx-raio), clientY:Math.round(cy-raio), button:0}));
+          cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(cx+raio), clientY:Math.round(cy+raio)}));
+          var pegou = _qSetaSel.size > 0;
+          window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+          return pegou;
+        };
+        var naCurva = laco(meioCurva.x, meioCurva.y, 6);
+        // ponto na RETA, deslocado para o lado oposto da barriga: a curva
+        // não passa por lá, então o laço não pode marcar o barbante
+        var foraDaCurva = laco(meioReta.x, meioReta.y - (meioCurva.y - meioReta.y), 6);
+        document.title = "BARBANTE barriga=" + barriga + "px | laco-na-curva-pega=" + naCurva +
+          " | laco-fora-da-curva-nao-pega=" + !foraDaCurva;
+      }, 350);
+    }
     // GRADE: o painel de filtros fecha ao clicar fora, no desktop?
     else if (base === "grade-filtros-fora") {
       setView("grade"); render();
@@ -219,9 +258,20 @@ const SEED = (vista) => `
         toggleFiltros();
         var pn = document.getElementById("filtrosPanel");
         var abriu = pn.classList.contains("open");
+        // clique DENTRO do painel não pode fechá-lo
+        pn.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var ficouDentro = pn.classList.contains("open");
         document.getElementById("grade").dispatchEvent(new MouseEvent("click", {bubbles:true}));
         var fechou = !pn.classList.contains("open");
-        document.title = "FILTROS abre=" + abriu + " | fecha-clicando-fora=" + fechou;
+        // o menu ··· continua fechando fora (a lista nova assumiu o ouvinte antigo)
+        var mm = document.getElementById("moreMenu");
+        overlayAbrir(mm, {id:"moreMenu"});
+        var mmAbriu = mm.classList.contains("open");
+        document.getElementById("grade").dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var mmFechou = !mm.classList.contains("open");
+        document.title = "FILTROS abre=" + abriu + " | clique-dentro-mantem=" + ficouDentro +
+          " | fecha-clicando-fora=" + fechou +
+          " || MENU-3-PONTOS abre=" + mmAbriu + " fecha-fora=" + mmFechou;
       }, 300);
     }
     // MAPA: o laço e o Shift têm os mesmos defeitos que os Quadros tinham?
@@ -236,10 +286,17 @@ const SEED = (vista) => `
         var c = tela(n0.x, n0.y);
         var md = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), button:0, shiftKey:!!sh})); };
         var mv = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), shiftKey:!!sh})); };
-        // laço que cobre bem o ponto mas NÃO o centro dele (passa 12px à esquerda)
+        // raio do disco DESENHADO, em pixels de tela
+        var rr = (n0.r || 6) * cam.s * z;
+        // laço que morde METADE do disco mas não alcança o centro
         _selMap = new Set();
-        md(c.x - 60, c.y - 60); mv(c.x - 12, c.y + 60);
+        md(c.x - 60, c.y - 60); mv(c.x - rr*0.5, c.y + 60);
         var pegouEncostando = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço que para ANTES do disco não pode pegar
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x - rr*2, c.y + 60);
+        var pegouLonge = _selMap.has(n0.id);
         window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
         // laço cobrindo o centro: aí pega
         _selMap = new Set();
@@ -252,14 +309,36 @@ const SEED = (vista) => `
         md(c.x - 60, c.y - 60, true); mv(c.x + 60, c.y + 60, true);
         var shiftSomou = outro ? (_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
         window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
-        // painel de Camadas fecha ao clicar fora?
+        // Shift + clique num nó soma?
+        var g0 = document.querySelector('.gn[data-id="' + n0.id + '"]');
+        _selMap = new Set(outro ? [outro] : []); draw(svg);
+        g0 = document.querySelector('.gn[data-id="' + n0.id + '"]');
+        g0.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(c.x), clientY:Math.round(c.y), button:0, shiftKey:true}));
+        var shiftCliqueSomou = outro ? (_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço SEM shift continua trocando (não pode virar sempre-soma)
+        _selMap = new Set(outro ? [outro] : []);
+        md(c.x - 60, c.y - 60); mv(c.x + 60, c.y + 60);
+        var semShiftTroca = outro ? (!_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // painel de Camadas: fecha ao clicar fora? e pelo Esc?
         toggleCamadas();
         var camAberto = document.getElementById("maptoggles").classList.contains("open");
         document.body.dispatchEvent(new MouseEvent("click", {bubbles:true}));
         var camFechou = !document.getElementById("maptoggles").classList.contains("open");
-        document.title = "MAPA laco-pega-encostando=" + pegouEncostando +
+        // Esc: parte de um estado CONHECIDO (fechado), abre e só então mede —
+        // senão o resultado depende do passo anterior e passa pelo motivo errado.
+        var mt = document.getElementById("maptoggles");
+        mt.classList.remove("open");
+        toggleCamadas();
+        var camReabriu = mt.classList.contains("open");
+        overlayFecharTopo();
+        var camEsc = camReabriu && !mt.classList.contains("open");
+        document.title = "MAPA raio-tela=" + rr.toFixed(1) +
+          " | laco-pega-encostando=" + pegouEncostando + " laco-longe-nao-pega=" + !pegouLonge +
           " | laco-pega-centro=" + pegouCentro + " | shift-laco-soma=" + shiftSomou +
-          " | camadas-abre=" + camAberto + " camadas-fecha-fora=" + camFechou;
+          " | shift-clique-soma=" + shiftCliqueSomou + " | sem-shift-troca=" + semShiftTroca +
+          " | camadas-abre=" + camAberto + " camadas-fecha-fora=" + camFechou + " camadas-esc=" + camEsc;
       }, 500);
     }
     // seleção: Delete apaga? Shift soma? o laço pega quem ENCOSTA nele?
