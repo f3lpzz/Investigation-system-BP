@@ -464,6 +464,63 @@ const entrou = () =>
     ),
   );
 
+  /* Teste 8.75 — Responsivo dos Quadros: o que o CSS precisa encontrar.
+     As larguras em si são conferidas por screenshot (o jsdom não faz
+     layout); aqui se garante o CONTRATO que as media queries usam. */
+  ok(
+    "quadros: os rótulos que somem no tablet/celular estão em .rotulo (o ícone fica)",
+    g(
+      '(function(){var l=document.querySelector(".qlista"),f=document.querySelector(".qzoom .fit");if(!l||!f)return false;' +
+        'var lr=l.querySelector(".rotulo"),fr=f.querySelector(".rotulo");' +
+        // o nome acessível não pode depender do rótulo visível
+        'return !!lr && lr.textContent==="Lista de itens" && l.getAttribute("aria-label")==="Lista de itens" &&' +
+        ' !!fr && fr.textContent==="Ajustar" && f.getAttribute("aria-label")==="Ajustar tudo à tela" &&' +
+        ' !!l.querySelector("svg") && !!f.querySelector("svg");})()',
+    ),
+  );
+  ok(
+    "quadros: o zoom tem .mais/.menos nomeados (o celular os empilha na ordem certa)",
+    g(
+      '(function(){var z=document.querySelector(".qzoom");if(!z)return false;' +
+        'return !!z.querySelector(".pm.menos") && !!z.querySelector(".pm.mais") && !!z.querySelector(".v") && !!z.querySelector(".sep") && !!z.querySelector(".fit");})()',
+    ),
+  );
+  ok(
+    "quadros: a dica troca o verbo no toque (Clique → Toque) e volta no mouse",
+    g(
+      '(function(){var real=ehToque;var tx=document.querySelector("#qhint .tx");' +
+        'ehToque=function(){return true};qDica("select");var toque=tx.textContent;' +
+        'ehToque=function(){return false};qDica("select");var mouse=tx.textContent;' +
+        'ehToque=real;qDica(_qTool);' +
+        'return toque.indexOf("Toque")===0 && mouse.indexOf("Clique")===0 && toque.indexOf("Shift")<0;})()',
+    ),
+  );
+  ok(
+    "quadros: cartão colado no topo vira a barra de ação para baixo (.abaixo)",
+    g(
+      '(function(){var q=quadroAtual();var cv=document.getElementById("qcanvas");' +
+        // jsdom não faz layout: o rect do canvas e do nó são fingidos aqui
+        'var rcv=cv.getBoundingClientRect;cv.getBoundingClientRect=function(){return {top:0,left:0,bottom:600,right:800,width:800,height:600}};' +
+        'var n=qNovoTextoEm(0,0,"nota");desenhaQuadro();var el=nodeEl(n.id);' +
+        'el.getBoundingClientRect=function(){return {top:10,left:0,bottom:110,right:190,width:190,height:100}};' +
+        '_qSelSet=new Set([n.id]);markSelDom();var virou=!!el.querySelector(".qacoes.abaixo");' +
+        'el.getBoundingClientRect=function(){return {top:300,left:0,bottom:400,right:190,width:190,height:100}};' +
+        'markSelDom();var normal=!el.querySelector(".qacoes.abaixo") && !!el.querySelector(".qacoes");' +
+        'cv.getBoundingClientRect=rcv;_qSelSet=new Set();qDelNode(n.id);return virou && normal;})()',
+    ),
+  );
+  ok(
+    "quadros: a busca do tablet abre e só se recolhe se estiver vazia",
+    g(
+      '(function(){if(typeof qBuscaAbrir==="undefined")return false;' +
+        'var el=document.querySelector(".qbusca"),inp=document.getElementById("qBusca");if(!el||!inp)return false;' +
+        'qBuscaAbrir();var abriu=el.classList.contains("aberta");' +
+        'inp.value="lanterna";qBuscaFechar();var ficou=el.classList.contains("aberta");' +
+        'inp.value="";qBuscaFechar();var fechou=!el.classList.contains("aberta");' +
+        'qBuscaInput("");return abriu && ficou && fechou;})()',
+    ),
+  );
+
   /* Teste 8.8 — As MESMAS regras fora dos Quadros (Mapa e Grade).
      Estes defeitos eram irmãos dos da aba Quadros: laço que exigia o
      centro, Shift que não somava e painel que não fechava ao clicar fora. */

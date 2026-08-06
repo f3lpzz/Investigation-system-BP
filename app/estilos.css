@@ -5182,6 +5182,12 @@ select:focus {
   background: linear-gradient(135deg, #f5d76e 50%, #9cc9ff 50%);
   border: 1px solid rgba(0, 0, 0, 0.3);
 }
+/* Cartão colado no topo do quadro: a barra vira para baixo (ver qAcoesLado).
+   Vale em qualquer largura — no tablet e no celular só muda a distância. */
+.qacoes.abaixo {
+  top: auto;
+  bottom: -42px;
+}
 /* A barra do barbante mora no mundo, no nó do meio da curva */
 .qacoes.qacoes-seta {
   top: 0;
@@ -5230,10 +5236,84 @@ select:focus {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   pointer-events: none;
 }
-/* Entre 721px e ~1100px a barra aperta: os recentes saem e o chip resolve */
+/* ── TABLET (≤1100px): a MESMA tela, com alvos de dedo ──────────────────
+   Não é um layout novo: o chip continua sendo o seletor, a dock segue em
+   pé no canto e o zoom fica na linha. Sai só o que depende de teclado ou
+   de hover — recentes, busca sempre aberta, teclas impressas e o botão
+   que abre o painel de atalhos. */
 @media (max-width: 1100px) {
   .qrecentes {
+    display: none; /* o chip já resolve a troca de quadro */
+  }
+  /* A busca encolhe para um botão-lupa e abre por cima da barra */
+  .qbusca {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .qbusca input {
     display: none;
+  }
+  .qbusca.aberta {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    padding: 0 11px;
+    justify-content: flex-start;
+    z-index: 35;
+  }
+  .qbusca.aberta input {
+    display: block;
+  }
+  .qchip,
+  .qlista {
+    min-height: var(--alvo);
+  }
+  /* "Lista de itens" não cabe: vira só "Lista" (o aria-label não muda) */
+  .qlista .rotulo {
+    font-size: 0;
+  }
+  .qlista .rotulo::before {
+    content: "Lista";
+    font-size: 13px;
+  }
+  .qdock {
+    left: 14px;
+    top: 14px;
+    gap: 5px;
+  }
+  .qdockbtn {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  .qdockbtn .k {
+    display: none; /* no dedo não há tecla para aprender */
+  }
+  .qzoom .pm,
+  .qzoom .v,
+  .qzoom .fit {
+    min-height: var(--alvo);
+  }
+  .qzoom .pm {
+    width: var(--alvo);
+  }
+  .qhint .abrir {
+    display: none; /* o painel de atalhos é de teclado */
+  }
+  .qacoes {
+    top: -56px;
+  }
+  .qacoes button {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  /* Cartão colado no topo: a barra de ação vira para baixo (ver markSelDom) */
+  .qacoes.abaixo {
+    top: auto;
+    bottom: -56px;
   }
 }
 /* Sem textura no canvas: o fundo é só o degradê liso do #teorias. */
@@ -6375,22 +6455,36 @@ body.view-conta .filtros-panel {
 
 /* ---------- Trilho estreito (721–1000px): degrau entre mobile e desktop.
    Sem ele, 720→721px saltava de tabbar para uma sidebar de 212px (P09). */
-@media (min-width: 721px) and (max-width: 1000px) and (min-height: 501px) {
+/* ── TABLET: a lateral vira um rail de 64px ────────────────────────────
+   O ícone empilha sobre o rótulo miúdo (em vez de o rótulo sumir): sem a
+   palavra, "Fichas" e "Arquivo" viravam adivinhação. Alvo de 52px. */
+@media (min-width: 721px) and (max-width: 1100px) and (min-height: 501px) {
   .side {
     width: 64px;
     min-width: 64px;
   }
   .side .side-brand-txt,
-  .side .ni-lb,
   .side .side-brand .sub {
     display: none;
   }
   .side .navit {
+    flex-direction: column;
     justify-content: center;
-    padding: 11px 0;
+    gap: 3px;
+    min-height: 52px;
+    padding: 6px 0;
   }
+  .side .navit .ni-lb {
+    flex: none;
+    font-size: 8.5px;
+    line-height: 1;
+  }
+  /* "Tudo salvo na nuvem" não cabe em 64px: no rail fica só a bolinha */
   .side .navit.save {
     padding: 8px 0;
+  }
+  .side .navit.save .ni-lb {
+    display: none;
   }
   .side-brand {
     justify-content: center;
@@ -6924,32 +7018,58 @@ body.view-conta .filtros-panel {
   .maptoggles {
     display: none !important;
   }
-  /* Quadros no toque (P04): o chip é o seletor único (chama o sheet de ações
-     em vez do popover) e a dock deita no rodapé, com alvos de 44px.
-     Recentes, busca e dica saem — não há espaço, e o sheet resolve. */
+  /* ── CELULAR (P04): o degrau de verdade ────────────────────────────
+     O chip é o seletor único (chama o sheet de ações em vez do popover),
+     a dock DEITA acima da tabbar e o zoom vira coluna à direita — assim
+     os dois não disputam o polegar. Busca e dica saem: a busca mora
+     dentro da Lista de itens. */
   .qbar {
     height: auto;
-    min-height: 52px;
+    min-height: 56px;
     gap: 8px;
     padding: 6px 10px;
   }
   .qchip {
-    max-width: 62vw;
+    flex: 1; /* a linha inteira menos o botão Lista */
+    max-width: none;
     min-height: var(--alvo);
   }
-  .qrecentes,
-  .qbusca {
+  /* …e para o chip esticar de verdade, o espaçador da barra sai: senão os
+     dois dividem a sobra e o chip para no meio da linha. */
+  .qbar .topgrow {
     display: none;
   }
-  .qlista {
-    min-height: var(--alvo);
+  .qrecentes,
+  .qbusca,
+  .qhint {
+    display: none;
   }
+  /* Lista de itens vira só o ícone */
+  .qlista {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+  }
+  .qlista .rotulo {
+    display: none;
+  }
+  /* O ＋ flutuante abre "Ficha / Nota / Texto" — exatamente o que a dock
+     agora faz num toque só. Nesta aba ele é repetição, e é ele que
+     disputava o canto com a dock. */
+  body.view-teorias .fab {
+    display: none;
+  }
+  /* A dock e o zoom vivem DENTRO do .qcanvas, que já termina ACIMA da
+     tabbar: somar --tabbar-total aqui contaria a barra duas vezes e
+     deixava a dock flutuando 72px acima do lugar. */
   .qdock {
     left: 50%;
     top: auto;
-    bottom: calc(var(--tabbar-total) + 14px);
+    bottom: 14px;
     transform: translateX(-50%);
     flex-direction: row;
+    gap: 2px;
   }
   .qdockbtn {
     width: var(--alvo);
@@ -6964,13 +7084,53 @@ body.view-conta .filtros-panel {
     height: 22px;
     margin: 0 2px;
   }
+  /* Zoom em coluna à direita, ACIMA da dock: + em cima, − embaixo e o
+     Ajustar no pé, como na maquete. (column-reverse sozinho não serve:
+     ele inverteria também o separador e o Ajustar, jogando o Ajustar
+     para o topo — daí a ordem explícita.) */
   .qzoom {
-    bottom: calc(var(--tabbar-total) + 70px);
-    right: 12px;
+    right: 10px;
+    bottom: 84px; /* logo acima da dock (que ocupa 14px..~72px) */
+    flex-direction: column;
+    gap: 2px;
   }
-  .qzoom .pm,
+  .qzoom .mais {
+    order: 1;
+  }
+  .qzoom .v {
+    order: 2;
+  }
+  .qzoom .menos {
+    order: 3;
+  }
+  .qzoom .sep {
+    order: 4;
+  }
   .qzoom .fit {
+    order: 5;
+  }
+  .qzoom .pm {
+    width: var(--alvo);
     min-height: var(--alvo);
+  }
+  .qzoom .v {
+    min-width: var(--alvo);
+    height: 36px;
+  }
+  .qzoom .sep {
+    width: auto;
+    height: 1px;
+    margin: 1px 4px;
+    align-self: stretch;
+  }
+  .qzoom .fit {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+  }
+  .qzoom .fit .rotulo {
+    display: none;
   }
   /* Atalhos são de teclado */
   .qatalhos {

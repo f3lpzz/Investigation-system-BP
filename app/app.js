@@ -6855,6 +6855,16 @@ const QDICAS = {
   texto: "Clique no quadro para escrever · use @ para citar uma ficha",
   seta: "Arraste do alfinete de um cartão até o alfinete do outro",
 };
+/* No dedo o verbo muda e o que depende de teclado sai (não há Shift nem
+   barra de espaço). Só as ferramentas cuja frase muda entram aqui; as
+   outras seguem valendo a versão de cima. */
+const QDICAS_TOQUE = {
+  select: "Toque para selecionar · arraste para mover",
+  hand: "Arraste para navegar pelo quadro",
+  nota: "Toque no quadro para colar uma nota",
+  texto: "Toque no quadro para escrever · use @ para citar uma ficha",
+  seta: "Arraste do alfinete de um cartão até o alfinete do outro",
+};
 const QNOMES_FERR = {
   select: "Selecionar",
   hand: "Mão",
@@ -6912,8 +6922,8 @@ function renderTeorias() {
         : ""
     }
     <div class="topgrow"></div>
-    <div class="qbusca">${QICO.lupa}<input id="qBusca" type="search" placeholder="Buscar neste quadro…" aria-label="Buscar itens deste quadro" oninput="qBuscaInput(this.value)"></div>
-    <button class="topbtn qlista" onclick="qLista()" title="Ver o quadro como lista — alcança todo item sem arrastar">${QICO.lista} Lista de itens</button>
+    <div class="qbusca" onclick="qBuscaAbrir()">${QICO.lupa}<input id="qBusca" type="search" placeholder="Buscar neste quadro…" aria-label="Buscar itens deste quadro" oninput="qBuscaInput(this.value)" onblur="qBuscaFechar()"></div>
+    <button class="topbtn qlista" onclick="qLista()" aria-label="Lista de itens" title="Ver o quadro como lista — alcança todo item sem arrastar">${QICO.lista}<span class="rotulo">Lista de itens</span></button>
     ${qPopHTML()}
   </div>
   <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div>
@@ -6926,11 +6936,11 @@ function renderTeorias() {
   <div class="qhint" id="qhint" aria-live="polite"><span class="ferr"></span><span class="risco"></span><span class="tx"></span><button class="abrir" onclick="qAtalhos()" title="Todos os atalhos do quadro">Atalhos <span class="kbd">?</span></button></div>
   ${qAtalhosHTML()}
   <div class="qzoom">
-    <button class="pm" onclick="qZoomPasso(1/1.2)" title="Diminuir o zoom" aria-label="Diminuir o zoom">−</button>
+    <button class="pm menos" onclick="qZoomPasso(1/1.2)" title="Diminuir o zoom" aria-label="Diminuir o zoom">−</button>
     <button class="v" id="qzoomv" onclick="qZoom100()" title="Voltar a 100% (Shift+0)">100%</button>
-    <button class="pm" onclick="qZoomPasso(1.2)" title="Aumentar o zoom" aria-label="Aumentar o zoom">+</button>
+    <button class="pm mais" onclick="qZoomPasso(1.2)" title="Aumentar o zoom" aria-label="Aumentar o zoom">+</button>
     <span class="sep"></span>
-    <button class="fit" onclick="qFitCamera()" title="Ajustar tudo à tela (Shift+1)">${QICO.fit} Ajustar</button>
+    <button class="fit" onclick="qFitCamera()" aria-label="Ajustar tudo à tela" title="Ajustar tudo à tela (Shift+1)">${QICO.fit}<span class="rotulo">Ajustar</span></button>
   </div></div>`;
   wireQuadro();
   desenhaQuadro();
@@ -7035,6 +7045,23 @@ function qNomeDoNo(n) {
       (n.estilo === "nota" ? "nota" : "texto")
     );
   return qRefInfo(n).nome;
+}
+/* No tablet a busca vive encolhida como um botão-lupa de 44px: tocar nela
+   abre o campo por cima da barra, e ele se recolhe ao sair vazio. No
+   desktop o campo já está aberto e estas duas funções não fazem nada
+   visível (a classe não muda nada acima de 1100px). */
+function qBuscaAbrir() {
+  const el = document.querySelector(".qbusca");
+  if (!el) return;
+  el.classList.add("aberta");
+  const inp = document.getElementById("qBusca");
+  if (inp) inp.focus();
+}
+function qBuscaFechar() {
+  const el = document.querySelector(".qbusca"),
+    inp = document.getElementById("qBusca");
+  // Com texto digitado ela fica aberta: recolher esconderia o filtro ativo.
+  if (el && inp && !inp.value.trim()) el.classList.remove("aberta");
 }
 function qBuscaInput(v) {
   const q = quadroAtual();
@@ -7239,7 +7266,19 @@ function markSelDom() {
     const barra = el.querySelector(".qacoes");
     if (sel && um && !barra) el.insertAdjacentHTML("afterbegin", qAcoesHTML(n));
     if ((!sel || !um) && barra) barra.remove();
+    if (sel && um) qAcoesLado(el);
   });
+}
+/* A barra nasce ACIMA do cartão. Se o cartão estiver colado no topo do
+   quadro, ela sairia da tela — aí vira para baixo. Roda a cada
+   markSelDom, então acompanha o cartão enquanto ele é arrastado. */
+function qAcoesLado(el) {
+  const barra = el.querySelector(".qacoes"),
+    cv = document.getElementById("qcanvas");
+  if (!barra || !cv) return;
+  const rn = el.getBoundingClientRect(),
+    rc = cv.getBoundingClientRect();
+  barra.classList.toggle("abaixo", rn.top - rc.top < 60);
 }
 function qAcoesHTML(n) {
   const nota = n.tipo === "texto" && n.estilo === "nota";
@@ -7498,9 +7537,10 @@ function qDica(t) {
   const el = document.getElementById("qhint");
   if (!el || !QDICAS[t]) return;
   el.querySelector(".ferr").textContent = QNOMES_FERR[t];
+  const frase = (ehToque() && QDICAS_TOQUE[t]) || QDICAS[t];
   const tx = el.querySelector(".tx");
-  tx.textContent = QDICAS[t];
-  tx.title = QDICAS[t]; // em tela estreita o texto corta: o title devolve
+  tx.textContent = frase;
+  tx.title = frase; // em tela estreita o texto corta: o title devolve
 }
 const QATALHOS = [
   {

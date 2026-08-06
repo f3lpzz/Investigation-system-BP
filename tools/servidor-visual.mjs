@@ -492,6 +492,45 @@ const SEED = (vista) => `
           " | reabre=" + a3 + " | chip-alterna=" + !a4;
       }, 300);
     }
+    // Onde as peças flutuantes param no celular? (a dock e o zoom vivem
+    // DENTRO do .qcanvas, que já termina acima da tabbar)
+    else if (base === "teorias-alturas") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var d = document.querySelector(".qdock"), z = document.querySelector(".qzoom");
+        var tb = document.querySelector(".tabbar") || document.querySelector("nav.tabbar");
+        var fab = document.querySelector(".fab");
+        var r = function (el) { return el ? el.getBoundingClientRect() : null; };
+        var rc = r(cv), rd = r(d), rz = r(z), rt = r(tb), rf = r(fab);
+        var vh = window.innerHeight;
+        document.title = "vh=" + vh +
+          " | canvas.bottom=" + (rc ? Math.round(rc.bottom) : "?") +
+          " | dock=" + (rd ? Math.round(rd.top)+".."+Math.round(rd.bottom) : "?") +
+          " | zoom=" + (rz ? Math.round(rz.top)+".."+Math.round(rz.bottom) : "?") +
+          " | tabbar.top=" + (rt ? Math.round(rt.top) : "SEM") +
+          " | fab=" + (rf ? Math.round(rf.left)+","+Math.round(rf.top)+".."+Math.round(rf.bottom) : "SEM") +
+          " | dock.right=" + (rd ? Math.round(rd.right) : "?") +
+          " | folga-dock-tabbar=" + (rd && rt ? Math.round(rt.top - rd.bottom) : "?");
+      }, 300);
+    }
+    // tablet EM TOQUE: a dica troca "Clique" por "Toque" (ehToque()).
+    // O Chrome headless não tem dedo, então o MQ_TOQUE é forçado aqui.
+    else if (base === "teorias-toque") {
+      // MQ_TOQUE é const; quem dá para trocar é a própria função.
+      try { ehToque = function () { return true; }; } catch (e) {}
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:80, y:120});
+      desenhaQuadro();
+      setTimeout(function () {
+        qSetTool("select");
+        var h = document.getElementById("qhint");
+        document.title = "TOQUE dica=" + (h ? h.querySelector(".tx").textContent : "SEM DICA");
+      }, 200);
+    }
     // painel de atalhos aberto (o que era a legenda fixa do rodapé)
     else if (base === "teorias-atalhos") { setView("teorias"); setTimeout(function(){ qAtalhos(true); }, 60); }
     // dica do alfinete: quadro com 2 cartões e NENHUM barbante (halo + anotação)
