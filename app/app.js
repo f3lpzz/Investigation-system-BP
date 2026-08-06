@@ -708,6 +708,30 @@ function _ovDesfaz(id) {
     } catch (e) {}
   }
 }
+/* PADRÃO DA CASA: painel flutuante fecha ao clicar fora dele.
+   - `abre` é o botão que o abre: o clique nele já alterna, e fechar aqui
+     depois faria o painel piscar e nunca abrir.
+   - `so` limita a regra (no compacto a folha de filtros é MODAL e já fecha
+     tocando no fundo escurecido — dois caminhos brigariam).
+   Painel novo? some uma linha nesta lista em vez de escrever outro ouvinte:
+   era assim que uns fechavam e outros não. */
+const PAINEIS_FECHA_FORA = [
+  { id: "moreMenu", abre: "#btnMore" },
+  { id: "filtrosPanel", abre: "#btnFiltros", so: () => !ehCompacto() },
+  { id: "maptoggles", abre: "#btnCamadas" },
+  { id: "qpop", abre: ".qchip" },
+  { id: "qatalhos", abre: ".qhint .abrir" },
+];
+document.addEventListener("click", function (e) {
+  PAINEIS_FECHA_FORA.forEach(function (p) {
+    const el = document.getElementById(p.id);
+    if (!el || !el.classList.contains("open")) return;
+    if (p.so && !p.so()) return;
+    if (el.contains(e.target)) return;
+    if (p.abre && e.target.closest && e.target.closest(p.abre)) return;
+    overlayFechar(p.id);
+  });
+});
 function overlayFecharTopo() {
   const topo = _ovStack[_ovStack.length - 1];
   if (!topo) return false;
@@ -1140,14 +1164,6 @@ function toggleMore(force) {
   if (abrir) overlayAbrir(m, { id: "moreMenu", modal: false });
   else overlayFechar("moreMenu");
 }
-document.addEventListener("click", function (e) {
-  const m = document.getElementById("moreMenu");
-  if (!m || !m.classList.contains("open")) return;
-  if (m.contains(e.target)) return;
-  const b = document.getElementById("btnMore");
-  if (b && b.contains(e.target)) return;
-  overlayFechar("moreMenu");
-});
 
 /* ---- filtro ---- */
 function fichaIncompleta(f) {
@@ -1654,6 +1670,10 @@ function hideSelBox() {
   const b = document.getElementById("selbox");
   if (b) b.style.display = "none";
 }
+/* Quem o laço do Mapa pega: basta ENCOSTAR no disco desenhado. Antes exigia
+   que o CENTRO do ponto caísse dentro do retângulo, então passar o laço por
+   cima da bolinha não bastava — era preciso cobrir o miolo dela.
+   (Mesma regra do laço dos Quadros, ver qNodesInRect.) */
 function nodesInRect(svg, m) {
   // m em pixels de TELA; o ponto do grafo em CSS — ver zoomIF.
   const r = svg.getBoundingClientRect(),
@@ -1665,8 +1685,15 @@ function nodesInRect(svg, m) {
   const s = new Set();
   nodes.forEach(function (n) {
     const cx = r.left + (n.x * cam.s + cam.x) * z,
-      cy = r.top + (n.y * cam.s + cam.y) * z;
-    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
+      cy = r.top + (n.y * cam.s + cam.y) * z,
+      rr = (n.r || 6) * cam.s * z;
+    // Ponto do retângulo mais perto do centro do nó; se ele cai dentro do
+    // disco, retângulo e bolinha se cruzam.
+    const px = Math.max(x0, Math.min(cx, x1)),
+      py = Math.max(y0, Math.min(cy, y1));
+    const dx = cx - px,
+      dy = cy - py;
+    if (dx * dx + dy * dy <= rr * rr) s.add(n.id);
   });
   return s;
 }
@@ -1677,6 +1704,23 @@ document.addEventListener("keydown", function (e) {
     t === "textarea" ||
     t === "select" ||
     (e.target && e.target.isContentEditable);
+  /* Esc sai da escrita de um cartão do quadro e deixa o cartão MARCADO —
+     daí em diante o teclado do quadro (Del, Ctrl+D, V/H/F/N/T/A) volta a
+     valer. Sem isto, escrever prendia o teclado dentro do editor. */
+  if (
+    e.code === "Escape" &&
+    e.target &&
+    e.target.classList &&
+    e.target.classList.contains("qtxt") &&
+    e.target.dataset.qid
+  ) {
+    e.preventDefault();
+    const id = e.target.dataset.qid;
+    e.target.blur();
+    _qSelSet = new Set([id]);
+    if (typeof markSelDom === "function") markSelDom();
+    return;
+  }
   if (e.code === "Space") {
     if (digitando) return;
     _space = true;
@@ -1707,6 +1751,7 @@ document.addEventListener("keydown", function (e) {
     if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
       if (e.code === "KeyV") qSetTool("select");
       else if (e.code === "KeyH") qSetTool("hand");
+      else if (e.code === "KeyF") qSetTool("ficha");
       else if (e.code === "KeyT") qSetTool("texto");
       else if (e.code === "KeyN") qSetTool("nota");
       else if (e.code === "KeyA") qSetTool("seta");
@@ -1735,6 +1780,11 @@ document.addEventListener("keydown", function (e) {
     } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyD") {
       e.preventDefault();
       qDuplicarSelecao();
+    }
+    // "?" abre o painel de atalhos (na maioria dos teclados exige Shift)
+    if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      qAtalhos();
     }
   }
 });
@@ -2052,7 +2102,13 @@ function wireMap(svg) {
     }
     if (e.button !== 0) return;
     if (d) {
-      if (_selMap.has(d.id)) {
+      // Shift soma (ou tira) da seleção, sem descartar o resto — mesma
+      // regra dos Quadros.
+      if (e.shiftKey) {
+        if (_selMap.has(d.id)) _selMap.delete(d.id);
+        else _selMap.add(d.id);
+        draw(svg);
+      } else if (_selMap.has(d.id)) {
         _drag = {
           ids: [..._selMap],
           moved: false,
@@ -2070,8 +2126,16 @@ function wireMap(svg) {
       }
     } else {
       _focus = null;
-      _selMap = new Set();
-      _marq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
+      // Com Shift o laço SOMA ao que já estava marcado (a base fica
+      // guardada nele); sem Shift, começa do zero.
+      _marq = {
+        x0: e.clientX,
+        y0: e.clientY,
+        x1: e.clientX,
+        y1: e.clientY,
+        base: e.shiftKey ? new Set(_selMap) : new Set(),
+      };
+      _selMap = new Set(_marq.base);
       showSelBox(_marq);
       draw(svg);
     }
@@ -2112,7 +2176,8 @@ function wireMap(svg) {
       _marq.x1 = e.clientX;
       _marq.y1 = e.clientY;
       updateSelBox(_marq);
-      _selMap = nodesInRect(svg, _marq);
+      // A base é o que já estava marcado quando o laço começou com Shift.
+      _selMap = new Set([..._marq.base, ...nodesInRect(svg, _marq)]);
       draw(svg);
     }
   });
@@ -2403,8 +2468,13 @@ function toggleCamadas() {
     );
     return;
   }
+  /* No desktop o painel entra na PILHA de overlays: assim o Esc e o Voltar
+     fecham, como em qualquer outro painel. Antes ele só alternava a classe
+     e ficava aberto até clicarem de novo no botão. */
   const mt = document.getElementById("maptoggles");
-  if (mt) mt.classList.toggle("open");
+  if (!mt) return;
+  if (mt.classList.contains("open")) overlayFechar("maptoggles");
+  else overlayAbrir(mt, { id: "maptoggles" });
 }
 /* Alternativa por LISTA aos gestos do mapa (P03): toca num item, o mapa
    centraliza e abre o detalhe. */
@@ -6744,6 +6814,77 @@ let _qIdx = 0,
 function quadroAtual() {
   return (DADOS.quadros && DADOS.quadros[_qIdx]) || null;
 }
+/* Ícones da aba Quadros: SVG em vez de emoji (o emoji não herda a cor do
+   tema e desenha diferente em cada sistema). Só desenho — nenhum estado. */
+const QICO = {
+  quadro:
+    '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6" r="1.6" fill="#b8452e"/><line x1="8" y1="7.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.3"/></svg>',
+  lupa: '<svg width="12" height="12" viewBox="0 0 13 13" aria-hidden="true"><circle cx="5.5" cy="5.5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="8.6" y1="8.6" x2="12" y2="12" stroke="currentColor" stroke-width="1.5"/></svg>',
+  lista:
+    '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" stroke-width="1.4"/><line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.4"/><line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.4"/></svg>',
+  fit: '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2.8h3.2M14 6V2.8h-3.2M2 10v3.2h3.2M14 10v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  select:
+    '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.4l8.2 6.1-3.6.5 2 4.1-1.7.8-2-4.2-2.9 2.3z" fill="currentColor"/></svg>',
+  hand: '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.2 8V4.3a1 1 0 0 1 2 0V7m0-.4a1 1 0 0 1 2 0V7.4m0-.6a1 1 0 0 1 2 0v1.4m0-.7a1 1 0 0 1 2 0v2.6c0 2.1-1.6 3.6-3.8 3.6h-.7c-2.1 0-3.5-1.3-3.5-3.4V8.6" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  ficha:
+    '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.6" y="2" width="10.8" height="12" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="4.6" r="1.2" fill="#b8452e"/><line x1="5.2" y1="8.4" x2="10.8" y2="8.4" stroke="currentColor" stroke-width="1.2"/><line x1="5.2" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.2"/></svg>',
+  nota: '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.6 2.6h10.8v7.2L9.8 13.4H2.6z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M13.4 9.8H9.8v3.6" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  texto:
+    '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.4 3.4h9.2M8 3.4v9.2M6.2 12.6h3.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  seta: '<svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12.6C5.4 6.6 8.6 4.4 13 3.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="3" cy="12.6" r="1.9" fill="currentColor"/><circle cx="13" cy="3.4" r="1.9" fill="currentColor"/></svg>',
+  duplicar:
+    '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="5" y="5" width="9" height="9" rx="1.5" fill="var(--s2)" stroke="currentColor" stroke-width="1.3"/></svg>',
+  lixo: '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5h10M6.5 5V3.5h3V5M5 5l.7 8h4.6L11 5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+};
+/* Ferramentas da dock, na ordem da tarefa: primeiro NAVEGAR, depois
+   COLOCAR NO QUADRO. O risco separa os dois grupos. */
+const QFERR = [
+  { id: "select", n: "Selecionar", k: "V" },
+  { id: "hand", n: "Mão", k: "H", sep: true },
+  { id: "ficha", n: "Ficha do arquivo", k: "F" },
+  { id: "nota", n: "Nota adesiva", k: "N" },
+  { id: "texto", n: "Texto", k: "T" },
+  { id: "seta", n: "Barbante", k: "A" },
+];
+const QDICAS = {
+  select: "Clique para selecionar · arraste para mover · Shift soma à seleção",
+  hand: "Arraste para navegar · a barra de espaço faz o mesmo em qualquer ferramenta",
+  ficha:
+    "Escolha uma ficha, sala ou personagem do arquivo para espetar no quadro",
+  nota: "Clique no quadro para colar uma nota",
+  texto: "Clique no quadro para escrever · use @ para citar uma ficha",
+  seta: "Arraste do alfinete de um cartão até o alfinete do outro",
+};
+/* No dedo o verbo muda e o que depende de teclado sai (não há Shift nem
+   barra de espaço). Só as ferramentas cuja frase muda entram aqui; as
+   outras seguem valendo a versão de cima. */
+const QDICAS_TOQUE = {
+  select: "Toque para selecionar · arraste para mover",
+  hand: "Arraste para navegar pelo quadro",
+  nota: "Toque no quadro para colar uma nota",
+  texto: "Toque no quadro para escrever · use @ para citar uma ficha",
+  seta: "Arraste do alfinete de um cartão até o alfinete do outro",
+};
+const QNOMES_FERR = {
+  select: "Selecionar",
+  hand: "Mão",
+  ficha: "Ficha do arquivo",
+  nota: "Nota adesiva",
+  texto: "Texto",
+  seta: "Barbante",
+};
+/* Quadros abertos há pouco, do mais recente para o mais antigo. Estado
+   TRANSIENTE (não vai para o DADOS): serve só para a troca em 1 clique. */
+let _qRecentes = [];
+function qRecentes() {
+  return _qRecentes
+    .filter(
+      (i, k) =>
+        i !== _qIdx && i < DADOS.quadros.length && _qRecentes.indexOf(i) === k,
+    )
+    .slice(0, 3)
+    .map((i) => ({ i: i, nome: DADOS.quadros[i].nome }));
+}
 function renderTeorias() {
   const box = document.getElementById("teorias");
   if (!box) return;
@@ -6752,45 +6893,187 @@ function renderTeorias() {
       { nome: "Quadro 1", cam: { x: 40, y: 40, s: 1 }, nodes: [], setas: [] },
     ];
   if (_qIdx >= DADOS.quadros.length) _qIdx = 0;
-  const tabs = DADOS.quadros
-    .map(
-      (q, i) =>
-        `<button class="qtab${i === _qIdx ? " active" : ""}"${i === _qIdx ? ' aria-current="true"' : ""} ondblclick="renomearQuadro(${i})" onclick="trocarQuadro(${i})" title="Clique para abrir · 2 cliques para renomear">${esc(q.nome)}</button>`,
-    )
-    .join("");
+  const q = quadroAtual();
+  const nIt = (q.nodes || []).length,
+    nBa = (q.setas || []).length;
+  const rec = qRecentes();
+  const dock = `<div class="qdock" role="toolbar" aria-label="Ferramentas do quadro">${QFERR.map(
+    (f) =>
+      `<button class="qdockbtn" data-tool="${f.id}" onclick="qSetTool('${f.id}')" aria-label="${esc(f.n)}" title="${esc(f.n)} (${f.k}) — ${esc(QDICAS[f.id])}">${QICO[f.id]}<span class="k">${f.k}</span></button>` +
+      (f.sep ? '<span class="qdock-sep"></span>' : ""),
+  ).join("")}</div>`;
   box.innerHTML = `<div class="qbar">
-    <div class="qtitulo">Quadros</div>
-    <div class="qtabs">${tabs}<button class="qtab qadd" onclick="novoQuadro()" title="Novo quadro">＋</button></div>
-    <button class="qsel" onclick="qEscolherQuadro()" aria-haspopup="dialog" aria-label="Escolher quadro">${esc(quadroAtual().nome)}<span class="qsel-c">▾</span></button>
-    <div class="qtools">
-      <span class="qtoolbar" title="Ferramentas"><button class="qtoolbtn" data-tool="select" onclick="qSetTool('select')" title="Selecionar (V)">⬉</button><button class="qtoolbtn" data-tool="hand" onclick="qSetTool('hand')" title="Mão — navegar (H)">✋</button><button class="qtoolbtn qt-t" data-tool="texto" onclick="qSetTool('texto')" title="Texto — clique no quadro para criar (T)">T</button><button class="qtoolbtn" data-tool="nota" onclick="qSetTool('nota')" title="Nota adesiva — clique no quadro para criar (N)">🗒</button><button class="qtoolbtn" data-tool="seta" onclick="qSetTool('seta')" title="Barbante — arraste de um cartão a outro (A)">↗</button></span>
-      <button class="topbtn qfich" onclick="qAddItem()">＋ Ficha do arquivo</button>
-      <button class="topbtn ic" onclick="document.getElementById('qmore').classList.toggle('open')" title="Mais ações">···</button>
-      <div class="moremenu qmore" id="qmore">
-        <button class="mmit" onclick="qAddTexto();document.getElementById('qmore').classList.remove('open')">Texto</button>
-        <button class="mmit" onclick="qAddNota();document.getElementById('qmore').classList.remove('open')">Nota adesiva</button>
-        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');qLista()">Lista de itens…</button>
-        <button class="mmit" onclick="document.getElementById('qmore').classList.remove('open');renomearQuadro(_qIdx)">Renomear quadro…</button>
-        <div class="mm-sep"></div>
-        <button class="mmit del" onclick="document.getElementById('qmore').classList.remove('open');excluirQuadro()">Excluir quadro…</button>
-      </div>
-    </div>
+    <button class="qchip" onclick="qPop()" aria-haspopup="dialog" aria-expanded="false" title="Trocar de quadro, renomear ou criar">
+      <span class="qchip-ic">${QICO.quadro}</span>
+      <span class="qchip-t">
+        <span class="qchip-n">${esc(q.nome)}</span>
+        <span class="qchip-m">${nIt} ${nIt === 1 ? "item" : "itens"} · ${nBa} ${nBa === 1 ? "barbante" : "barbantes"}</span>
+      </span>
+      <span class="qchip-c">▾</span>
+    </button>
+    ${
+      rec.length
+        ? `<div class="qrecentes"><span class="rot">RECENTES</span>${rec
+            .map(
+              (r) =>
+                `<button class="qrec" onclick="trocarQuadro(${r.i})" title="Abrir este quadro">${esc(r.nome)}</button>`,
+            )
+            .join("")}</div>`
+        : ""
+    }
+    <div class="topgrow"></div>
+    <div class="qbusca" onclick="qBuscaAbrir()">${QICO.lupa}<input id="qBusca" type="search" placeholder="Buscar neste quadro…" aria-label="Buscar itens deste quadro" oninput="qBuscaInput(this.value)" onblur="qBuscaFechar()"></div>
+    <button class="topbtn qlista" onclick="qLista()" aria-label="Lista de itens" title="Ver o quadro como lista — alcança todo item sem arrastar">${QICO.lista}<span class="rotulo">Lista de itens</span></button>
+    ${qPopHTML()}
   </div>
   <div class="qcanvas" id="qcanvas"><div class="qworld" id="qworld"><svg class="qsvg" id="qsvg"></svg><div class="qnodes" id="qnodes"></div></div>
   ${
-    !(quadroAtual().nodes || []).length
+    !nIt
       ? `<div class="qvazio"><div class="qv-ic">🧵</div><div class="qv-tit">Quadro vazio</div><div class="qv-tx">${ehToque() ? "Toque em ＋ para adicionar uma ficha, nota ou texto e começar a teoria." : "Arraste fichas do arquivo ou crie uma nota para começar a teoria."}</div><div class="qv-btns"><button class="topbtn primary" onclick="qAddItem()">＋ Ficha do arquivo</button><button class="topbtn" onclick="qAddNota()">Nota</button></div></div>`
       : ""
   }
-  <div class="qhint">V selecionar · H mão · T texto · N nota · A barbante · Del apaga · Ctrl+D duplica</div></div>`;
+  ${dock}
+  <div class="qhint" id="qhint" aria-live="polite"><span class="ferr"></span><span class="risco"></span><span class="tx"></span><button class="abrir" onclick="qAtalhos()" title="Todos os atalhos do quadro">Atalhos <span class="kbd">?</span></button></div>
+  ${qAtalhosHTML()}
+  <div class="qzoom">
+    <button class="pm menos" onclick="qZoomPasso(1/1.2)" title="Diminuir o zoom" aria-label="Diminuir o zoom">−</button>
+    <button class="v" id="qzoomv" onclick="qZoom100()" title="Voltar a 100% (Shift+0)">100%</button>
+    <button class="pm mais" onclick="qZoomPasso(1.2)" title="Aumentar o zoom" aria-label="Aumentar o zoom">+</button>
+    <span class="sep"></span>
+    <button class="fit" onclick="qFitCamera()" aria-label="Ajustar tudo à tela" title="Ajustar tudo à tela (Shift+1)">${QICO.fit}<span class="rotulo">Ajustar</span></button>
+  </div></div>`;
   wireQuadro();
   desenhaQuadro();
   qSetTool(_qTool); // restaura a ferramenta ativa (a barra é recriada a cada render)
 }
 function trocarQuadro(i) {
+  if (i !== _qIdx) _qRecentes.unshift(_qIdx);
+  _qRecentes = _qRecentes.slice(0, 8);
   _qIdx = i;
   _qSelSet = new Set();
   renderTeorias();
+}
+/* ---- Popover de quadros: era a fileira de abas + o menu ··· ---- */
+function qPopItensHTML(filtro) {
+  const f = (filtro || "").trim().toLowerCase();
+  const itens = DADOS.quadros
+    .map((q, i) => ({ q: q, i: i }))
+    .filter((o) => !f || o.q.nome.toLowerCase().includes(f))
+    .map(function (o) {
+      const n = (o.q.nodes || []).length,
+        ab = o.i === _qIdx;
+      return `<button class="qpop-it" onclick="trocarQuadro(${o.i});qPop(false)">
+        ${ab ? '<span class="marca"></span>' : ""}
+        <span class="txt"><span class="nome">${esc(o.q.nome)}</span>
+          <span class="det">${ab ? "aberto · " : ""}${n} ${n === 1 ? "item" : "itens"}</span>
+        </span>
+        ${ab ? '<span class="tag">ABERTO</span>' : ""}
+      </button>`;
+    })
+    .join("");
+  return itens || '<div class="qpop-vazio">Nenhum quadro com esse nome.</div>';
+}
+function qPopHTML() {
+  return `<div class="qpop" id="qpop" role="dialog" aria-label="Quadros">
+    <div class="qpop-busca"><div class="qbusca">${QICO.lupa}<input id="qpopf" placeholder="Filtrar ${DADOS.quadros.length} ${DADOS.quadros.length === 1 ? "quadro" : "quadros"}…" aria-label="Filtrar quadros" oninput="qPopFiltrar(this.value)"></div></div>
+    <div class="qpop-lista">${qPopItensHTML()}</div>
+    <div class="qpop-pe">
+      <button class="mmit novo" onclick="novoQuadro()">＋ Novo quadro</button>
+      <div class="topgrow"></div>
+      <button class="mmit" onclick="renomearQuadro(_qIdx)" title="Renomear o quadro aberto">Renomear</button>
+      <button class="mmit" onclick="qDuplicarQuadro()" title="Duplicar o quadro aberto">Duplicar</button>
+      <button class="mmit del" onclick="excluirQuadro()" title="Excluir o quadro aberto">Excluir</button>
+    </div>
+  </div>`;
+}
+function qPop(abrir) {
+  // No toque o chip continua chamando o sheet de ações (alvo de 44px e
+  // rolagem nativa); o popover é do mouse/teclado.
+  if (ehToque()) {
+    qEscolherQuadro();
+    return;
+  }
+  const el = document.getElementById("qpop");
+  if (!el) return;
+  const on = abrir === undefined ? !el.classList.contains("open") : !!abrir;
+  const chip = document.querySelector(".qchip");
+  if (chip) chip.setAttribute("aria-expanded", on ? "true" : "false");
+  if (on) {
+    el.classList.add("open");
+    // `fechar` também vale para o Esc, que fecha pela pilha de overlays.
+    overlayAbrir(el, {
+      id: "qpop",
+      jaAberto: true,
+      focoEm: "#qpopf",
+      fechar: qPopFechado,
+    });
+  } else {
+    overlayFechar("qpop");
+    qPopFechado();
+  }
+}
+function qPopFechado() {
+  const el = document.getElementById("qpop");
+  if (el) el.classList.remove("open");
+  const chip = document.querySelector(".qchip");
+  if (chip) chip.setAttribute("aria-expanded", "false");
+}
+/* Filtrar só troca a LISTA: o #qpop continua o mesmo elemento, então nem a
+   pilha de overlays nem o foco do campo são mexidos a cada tecla. */
+function qPopFiltrar(v) {
+  const lista = document.querySelector("#qpop .qpop-lista");
+  if (lista) lista.innerHTML = qPopItensHTML(v);
+}
+// Cópia profunda do quadro aberto (ids de nó e de barbante só precisam ser
+// únicos DENTRO do quadro, então a cópia crua já serve).
+function qDuplicarQuadro() {
+  const q = quadroAtual();
+  if (!q) return;
+  const copia = JSON.parse(JSON.stringify(q));
+  copia.nome = q.nome + " (cópia)";
+  DADOS.quadros.splice(_qIdx + 1, 0, copia);
+  _qRecentes = [];
+  marcarAlterado();
+  trocarQuadro(_qIdx + 1);
+}
+/* Busca do quadro: destaca quem casa e apaga o brilho dos outros. Mesma
+   regra de nome do qLista — ler e filtrar contam a mesma história. */
+function qNomeDoNo(n) {
+  if (n.tipo === "texto")
+    return (
+      (n.texto || "").replace(/<[^>]*>/g, "").slice(0, 80) ||
+      (n.estilo === "nota" ? "nota" : "texto")
+    );
+  return qRefInfo(n).nome;
+}
+/* No tablet a busca vive encolhida como um botão-lupa de 44px: tocar nela
+   abre o campo por cima da barra, e ele se recolhe ao sair vazio. No
+   desktop o campo já está aberto e estas duas funções não fazem nada
+   visível (a classe não muda nada acima de 1100px). */
+function qBuscaAbrir() {
+  const el = document.querySelector(".qbusca");
+  if (!el) return;
+  el.classList.add("aberta");
+  const inp = document.getElementById("qBusca");
+  if (inp) inp.focus();
+}
+function qBuscaFechar() {
+  const el = document.querySelector(".qbusca"),
+    inp = document.getElementById("qBusca");
+  // Com texto digitado ela fica aberta: recolher esconderia o filtro ativo.
+  if (el && inp && !inp.value.trim()) el.classList.remove("aberta");
+}
+function qBuscaInput(v) {
+  const q = quadroAtual();
+  if (!q) return;
+  const f = (v || "").trim().toLowerCase();
+  q.nodes.forEach(function (n) {
+    const el = nodeEl(n.id);
+    if (!el) return;
+    const casa = !f || qNomeDoNo(n).toLowerCase().includes(f);
+    el.classList.toggle("qbusca-off", !!f && !casa);
+    el.classList.toggle("qbusca-hit", !!f && casa);
+  });
 }
 /* Seletor de quadro do celular: a lista substitui as abas (P04) */
 function qEscolherQuadro() {
@@ -6820,9 +7103,8 @@ function novoQuadro() {
     nodes: [],
     setas: [],
   });
-  _qIdx = DADOS.quadros.length - 1;
   marcarAlterado();
-  renderTeorias();
+  trocarQuadro(DADOS.quadros.length - 1);
 }
 function renomearQuadro(i) {
   const nv = prompt("Nome do quadro:", DADOS.quadros[i].nome);
@@ -6840,6 +7122,7 @@ function excluirQuadro() {
   if (!confirm('Excluir o quadro "' + quadroAtual().nome + '"?')) return;
   DADOS.quadros.splice(_qIdx, 1);
   _qIdx = 0;
+  _qRecentes = []; // os índices andaram: a lista de recentes apontaria errado
   marcarAlterado();
   renderTeorias();
 }
@@ -6866,8 +7149,18 @@ function qRefInfo(n) {
     img: e ? e.imagem : "",
   };
 }
+/* A dica do alfinete só nasce enquanto o quadro NÃO tem barbante e há para
+   onde amarrar (2+ cartões) — e some para sempre no primeiro barbante. */
+function qDicaAlfinete() {
+  const q = quadroAtual();
+  if (!q || (q.setas || []).length) return null;
+  return (q.nodes || []).length >= 2 ? q.nodes[0] : null;
+}
 function nodeHTML(n) {
   const sel = _qSelSet.has(n.id) ? " sel" : "";
+  const alvoDica = qDicaAlfinete();
+  const pinCls =
+    "qpin" + (alvoDica && alvoDica.id === n.id ? " qpin-dica" : "");
   if (n.tipo === "texto") {
     // "estilo: nota" é ADITIVO: ausente = caixa de texto normal (dados antigos).
     // A cor é um ÍNDICE numa paleta fixa (nunca CSS vindo dos dados).
@@ -6875,12 +7168,12 @@ function nodeHTML(n) {
     const corBg = nota
       ? `;background:${QCORES_NOTA[(n.cor | 0) % QCORES_NOTA.length]}`
       : "";
-    const btnCor = nota
-      ? `<button class="qcor" onclick="qCorNota('${n.id}')" title="Mudar a cor" aria-label="Mudar a cor da nota">🎨</button>`
-      : "";
     // Texto e nota também são espetados no quadro: mesmo alfinete da ficha,
     // e é dele que se puxa o barbante (a bolinha ● antiga saiu de cena).
-    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div><button class="qdel" onclick="qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button>${btnCor}</div>`;
+    // Excluir e trocar a cor moram na barra da seleção — o ✕ e o 🎨 que
+    // apareciam no hover saíram do papel (ver .qacoes).
+    // 2 cliques entram na escrita; 1 clique só marca o cartão.
+    return `<div class="qnode qtexto${nota ? " qnota" : ""}${sel}" data-id="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w || 250}px${corBg}" ondblclick="qFocarTexto('${n.id}')"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qhandle" data-drag="${n.id}">≡ ${nota ? "nota" : "texto"}</div><div class="qtxt menteditor" contenteditable="true" data-qid="${n.id}" data-ph="Escreva... use @ para citar" oninput="teoEditorInput(this)">${n.texto || ""}</div></div>`;
   }
   const info = qRefInfo(n);
   const thumb = info.img
@@ -6893,7 +7186,7 @@ function nodeHTML(n) {
   // mesmo molde do card da grade: f1 → F-001.
   const cod =
     n.kind === "pista" ? `<span class="qcod">${esc(idVisual(n.ref))}</span>` : "";
-  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="qpin" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}<button class="qdel" onclick="event.stopPropagation();qDelNode('${n.id}')" aria-label="Excluir do quadro">✕</button></div>`;
+  return `<div class="qnode qref${sel}" data-id="${n.id}" data-drag="${n.id}" style="left:${n.x}px;top:${n.y}px" ondblclick="qOpenRef('${n.id}')"><span class="${pinCls}" data-conn="${n.id}" title="Arraste o alfinete para ligar um barbante"></span><div class="qreftit">${cod}<span class="qname">${esc(info.nome)}</span></div>${thumb}</div>`;
 }
 function desenhaQuadro() {
   const q = quadroAtual();
@@ -6904,13 +7197,51 @@ function desenhaQuadro() {
   aplicaCam();
   const nd = document.getElementById("qnodes");
   if (nd) nd.innerHTML = q.nodes.map(nodeHTML).join("");
-  desenhaSetas();
+  desenhaSetas(); // ela termina chamando o qCoach (o SVG é reescrito lá)
+  markSelDom(); // a barra de ações nasce aqui (o innerHTML acima a levou)
+  const b = document.getElementById("qBusca");
+  if (b && b.value) qBuscaInput(b.value);
+}
+/* Contagem do chip: quem edita o quadro chama desenhaQuadro, não
+   renderTeorias — sem isto o "12 itens" continuaria dizendo 11. */
+function qChipMeta() {
+  const q = quadroAtual(),
+    el = document.querySelector(".qchip-m");
+  if (!q || !el) return;
+  const nIt = (q.nodes || []).length,
+    nBa = (q.setas || []).length;
+  el.textContent = `${nIt} ${nIt === 1 ? "item" : "itens"} · ${nBa} ${nBa === 1 ? "barbante" : "barbantes"}`;
+}
+/* Anotação de primeira vez: texto datilografado + risco pontilhado até o
+   alfinete. Vive no .qworld, então anda e escala junto com a câmera. */
+function qCoach() {
+  const nd = document.getElementById("qnodes"),
+    svg = document.getElementById("qsvg");
+  if (!nd || !svg) return;
+  const velho = nd.querySelector(".qcoach");
+  if (velho) velho.remove(); // o SVG é reescrito inteiro; o texto, não
+  const alvo = qDicaAlfinete();
+  if (!alvo) return;
+  // Mesmo cálculo que o barbante usa para nascer no alfinete (qNodeRect).
+  const p = qAlfineteCentro(alvo, qNodeRect(alvo));
+  if (!p) return;
+  svg.insertAdjacentHTML(
+    "beforeend",
+    `<path d="M${p.x + 18} ${p.y - 14} Q${p.x + 65} ${p.y - 36} ${p.x + 115} ${p.y - 36}" fill="none" stroke="#d8c9ae" stroke-width="1" stroke-opacity=".45" stroke-dasharray="3 3" style="pointer-events:none"/>`,
+  );
+  nd.insertAdjacentHTML(
+    "beforeend",
+    `<div class="qcoach" style="left:${p.x + 123}px;top:${p.y - 50}px">Puxe o alfinete para amarrar um barbante em outro cartão</div>`,
+  );
 }
 function aplicaCam() {
   const q = quadroAtual();
   const w = document.getElementById("qworld");
   if (w && q)
     w.style.transform = `translate(${q.cam.x}px,${q.cam.y}px) scale(${q.cam.s})`;
+  // A etiqueta de zoom nunca mente: quem atualiza é o dono da câmera.
+  const v = document.getElementById("qzoomv");
+  if (v && q) v.textContent = Math.round(q.cam.s * 100) + "%";
   // O fundo do quadro é um degradê liso e parado — nada a mover aqui.
 }
 function nodeEl(id) {
@@ -6920,29 +7251,101 @@ function nodeEl(id) {
       '"]',
   );
 }
+/* Marca a seleção e, com EXATAMENTE um item marcado, pendura nele a barra
+   de ações. Ela nasce dentro do .qnode, então acompanha o cartão ao
+   arrastar e ao dar zoom sem nenhuma conta extra. */
 function markSelDom() {
   const q = quadroAtual();
   if (!q) return;
+  const um = _qSelSet.size === 1 && !_qSetaSel.size;
   q.nodes.forEach(function (n) {
     const el = nodeEl(n.id);
-    if (el) el.classList.toggle("sel", _qSelSet.has(n.id));
+    if (!el) return;
+    const sel = _qSelSet.has(n.id);
+    el.classList.toggle("sel", sel);
+    const barra = el.querySelector(".qacoes");
+    if (sel && um && !barra) el.insertAdjacentHTML("afterbegin", qAcoesHTML(n));
+    if ((!sel || !um) && barra) barra.remove();
+    if (sel && um) qAcoesLado(el);
   });
 }
-function qNodesInRect(cv, q, m) {
-  // m está em pixels de TELA: leva o centro do cartão (pixels de CSS) para a
-  // mesma régua multiplicando pelo zoom da interface.
-  const r = cv.getBoundingClientRect(),
-    z = zoomIF();
+/* A barra nasce ACIMA do cartão. Se o cartão estiver colado no topo do
+   quadro, ela sairia da tela — aí vira para baixo. Roda a cada
+   markSelDom, então acompanha o cartão enquanto ele é arrastado. */
+function qAcoesLado(el) {
+  const barra = el.querySelector(".qacoes"),
+    cv = document.getElementById("qcanvas");
+  if (!barra || !cv) return;
+  const rn = el.getBoundingClientRect(),
+    rc = cv.getBoundingClientRect();
+  barra.classList.toggle("abaixo", rn.top - rc.top < 60);
+}
+function qAcoesHTML(n) {
+  const nota = n.tipo === "texto" && n.estilo === "nota";
+  const cor = nota
+    ? `<button onclick="qCorNota('${n.id}')" title="Mudar a cor da nota" aria-label="Mudar a cor da nota"><span class="amostra"></span></button>`
+    : "";
+  const texto =
+    n.tipo === "texto"
+      ? `<button onclick="qFocarTexto('${n.id}')" title="Escrever no cartão" aria-label="Escrever no cartão">Aa</button>`
+      : "";
+  return `<div class="qacoes" onmousedown="event.stopPropagation()">${cor}${texto}<button onclick="qDuplicarSelecao()" title="Duplicar (Ctrl+D)" aria-label="Duplicar">${QICO.duplicar}</button><span class="sep"></span><button class="del" onclick="qDelNode('${n.id}')" title="Excluir (Del)" aria-label="Excluir">${QICO.lixo}</button></div>`;
+}
+function qFocarTexto(id) {
+  const el = nodeEl(id);
+  const ed = el && el.querySelector(".qtxt");
+  if (ed) ed.focus();
+}
+/* Tira o foco do editor de um cartão quando o clique cai FORA dele.
+   Devolve true se soltou. Clicar dentro do próprio editor não mexe em
+   nada — é assim que se posiciona o cursor no texto. */
+function qSoltarEditor(alvo) {
+  const ed = document.activeElement;
+  if (!ed || !ed.classList || !ed.classList.contains("qtxt")) return false;
+  if (alvo && ed.contains(alvo)) return false;
+  ed.blur();
+  return true;
+}
+/* Barra do barbante: mora no nó do meio da curva, onde o clique já
+   seleciona a seta. Vive no .qworld para andar junto com a câmera. */
+function qAcoesSeta() {
+  const nd = document.getElementById("qnodes");
+  if (!nd) return;
+  const velha = nd.querySelector(".qacoes-seta");
+  if (velha) velha.remove();
+  const q = quadroAtual();
+  if (!q || _qSetaSel.size !== 1 || _qSelSet.size) return;
+  const i = [..._qSetaSel][0],
+    se = q.setas[i];
+  if (!se) return;
+  const pp = qSetaPontos(q, se);
+  if (!pp) return;
+  const m = qPontoNaCurva(pp.p1, qCurvaCtrl(pp.p1, pp.p2), pp.p2, 0.5);
+  nd.insertAdjacentHTML(
+    "beforeend",
+    `<div class="qacoes qacoes-seta" style="position:absolute;left:${m.x}px;top:${m.y}px" onmousedown="event.stopPropagation()"><button onclick="qRotuloSeta(${i})" title="Rótulo do barbante" aria-label="Rótulo do barbante">Aa</button><span class="sep"></span><button class="del" onclick="qDelSeta(${i})" title="Excluir (Del)" aria-label="Excluir o barbante">${QICO.lixo}</button></div>`,
+  );
+}
+/* Quem o laço pega: basta ENCOSTAR. Antes exigia que o CENTRO do cartão
+   caísse dentro do retângulo, o que obrigava a cobrir quase o cartão
+   inteiro — e, pior, marcava cartão nenhum sobre o qual o laço passava
+   de raspão enquanto marcava outro que o laço mal tocava.
+   A medida sai do próprio elemento (getBoundingClientRect), que já vem
+   em pixels de tela com câmera e zoom da interface aplicados — sem
+   refazer a conta à mão, que era de onde vinha o desencontro. */
+function qNodesInRect(q, m) {
   const x0 = Math.min(m.x0, m.x1),
     x1 = Math.max(m.x0, m.x1),
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
   q.nodes.forEach(function (n) {
-    const c = nodeCenter(n);
-    const cx = r.left + (c.x * q.cam.s + q.cam.x) * z,
-      cy = r.top + (c.y * q.cam.s + q.cam.y) * z;
-    if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) s.add(n.id);
+    const el = nodeEl(n.id);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // Retângulos que se cruzam (em qualquer pedaço) = selecionado.
+    if (r.right >= x0 && r.left <= x1 && r.bottom >= y0 && r.top <= y1)
+      s.add(n.id);
   });
   return s;
 }
@@ -7032,6 +7435,9 @@ function desenhaSetas() {
     }
   }
   svg.innerHTML = s + sNo + sAlca;
+  qCoach(); // a anotação da primeira vez é redesenhada junto com o SVG
+  qAcoesSeta(); // barra de ação do barbante selecionado
+  qChipMeta(); // a contagem do chip não pode envelhecer no meio da edição
 }
 // Pega invisível do nó de amarra: arrastar escorrega o nó pela hospedeira.
 function qNoPega(i, end, p) {
@@ -7104,16 +7510,119 @@ function qZoom100() {
 let _qTool = "select"; // select | hand | texto | nota | seta
 const QCORES_NOTA = ["#f5d76e", "#ffb8dd", "#8ff0b4", "#9cc9ff", "#ffc09f"];
 function qSetTool(t) {
+  // "ficha" não é um modo: abre o seletor do arquivo e devolve a seleção.
+  if (t === "ficha") {
+    qAddItem();
+    qSetTool("select");
+    return;
+  }
   _qTool = t;
   _qArrow = null;
   _qArrowCur = null;
   const cv = document.getElementById("qcanvas");
-  if (cv)
+  if (cv) {
+    // O CSS lê isto para acender todos os alfinetes na ferramenta Barbante.
+    cv.dataset.qtool = t;
     cv.style.cursor =
       t === "hand" ? "grab" : t === "select" ? "default" : "crosshair";
-  document.querySelectorAll(".qtoolbtn").forEach(function (b) {
+  }
+  document.querySelectorAll(".qdockbtn").forEach(function (b) {
     b.classList.toggle("active", b.getAttribute("data-tool") === t);
   });
+  qDica(t);
+}
+/* Dica do rodapé: mostra a ferramenta ativa e o que fazer com ela. É uma
+   região viva (aria-live) — a troca é anunciada sem roubar o foco. */
+function qDica(t) {
+  const el = document.getElementById("qhint");
+  if (!el || !QDICAS[t]) return;
+  el.querySelector(".ferr").textContent = QNOMES_FERR[t];
+  const frase = (ehToque() && QDICAS_TOQUE[t]) || QDICAS[t];
+  const tx = el.querySelector(".tx");
+  tx.textContent = frase;
+  tx.title = frase; // em tela estreita o texto corta: o title devolve
+}
+const QATALHOS = [
+  {
+    titulo: "FERRAMENTAS",
+    itens: [
+      { k: "V", d: "Selecionar" },
+      { k: "H", d: "Mão" },
+      { k: "F", d: "Ficha do arquivo" },
+      { k: "N", d: "Nota" },
+      { k: "T", d: "Texto" },
+      { k: "A", d: "Barbante" },
+      { k: "Esc", d: "Volta para selecionar" },
+    ],
+  },
+  {
+    titulo: "NAVEGAR",
+    itens: [
+      { k: "Espaço", d: "Arraste para mover o quadro" },
+      { k: "Scroll", d: "Move · com Ctrl dá zoom" },
+      { k: "Shift 1", d: "Ajustar tudo à tela" },
+      { k: "Shift 0", d: "Voltar a 100%" },
+    ],
+  },
+  {
+    titulo: "EDITAR",
+    itens: [
+      { k: "Del", d: "Apaga a seleção" },
+      { k: "Ctrl D", d: "Duplica a seleção" },
+      { k: "Ctrl Z", d: "Desfaz" },
+      { k: "Shift", d: "Soma à seleção" },
+    ],
+  },
+  {
+    titulo: "BARBANTE",
+    itens: [
+      { k: "Arraste", d: "Do alfinete até outro cartão" },
+      { k: "2 cliques", d: "Escreve o rótulo da ligação" },
+      { k: "Arraste", d: "Na ponta, religa em outro cartão" },
+      { k: "Del", d: "Apaga o barbante marcado" },
+    ],
+  },
+];
+function qAtalhosHTML() {
+  return `<div class="qatalhos" id="qatalhos" role="dialog" aria-label="Atalhos do quadro">
+    <div class="hd"><div class="tit">Atalhos do quadro</div><div class="topgrow"></div><button class="qfechar" onclick="qAtalhos(false)" aria-label="Fechar">✕</button></div>
+    <div class="cols">${QATALHOS.map(
+      (g) =>
+        `<div class="gr"><div class="gt">${g.titulo}</div>${g.itens
+          .map(
+            (a) =>
+              `<div class="li"><span class="k">${a.k}</span><span class="d">${a.d}</span></div>`,
+          )
+          .join("")}</div>`,
+    ).join("")}</div>
+  </div>`;
+}
+function qAtalhos(abrir) {
+  const el = document.getElementById("qatalhos");
+  if (!el) return;
+  const on = abrir === undefined ? !el.classList.contains("open") : !!abrir;
+  if (on) {
+    el.classList.add("open");
+    overlayAbrir(el, { id: "qatalhos", jaAberto: true }); // Esc fecha por aqui
+  } else {
+    el.classList.remove("open");
+    overlayFechar("qatalhos");
+  }
+}
+// Passo de zoom ancorado no CENTRO da tela — a mesma conta do qZoom100.
+function qZoomPasso(f) {
+  const q = quadroAtual(),
+    cv = document.getElementById("qcanvas");
+  if (!q || !cv) return;
+  const W = cv.clientWidth || 700,
+    H = cv.clientHeight || 450;
+  const cx = (W / 2 - q.cam.x) / q.cam.s,
+    cy = (H / 2 - q.cam.y) / q.cam.s;
+  q.cam.s = Math.max(QUADRO_ZOOM_MIN, Math.min(QUADRO_ZOOM_MAX, q.cam.s * f));
+  q.cam.x = W / 2 - cx * q.cam.s;
+  q.cam.y = H / 2 - cy * q.cam.s;
+  aplicaCam();
+  qAgendaSalvarCam();
 }
 // Cria caixa de texto (ou nota adesiva) num ponto do mundo e foca o editor.
 function qNovoTextoEm(x, y, estilo) {
@@ -7509,14 +8018,30 @@ function qSetasInRect(cv, q, m) {
     y0 = Math.min(m.y0, m.y1),
     y1 = Math.max(m.y0, m.y1);
   const s = new Set();
+  /* O barbante é DESENHADO em curva (qCurvaD), mas era medido pela reta
+     entre as pontas: onde a curva faz barriga, o laço pegava o que não
+     encostava e deixava passar o que encostava. Agora a curva é picada em
+     pedacinhos e cada pedaço é testado — o que se mede é o que se vê. */
+  const PASSOS = 12;
   q.setas.forEach(function (se, i) {
     const pp = qSetaPontos(q, se);
     if (!pp) return;
-    const ax = r.left + (pp.p1.x * q.cam.s + q.cam.x) * z,
-      ay = r.top + (pp.p1.y * q.cam.s + q.cam.y) * z,
-      bx = r.left + (pp.p2.x * q.cam.s + q.cam.x) * z,
-      by = r.top + (pp.p2.y * q.cam.s + q.cam.y) * z;
-    if (qSegCruzaRect(ax, ay, bx, by, x0, y0, x1, y1)) s.add(i);
+    const ctrl = qCurvaCtrl(pp.p1, pp.p2);
+    const tela = function (p) {
+      return {
+        x: r.left + (p.x * q.cam.s + q.cam.x) * z,
+        y: r.top + (p.y * q.cam.s + q.cam.y) * z,
+      };
+    };
+    let ant = tela(pp.p1);
+    for (let k = 1; k <= PASSOS; k++) {
+      const at = tela(qPontoNaCurva(pp.p1, ctrl, pp.p2, k / PASSOS));
+      if (qSegCruzaRect(ant.x, ant.y, at.x, at.y, x0, y0, x1, y1)) {
+        s.add(i);
+        return;
+      }
+      ant = at;
+    }
   });
   return s;
 }
@@ -7742,6 +8267,19 @@ function wireQuadro() {
   };
   cv.addEventListener("mousedown", function (e) {
     const q = quadroAtual();
+    /* Sair do editor ao clicar fora dele. Os arrastes deste canvas chamam
+       preventDefault, e isso IMPEDE o navegador de tirar o foco sozinho:
+       o cursor ficava preso na nota e as teclas de ferramenta (V/H/F/N/T/A)
+       viravam texto em vez de trocar de ferramenta. */
+    qSoltarEditor(e.target);
+    /* As peças flutuantes (dock, dica, zoom, atalhos, barra de ações e o
+       cartão de quadro vazio) ficam DENTRO do canvas: apertar nelas não
+       pode virar laço de seleção nem arraste de cartão. */
+    if (
+      e.target.closest &&
+      e.target.closest(".qdock,.qhint,.qzoom,.qatalhos,.qacoes,.qvazio")
+    )
+      return;
     const conn = e.target.closest && e.target.closest("[data-conn]");
     if (conn && e.button === 0) {
       _qArrow = { de: conn.getAttribute("data-conn") };
@@ -7831,19 +8369,35 @@ function wireQuadro() {
         return;
       }
     }
-    if (
-      e.target.tagName === "TEXTAREA" ||
-      e.target.isContentEditable ||
-      (e.target.closest && e.target.closest(".qtxt"))
-    )
-      return;
+    if (e.target.tagName === "TEXTAREA") return;
+    /* Nota e texto: 1 clique SELECIONA o cartão (como qualquer outro), 2
+       cliques entram na escrita. Antes o clique caía direto no editor —
+       a nota nunca ficava selecionada, e por isso Del, Ctrl+D e o Shift
+       não pegavam nela. Já EDITANDO, o clique é do editor (posicionar o
+       cursor no texto), então este caminho sai de cena. */
+    const edAlvo = e.target.closest && e.target.closest(".qtxt");
+    if (edAlvo && document.activeElement === edAlvo) return;
     const dg = e.target.closest && e.target.closest("[data-drag]");
-    if (dg) {
-      const id = dg.getAttribute("data-drag");
-      if (!_qSelSet.has(id)) {
+    // O corpo da nota/texto não tem data-drag (só a alcinha ≡): aqui o
+    // cartão inteiro vale como pega, igual à ficha.
+    const cartao = e.target.closest && e.target.closest(".qnode");
+    const idAlvo = dg
+      ? dg.getAttribute("data-drag")
+      : cartao
+        ? cartao.getAttribute("data-id")
+        : null;
+    if (idAlvo) {
+      const id = idAlvo;
+      if (e.shiftKey) {
+        // Shift soma (ou tira) da seleção, sem descartar o resto.
+        if (_qSelSet.has(id)) _qSelSet.delete(id);
+        else _qSelSet.add(id);
+        markSelDom();
+      } else if (!_qSelSet.has(id)) {
         _qSelSet = new Set([id]);
         markSelDom();
       }
+      if (edAlvo) e.preventDefault(); // não deixa o editor roubar o foco
       _qDrag = { ids: [..._qSelSet], sw: toW(rel(e)), orig: {}, moved: false };
       _qDrag.ids.forEach(function (i) {
         const nn = q.nodes.find((x) => x.id === i);
@@ -7852,10 +8406,19 @@ function wireQuadro() {
       e.preventDefault();
       return;
     }
-    _qMarq = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
-    _qSelSet = new Set();
-    // Clique no fundo também desmarca as setas selecionadas.
-    if (_qSetaSel.size) {
+    /* Laço de seleção. Com Shift ele SOMA ao que já estava marcado (a base
+       fica guardada no próprio laço); sem Shift, começa do zero. */
+    _qMarq = {
+      x0: e.clientX,
+      y0: e.clientY,
+      x1: e.clientX,
+      y1: e.clientY,
+      base: e.shiftKey ? new Set(_qSelSet) : new Set(),
+      baseSetas: e.shiftKey ? new Set(_qSetaSel) : new Set(),
+    };
+    _qSelSet = new Set(_qMarq.base);
+    // Clique no fundo (sem Shift) também desmarca as setas selecionadas.
+    if (_qSetaSel.size && !e.shiftKey) {
       _qSetaSel = new Set();
       desenhaSetas();
     }
@@ -7918,9 +8481,13 @@ function wireQuadro() {
       _qMarq.x1 = e.clientX;
       _qMarq.y1 = e.clientY;
       updateSelBox(_qMarq);
-      _qSelSet = qNodesInRect(cv, q, _qMarq);
+      // A base é o que já estava marcado quando o laço começou com Shift.
+      _qSelSet = new Set([..._qMarq.base, ...qNodesInRect(q, _qMarq)]);
       // O retângulo também seleciona as SETAS que ele alcança.
-      _qSetaSel = qSetasInRect(cv, q, _qMarq);
+      _qSetaSel = new Set([
+        ..._qMarq.baseSetas,
+        ...qSetasInRect(cv, q, _qMarq),
+      ]);
       markSelDom();
       desenhaSetas();
     }

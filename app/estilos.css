@@ -137,8 +137,6 @@
     button.fio-x,
     button.pcard-m,
     button.dosx,
-    button.qdel,
-    button.qcor,
     button.mtog,
     button.t-abrir,
     button.t-x,
@@ -2339,77 +2337,20 @@ select:focus {
   height: 100%;
   flex-direction: column;
 }
+/* Barra dos Quadros: UMA faixa de 54px (antes eram duas linhas, ~116px).
+   Ela é a âncora do popover de quadros, por isso `position: relative`. */
 .qbar {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
+  height: 54px;
+  flex: none;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: var(--s1);
-}
-.qtabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-.qtab {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  padding: 6px 13px;
-  border-radius: 8px 8px 0 0;
-  cursor: pointer;
-  font-size: 13px;
-}
-.qtab:hover {
-  color: var(--ink);
-}
-.qtab.active {
-  background: var(--s2);
-  color: var(--ink);
-  border-color: var(--line);
-  box-shadow: inset 0 2px 0 var(--gold);
-  font-weight: 600;
-}
-.qtab.qadd {
-  border-radius: 8px;
-  font-weight: 600;
-  padding: 6px 11px;
-  color: var(--gold);
-}
-.qtools {
-  display: flex;
-  gap: 8px;
+  flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
-}
-/* Barra de ferramentas dos Quadros (V/H/T/N/A) */
-.qtoolbar {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--field);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-.qtoolbtn {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1;
-  padding: 5px 8px;
-  border-radius: 7px;
-  cursor: pointer;
-}
-.qtoolbtn:hover {
-  background: var(--s2);
-}
-.qtoolbtn.active {
-  background: var(--s2);
-  border-color: var(--gold);
-  box-shadow: 0 0 0 1px var(--gold) inset;
+  gap: 14px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--s1);
+  position: relative;
+  z-index: 30;
 }
 /* Nota adesiva (post-it): fundo claro da paleta, texto escuro */
 .qnode.qnota {
@@ -2425,21 +2366,6 @@ select:focus {
 }
 .qnode.qnota .qtxt[contenteditable]:empty:before {
   color: rgba(28, 35, 48, 0.45);
-}
-.qnode.qnota .qdel {
-  color: #a02040;
-}
-.qcor {
-  position: absolute;
-  right: 22px;
-  top: 2px;
-  cursor: pointer;
-  font-size: 11px;
-  display: none;
-  z-index: 2;
-}
-.qnode:hover .qcor {
-  display: inline;
 }
 .qcanvas {
   flex: 1;
@@ -2575,19 +2501,6 @@ select:focus {
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
-}
-.qdel {
-  position: absolute;
-  right: 5px;
-  top: 3px;
-  color: var(--danger);
-  cursor: pointer;
-  font-size: 12px;
-  display: none;
-  z-index: 2;
-}
-.qnode:hover .qdel {
-  display: inline;
 }
 .dimg {
   cursor: zoom-in;
@@ -4736,87 +4649,672 @@ select:focus {
   );
 }
 .qbar {
-  background: linear-gradient(rgba(23, 18, 9, 0.95), rgba(23, 18, 9, 0.8));
-  border-bottom: 1px solid var(--line);
-  padding: 14px 20px;
+  background: linear-gradient(rgba(23, 18, 9, 0.96), rgba(23, 18, 9, 0.82));
+}
+/* Chip do quadro aberto: nome em serifa + contagem. Substitui as abas e
+   assume o papel do antigo seletor do celular — agora é o MESMO controle
+   nos dois tamanhos de tela. */
+.qchip {
+  flex: none;
+  max-width: 340px;
+  display: flex;
+  align-items: center;
   gap: 10px;
-  position: relative;
-}
-.qtab {
-  color: var(--ink-soft);
-  font-size: 12.5px;
-  border-radius: 8px;
-  padding: 7px 16px;
-  background: none;
-  border: 1px solid transparent;
-}
-.qtab.active {
-  background: var(--ativo);
-  border: 1px solid var(--line-em);
+  padding: 5px 10px 5px 9px;
+  background: var(--s2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
   color: var(--ink);
-  border-radius: 8px 8px 0 0;
-  border-bottom: 2px solid var(--gold);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
 }
-.qtab.qadd {
+.qchip:hover {
+  background: var(--s3);
+  border-color: var(--line-em);
+}
+.qchip-ic {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--ativo);
   color: var(--gold);
-  font-size: 14px;
 }
-/* Título da área e seletor de quadro: só existem no celular (ver media) */
-.qtitulo,
-.qsel {
-  display: none;
+.qchip-t {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-.qtoolbar {
-  display: inline-flex;
-  gap: 4px;
+.qchip-n {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qchip-m {
+  font-size: 10.5px;
+  color: var(--hint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qchip-c {
+  margin-left: 2px;
+  font-size: 9px;
+  color: var(--hint);
+  flex: none;
+}
+/* Recentes: 3 quadros para troca em 1 clique, sem ocupar linha inteira */
+.qrecentes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+.qrecentes .rot {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #6f6046;
+}
+.qrec {
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.qrec:hover {
+  color: var(--ink);
+  background: var(--s2);
+}
+/* Busca do quadro e Lista de itens: mesmo molde do .topbar .search/.topbtn */
+.qbusca {
+  flex: none;
+  width: 216px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
   background: var(--field);
   border: 1px solid var(--line);
   border-radius: 9px;
-  padding: 4px;
+  color: var(--hint);
 }
-.qtoolbtn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-soft);
-  font-size: 13px;
+.qbusca input {
+  flex: 1;
+  min-width: 0;
   background: none;
   border: 0;
-  cursor: pointer;
-}
-.qtoolbtn.qt-t {
-  font-weight: 700;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-ui);
   font-size: 12px;
 }
-.qtoolbtn.active {
+.qlista {
+  flex: none;
+  white-space: nowrap;
+  height: 32px;
+  font-size: 12.5px;
+}
+/* Cartão apagado pela busca do quadro: continua lá, mas sai do primeiro plano */
+.qnode.qbusca-off {
+  opacity: 0.28;
+}
+.qnode.qbusca-hit {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+/* ---- Popover de quadros (era .qtabs + o menu ···) ---- */
+.qpop {
+  position: absolute;
+  left: 18px;
+  top: 60px;
+  width: 352px;
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-drawer);
+  overflow: hidden;
+  z-index: 40;
+  display: none;
+}
+.qpop.open {
+  display: block;
+}
+.qpop-busca {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.qpop-busca .qbusca {
+  width: 100%;
+}
+.qpop-lista {
+  max-height: 288px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.qpop-it {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.qpop-it:hover {
+  background: var(--s3);
+}
+.qpop-it .marca {
+  width: 3px;
+  height: 22px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--gold);
+}
+.qpop-it .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qpop-it .nome {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qpop-it .det {
+  font-size: 10.5px;
+  color: var(--hint);
+}
+.qpop-it .tag {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  border: 1px solid var(--line-em);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+.qpop-vazio {
+  padding: 14px 12px;
+  font-size: 12.5px;
+  color: var(--hint);
+}
+.qpop-pe {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--s1);
+}
+.qpop-pe .mmit {
+  width: auto;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+.qpop-pe .novo {
+  color: var(--gold);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+.qpop-pe .del:hover {
+  background: #3a1d18;
+}
+/* ---- Dock de ferramentas: sai da barra e flutua sobre a cortiça ---- */
+.qdock {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: rgba(23, 18, 9, 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+.qdockbtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.qdockbtn:hover {
+  background: var(--ativo);
+  color: var(--ink);
+}
+.qdockbtn.active {
   background: var(--gold);
   color: var(--gold-ink);
 }
-.qfich {
+/* Tecla impressa no canto: ensina o atalho sem precisar de legenda */
+.qdockbtn .k {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  opacity: 0.75;
+}
+.qdock-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 1px 4px;
+}
+/* ---- Zoom visível: o que só existia no teclado ganha superfície ---- */
+.qzoom {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(23, 18, 9, 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 20;
+}
+.qzoom button {
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.qzoom button:hover {
   background: var(--ativo);
-  border-color: var(--line);
   color: var(--ink);
-  height: 34px;
-  font-size: 12.5px;
 }
-.qmore {
-  top: 54px;
-  right: 20px;
-  width: 240px;
+.qzoom .pm {
+  width: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
 }
+.qzoom .v {
+  min-width: 52px;
+  padding: 0 6px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+.qzoom .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 3px;
+}
+.qzoom .fit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+}
+/* ---- Dica contextual: deixa de ser texto solto e vira pílula com ação ---- */
 .qhint {
   position: absolute;
-  left: 20px;
-  bottom: 14px;
-  font-size: 11.5px;
+  left: 18px;
+  bottom: 18px;
+  /* O controle de zoom mora no canto oposto: a dica para antes dele em vez
+     de passar por cima (o texto encolhe; nome e botão ficam inteiros). */
+  max-width: calc(100% - 280px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  background: rgba(23, 18, 9, 0.88);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  z-index: 20;
+}
+.qhint .ferr {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.qhint .risco {
+  width: 1px;
+  height: 14px;
+  background: var(--line);
+  flex: none;
+}
+.qhint .tx {
+  min-width: 0;
+  font-size: 12px;
   color: #d8c9ae;
-  background: rgba(23, 18, 9, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qhint .abrir {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  background: none;
+  border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 6px 12px;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.qhint .abrir:hover {
+  color: var(--ink);
+  background: #241c12;
+}
+.qhint .abrir .kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--line-em);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.qatalhos {
+  position: absolute;
+  left: 18px;
+  bottom: 70px;
+  width: 520px;
+  max-width: calc(100% - 36px);
+  padding: 16px 18px 18px;
+  background: rgba(23, 18, 9, 0.97);
+  border: 1px solid var(--line-em);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-drawer);
+  z-index: 25;
+  display: none;
+}
+.qatalhos.open {
+  display: block;
+}
+.qatalhos .hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.qatalhos .hd .tit {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--ink);
+}
+.qatalhos .qfechar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--hint);
+  font-size: 12px;
+  cursor: pointer;
+}
+.qatalhos .qfechar:hover {
+  background: #241c12;
+  color: var(--ink);
+}
+.qatalhos .cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 26px;
+}
+.qatalhos .gr {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.qatalhos .gt {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #6f6046;
+}
+.qatalhos .li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qatalhos .k {
+  min-width: 34px;
+  text-align: center;
+  padding: 2px 6px;
+  background: var(--field);
+  border: 1px solid var(--line-em);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink);
+}
+.qatalhos .d {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+/* ---- Barra de ação do item selecionado (nasce dentro do .qnode) ---- */
+.qacoes {
+  position: absolute;
+  left: 50%;
+  top: -42px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--s2);
+  border: 1px solid var(--line-em);
+  border-radius: 9px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  z-index: 6;
+}
+.qacoes button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+.qacoes button:hover {
+  background: var(--ativo);
+  color: var(--ink);
+}
+.qacoes .del {
+  color: var(--danger);
+}
+.qacoes .del:hover {
+  background: #3a1d18;
+}
+.qacoes .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 2px;
+}
+.qacoes .amostra {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #f5d76e 50%, #9cc9ff 50%);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+/* Cartão colado no topo do quadro: a barra vira para baixo (ver qAcoesLado).
+   Vale em qualquer largura — no tablet e no celular só muda a distância. */
+.qacoes.abaixo {
+  top: auto;
+  bottom: -42px;
+}
+/* A barra do barbante mora no mundo, no nó do meio da curva */
+.qacoes.qacoes-seta {
+  top: 0;
+  margin-top: -42px;
+}
+/* ---- O barbante fica descobrível ---- */
+@keyframes qhalo {
+  0%,
+  100% {
+    box-shadow:
+      var(--pin-sh),
+      0 0 0 0 rgba(201, 163, 92, 0);
+  }
+  50% {
+    box-shadow:
+      var(--pin-sh),
+      0 0 0 7px rgba(201, 163, 92, 0.18);
+  }
+}
+/* 1ª vez no quadro: só o alfinete marcado pelo render */
+.qpin.qpin-dica {
+  animation: qhalo 2.6s ease-in-out infinite;
+}
+/* Ferramenta Barbante ativa: todos os alfinetes (dataset escrito no qSetTool) */
+.qcanvas[data-qtool="seta"] .qpin {
+  animation: qhalo 2.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qpin.qpin-dica,
+  .qcanvas[data-qtool="seta"] .qpin {
+    animation: none;
+    box-shadow:
+      var(--pin-sh),
+      0 0 0 4px rgba(201, 163, 92, 0.18);
+  }
+}
+/* Anotação datilografada de primeira vez: vive no .qworld, então anda e
+   escala com a câmera — parece anotada no quadro, não colada na tela. */
+.qcoach {
+  position: absolute;
+  width: 196px;
+  font-family: var(--font-type);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #e6d8bb;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  z-index: 5;
+}
+/* ── TABLET (≤1100px): a MESMA tela, com alvos de dedo ──────────────────
+   Não é um layout novo: o chip continua sendo o seletor, a dock segue em
+   pé no canto e o zoom fica na linha. Sai só o que depende de teclado ou
+   de hover — recentes, busca sempre aberta, teclas impressas e o botão
+   que abre o painel de atalhos. */
+@media (max-width: 1100px) {
+  .qrecentes {
+    display: none; /* o chip já resolve a troca de quadro */
+  }
+  /* A busca encolhe para um botão-lupa e abre por cima da barra */
+  .qbusca {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .qbusca input {
+    display: none;
+  }
+  .qbusca.aberta {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    padding: 0 11px;
+    justify-content: flex-start;
+    z-index: 35;
+  }
+  .qbusca.aberta input {
+    display: block;
+  }
+  .qchip,
+  .qlista {
+    min-height: var(--alvo);
+  }
+  /* "Lista de itens" não cabe: vira só "Lista" (o aria-label não muda) */
+  .qlista .rotulo {
+    font-size: 0;
+  }
+  .qlista .rotulo::before {
+    content: "Lista";
+    font-size: 13px;
+  }
+  .qdock {
+    left: 14px;
+    top: 14px;
+    gap: 5px;
+  }
+  .qdockbtn {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  .qdockbtn .k {
+    display: none; /* no dedo não há tecla para aprender */
+  }
+  .qzoom .pm,
+  .qzoom .v,
+  .qzoom .fit {
+    min-height: var(--alvo);
+  }
+  .qzoom .pm {
+    width: var(--alvo);
+  }
+  .qhint .abrir {
+    display: none; /* o painel de atalhos é de teclado */
+  }
+  .qacoes {
+    top: -56px;
+  }
+  .qacoes button {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  /* Cartão colado no topo: a barra de ação vira para baixo (ver markSelDom) */
+  .qacoes.abaixo {
+    top: auto;
+    bottom: -56px;
+  }
 }
 /* Sem textura no canvas: o fundo é só o degradê liso do #teorias. */
 .qcanvas {
@@ -5002,15 +5500,13 @@ select:focus {
   background: none;
   border: 0;
   font-size: 10px;
+  /* o recuo de 22px à direita guardava lugar para o ✕, que saiu do papel */
+  padding: 5px 9px 0;
 }
 .qnode.sel {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
   border: 0;
-}
-.qnode .qdel {
-  background: rgba(43, 35, 23, 0.75);
-  color: var(--papel);
 }
 
 /* ---------- Arquivo (Salas · Personagens · Grupos) ---------- */
@@ -5959,22 +6455,36 @@ body.view-conta .filtros-panel {
 
 /* ---------- Trilho estreito (721–1000px): degrau entre mobile e desktop.
    Sem ele, 720→721px saltava de tabbar para uma sidebar de 212px (P09). */
-@media (min-width: 721px) and (max-width: 1000px) and (min-height: 501px) {
+/* ── TABLET: a lateral vira um rail de 64px ────────────────────────────
+   O ícone empilha sobre o rótulo miúdo (em vez de o rótulo sumir): sem a
+   palavra, "Fichas" e "Arquivo" viravam adivinhação. Alvo de 52px. */
+@media (min-width: 721px) and (max-width: 1100px) and (min-height: 501px) {
   .side {
     width: 64px;
     min-width: 64px;
   }
   .side .side-brand-txt,
-  .side .ni-lb,
   .side .side-brand .sub {
     display: none;
   }
   .side .navit {
+    flex-direction: column;
     justify-content: center;
-    padding: 11px 0;
+    gap: 3px;
+    min-height: 52px;
+    padding: 6px 0;
   }
+  .side .navit .ni-lb {
+    flex: none;
+    font-size: 8.5px;
+    line-height: 1;
+  }
+  /* "Tudo salvo na nuvem" não cabe em 64px: no rail fica só a bolinha */
   .side .navit.save {
     padding: 8px 0;
+  }
+  .side .navit.save .ni-lb {
+    display: none;
   }
   .side-brand {
     justify-content: center;
@@ -6508,60 +7018,123 @@ body.view-conta .filtros-panel {
   .maptoggles {
     display: none !important;
   }
-  /* Quadros no toque (P04): barra FINA de uma linha só — abas + menu ···.
-     Criar (ficha/nota/texto) fica no botão ＋; selecionar/mover/conectar
-     saem do toque no cartão. As ferramentas de desktop somem. */
+  /* ── CELULAR (P04): o degrau de verdade ────────────────────────────
+     O chip é o seletor único (chama o sheet de ações em vez do popover),
+     a dock DEITA acima da tabbar e o zoom vira coluna à direita — assim
+     os dois não disputam o polegar. Busca e dica saem: a busca mora
+     dentro da Lista de itens. */
   .qbar {
-    flex-direction: row;
-    align-items: center;
+    height: auto;
+    min-height: 56px;
     gap: 8px;
     padding: 6px 10px;
   }
-  /* Nome da área à esquerda e o quadro atual num seletor de lista
-     (as abas lado a lado saem: com vários quadros viravam rolagem) */
-  .qtitulo {
-    display: block;
-    margin-right: auto;
-    font-family: var(--font-serif);
-    font-size: 19px;
-    color: var(--ink);
-    padding-left: 4px;
+  .qchip {
+    flex: 1; /* a linha inteira menos o botão Lista */
+    max-width: none;
+    min-height: var(--alvo);
   }
-  .qtabs {
+  /* …e para o chip esticar de verdade, o espaçador da barra sai: senão os
+     dois dividem a sobra e o chip para no meio da linha. */
+  .qbar .topgrow {
     display: none;
   }
-  .qsel {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    flex: none;
-    max-width: 46vw;
-    min-height: 42px;
-    padding: 0 12px;
-    background: var(--s3);
-    border: 1px solid var(--line-em);
-    border-radius: 999px;
-    color: var(--ink);
-    font-family: var(--font-ui);
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
-  }
-  .qsel-c {
-    color: var(--gold);
-    font-size: 11px;
-    flex: none;
-  }
-  .qtools {
-    flex: none;
-    display: flex;
-    align-items: center;
-  }
-  .qtoolbar,
-  .qfich {
+  .qrecentes,
+  .qbusca,
+  .qhint {
     display: none;
+  }
+  /* Lista de itens vira só o ícone */
+  .qlista {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+  }
+  .qlista .rotulo {
+    display: none;
+  }
+  /* O ＋ flutuante abre "Ficha / Nota / Texto" — exatamente o que a dock
+     agora faz num toque só. Nesta aba ele é repetição, e é ele que
+     disputava o canto com a dock. */
+  body.view-teorias .fab {
+    display: none;
+  }
+  /* A dock e o zoom vivem DENTRO do .qcanvas, que já termina ACIMA da
+     tabbar: somar --tabbar-total aqui contaria a barra duas vezes e
+     deixava a dock flutuando 72px acima do lugar. */
+  .qdock {
+    left: 50%;
+    top: auto;
+    bottom: 14px;
+    transform: translateX(-50%);
+    flex-direction: row;
+    gap: 2px;
+  }
+  .qdockbtn {
+    width: var(--alvo);
+    height: var(--alvo);
+  }
+  /* Não há teclado para ensinar */
+  .qdockbtn .k {
+    display: none;
+  }
+  .qdock-sep {
+    width: 1px;
+    height: 22px;
+    margin: 0 2px;
+  }
+  /* Zoom em coluna à direita, ACIMA da dock: + em cima, − embaixo e o
+     Ajustar no pé, como na maquete. (column-reverse sozinho não serve:
+     ele inverteria também o separador e o Ajustar, jogando o Ajustar
+     para o topo — daí a ordem explícita.) */
+  .qzoom {
+    right: 10px;
+    bottom: 84px; /* logo acima da dock (que ocupa 14px..~72px) */
+    flex-direction: column;
+    gap: 2px;
+  }
+  .qzoom .mais {
+    order: 1;
+  }
+  .qzoom .v {
+    order: 2;
+  }
+  .qzoom .menos {
+    order: 3;
+  }
+  .qzoom .sep {
+    order: 4;
+  }
+  .qzoom .fit {
+    order: 5;
+  }
+  .qzoom .pm {
+    width: var(--alvo);
+    min-height: var(--alvo);
+  }
+  .qzoom .v {
+    min-width: var(--alvo);
+    height: 36px;
+  }
+  .qzoom .sep {
+    width: auto;
+    height: 1px;
+    margin: 1px 4px;
+    align-self: stretch;
+  }
+  .qzoom .fit {
+    width: var(--alvo);
+    min-height: var(--alvo);
+    padding: 0;
+    justify-content: center;
+  }
+  .qzoom .fit .rotulo {
+    display: none;
+  }
+  /* Atalhos são de teclado */
+  .qatalhos {
+    display: none !important;
   }
   /* Menus e popups com alvo de 44px; atalhos de teclado somem no toque */
   .mmit {

@@ -339,11 +339,11 @@ const entrou = () =>
     '(function(){var q=quadroAtual();q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();})()',
   );
 
-  /* Teste 8.5 — Seletor de quadro do celular (lista no lugar das abas) */
+  /* Teste 8.5 — Chip do quadro: é o seletor único (celular e desktop) */
   ok(
-    "quadros: a barra tem o nome da área e o seletor com o quadro atual",
+    "quadros: o chip mostra o nome do quadro aberto e a contagem do que tem nele",
     g(
-      '(function(){var t=document.querySelector(".qtitulo"),s=document.querySelector(".qsel");return !!t && t.textContent==="Quadros" && !!s && s.textContent.indexOf(quadroAtual().nome)===0;})()',
+      '(function(){var c=document.querySelector(".qchip");if(!c)return false;var n=c.querySelector(".qchip-n"),m=c.querySelector(".qchip-m");var q=quadroAtual();return !!n && n.textContent===q.nome && !!m && m.textContent.indexOf((q.nodes||[]).length+" ")===0 && m.textContent.indexOf("barbante")>0;})()',
     ),
   );
   g("qEscolherQuadro()");
@@ -354,6 +354,258 @@ const entrou = () =>
     ),
   );
   g('(function(){var s=document.querySelector(".acsheet");overlayFechar(s.id);})()');
+
+  /* Teste 8.6 — Peças flutuantes do quadro (dock, dica, zoom, atalhos) */
+  ok(
+    "quadros: a dock tem as 6 ferramentas com a tecla impressa, e a ativa é a do _qTool",
+    g(
+      '(function(){var b=document.querySelectorAll(".qcanvas .qdockbtn");if(b.length!==6)return false;var ids=[].map.call(b,function(x){return x.getAttribute("data-tool")}).join(",");var k=[].every.call(b,function(x){return !!x.querySelector(".k")});var at=document.querySelector(".qdockbtn.active");return ids==="select,hand,ficha,nota,texto,seta" && k && !!at && at.getAttribute("data-tool")===_qTool;})()',
+    ),
+  );
+  ok(
+    "quadros: trocar de ferramenta reescreve a dica e marca o canvas (o CSS acende os alfinetes)",
+    g(
+      '(function(){qSetTool("seta");var h=document.getElementById("qhint"),cv=document.getElementById("qcanvas");var okS=h.querySelector(".ferr").textContent==="Barbante" && h.querySelector(".tx").textContent===QDICAS.seta && cv.dataset.qtool==="seta";qSetTool("select");var okV=h.querySelector(".ferr").textContent==="Selecionar" && cv.dataset.qtool==="select";return okS && okV;})()',
+    ),
+  );
+  ok(
+    "quadros: a etiqueta de zoom acompanha a câmera (quem manda é o aplicaCam)",
+    g(
+      '(function(){var q=quadroAtual();q.cam.s=1;aplicaCam();var a=document.getElementById("qzoomv").textContent;qZoomPasso(1.2);var b=document.getElementById("qzoomv").textContent;var c=Math.round(q.cam.s*100)+"%";q.cam.x=40;q.cam.y=40;q.cam.s=1;aplicaCam();return a==="100%" && b===c && b!=="100%";})()',
+    ),
+  );
+  /* Teste 8.7 — Seleção: o que o clique, o Shift e o laço marcam.
+     A nota é o caso que quebrava: clicar nela ia direto para a escrita,
+     então ela nunca ficava marcada e Del/Ctrl+D/Shift não pegavam nela. */
+  ok(
+    // O jsdom NÃO dispara o ondblclick inline (o atributo está no cartão, mas
+    // o evento sintético não o executa): aqui se prova que 1 clique marca sem
+    // focar e que o atributo aponta para o qFocarTexto, e se chama a função
+    // direto. O gesto de 2 cliques abrindo a escrita foi conferido no
+    // navegador real pela vista teorias-selecao do servidor-visual.
+    "quadros: 1 clique numa NOTA marca o cartão sem entrar na escrita (2 cliques é que escrevem)",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(600,300,"nota");desenhaQuadro();var el=nodeEl(n.id),ed=el.querySelector(".qtxt");_qSelSet=new Set();var r=ed.getBoundingClientRect();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left+20),clientY:Math.round(r.top+10),button:0}));var marcou=_qSelSet.has(n.id),semFoco=document.activeElement!==ed;qMouseUpGlobal();var fiado=(el.getAttribute("ondblclick")||"").indexOf("qFocarTexto")===0;qFocarTexto(n.id);var escreve=document.activeElement===ed;ed.blur();qDelNode(n.id);return marcou && semFoco && fiado && escreve;})()',
+    ),
+  );
+  ok(
+    // Pelo caminho de verdade: CLICAR na nota e então apertar Delete. Marcar
+    // _qSelSet na mão passaria mesmo com o defeito — o que quebrava era o
+    // clique não marcar nada.
+    "quadros: clicar numa nota e apertar Delete apaga a nota",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(620,320,"nota");desenhaQuadro();var ed=nodeEl(n.id).querySelector(".qtxt"),r=ed.getBoundingClientRect();_qSelSet=new Set();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left+20),clientY:Math.round(r.top+10),button:0}));qMouseUpGlobal();var antes=q.nodes.length;(document.activeElement||document.body).dispatchEvent(new KeyboardEvent("keydown",{bubbles:true,code:"Delete",key:"Delete"}));return q.nodes.length===antes-1 && !q.nodes.some(function(x){return x.id===n.id});})()',
+    ),
+  );
+  ok(
+    "quadros: Shift no clique soma à seleção (e tira quem já estava)",
+    g(
+      '(function(){var q=quadroAtual();var a=qNovoTextoEm(100,600,"nota"),b=qNovoTextoEm(400,600,"nota");desenhaQuadro();var elA=nodeEl(a.id),elB=nodeEl(b.id);_qSelSet=new Set();var rA=elA.getBoundingClientRect(),rB=elB.getBoundingClientRect();elA.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rA.left+20),clientY:Math.round(rA.top+10),button:0}));qMouseUpGlobal();elB.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rB.left+20),clientY:Math.round(rB.top+10),button:0,shiftKey:true}));qMouseUpGlobal();var somou=_qSelSet.size===2;elB.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(rB.left+20),clientY:Math.round(rB.top+10),button:0,shiftKey:true}));qMouseUpGlobal();var tirou=_qSelSet.size===1 && _qSelSet.has(a.id);_qSelSet=new Set();qDelNode(a.id);qDelNode(b.id);return somou && tirou;})()',
+    ),
+  );
+  ok(
+    "quadros: o laço pega quem só ENCOSTA nele (não exige o centro do cartão)",
+    g(
+      '(function(){var q=quadroAtual();var n=qNovoTextoEm(200,700,"nota");desenhaQuadro();var el=nodeEl(n.id),r=el.getBoundingClientRect();var cv=document.getElementById("qcanvas");_qSelSet=new Set();' +
+        // laço que cobre só ~10px da quina superior esquerda do cartão
+        'cv.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left-40),clientY:Math.round(r.top-40),button:0}));' +
+        'cv.dispatchEvent(new MouseEvent("mousemove",{bubbles:true,clientX:Math.round(r.left+10),clientY:Math.round(r.top+10)}));' +
+        'var encostou=_qSelSet.has(n.id);qMouseUpGlobal();' +
+        // laço que passa LONGE não pode pegar
+        '_qSelSet=new Set();cv.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(r.left-300),clientY:Math.round(r.top-300),button:0}));' +
+        'cv.dispatchEvent(new MouseEvent("mousemove",{bubbles:true,clientX:Math.round(r.left-200),clientY:Math.round(r.top-200)}));' +
+        'var longe=_qSelSet.has(n.id);qMouseUpGlobal();_qSelSet=new Set();qDelNode(n.id);return encostou && !longe;})()',
+    ),
+  );
+  ok(
+    "quadros: Esc sai da escrita e deixa o cartão marcado (o teclado do quadro volta a valer)",
+    g(
+      '(function(){var n=qNovoTextoEm(640,340,"nota");desenhaQuadro();var ed=nodeEl(n.id).querySelector(".qtxt");ed.focus();_qSelSet=new Set();ed.dispatchEvent(new KeyboardEvent("keydown",{bubbles:true,code:"Escape",key:"Escape"}));var saiu=document.activeElement!==ed,marcou=_qSelSet.has(n.id);_qSelSet=new Set();qDelNode(n.id);return saiu && marcou;})()',
+    ),
+  );
+  ok(
+    "quadros: o ✕ e o 🎨 saíram do papel dos cartões (as ações moram na barra da seleção)",
+    g(
+      '(function(){var n=qNovoTextoEm(660,360,"nota");desenhaQuadro();var semX=!document.querySelector(".qnode .qdel") && !document.querySelector(".qnode .qcor");qDelNode(n.id);return semX && document.querySelectorAll(".qnode").length>=0;})()',
+    ),
+  );
+  ok(
+    "quadros: o painel de atalhos também fecha ao clicar fora (padrão dos painéis da aba)",
+    g(
+      '(function(){qAtalhos(true);var ab=document.getElementById("qatalhos").classList.contains("open");document.getElementById("qcanvas").dispatchEvent(new MouseEvent("click",{bubbles:true}));var fe=!document.getElementById("qatalhos").classList.contains("open");return ab && fe;})()',
+    ),
+  );
+  ok(
+    "quadros: clicar fora do cartão solta o editor (senão as teclas de ferramenta viram texto)",
+    g(
+      '(function(){var n=qNovoTextoEm(160,160,"nota");var ed=document.querySelector(\'.qnode[data-id="\'+n.id+\'"] .qtxt\');ed.focus();var dentro=document.activeElement===ed;document.getElementById("qcanvas").dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:900,clientY:600,button:0}));var saiu=document.activeElement!==ed;ed.focus();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,button:0}));var ficou=document.activeElement===ed;ed.blur();qDelNode(n.id);return dentro && saiu && ficou;})()',
+    ),
+  );
+  ok(
+    // O toque no chip (onclick inline) não roda no jsdom: aqui só se prova
+    // que o clique NO chip não é confundido com "clique fora". O ciclo
+    // inteiro (abre/fora/reabre/alterna) foi conferido no navegador real
+    // pela vista teorias-pop-fora do servidor-visual.
+    "quadros: o painel de quadros fecha ao clicar fora, e o clique no chip não conta como fora",
+    g(
+      '(function(){var chip=document.querySelector(".qchip");qPop(true);var abriu=document.getElementById("qpop").classList.contains("open");document.getElementById("qcanvas").dispatchEvent(new MouseEvent("click",{bubbles:true}));var fechou=!document.getElementById("qpop").classList.contains("open");qPop(true);chip.dispatchEvent(new MouseEvent("click",{bubbles:true}));var segue=document.getElementById("qpop").classList.contains("open");qPop(false);return abriu && fechou && segue;})()',
+    ),
+  );
+  ok(
+    "quadros: o painel de atalhos abre no botão e fecha pelo Esc (pilha de overlays)",
+    g(
+      '(function(){qAtalhos(true);var ab=document.getElementById("qatalhos").classList.contains("open");overlayFecharTopo();var fe=!document.getElementById("qatalhos").classList.contains("open");return ab && fe;})()',
+    ),
+  );
+  ok(
+    "quadros: a contagem do chip não envelhece quando um item entra (desenhaQuadro atualiza)",
+    g(
+      '(function(){var q=quadroAtual();var antes=document.querySelector(".qchip-m").textContent;q.nodes.push({id:"tX",tipo:"texto",texto:"teste",x:10,y:10,w:200});desenhaQuadro();var dep=document.querySelector(".qchip-m").textContent;q.nodes=q.nodes.filter(function(n){return n.id!=="tX"});desenhaQuadro();var volta=document.querySelector(".qchip-m").textContent;return dep!==antes && dep.indexOf(q.nodes.length+1+" ")===0 && volta===antes;})()',
+    ),
+  );
+
+  /* Teste 8.75 — Responsivo dos Quadros: o que o CSS precisa encontrar.
+     As larguras em si são conferidas por screenshot (o jsdom não faz
+     layout); aqui se garante o CONTRATO que as media queries usam. */
+  ok(
+    "quadros: os rótulos que somem no tablet/celular estão em .rotulo (o ícone fica)",
+    g(
+      '(function(){var l=document.querySelector(".qlista"),f=document.querySelector(".qzoom .fit");if(!l||!f)return false;' +
+        'var lr=l.querySelector(".rotulo"),fr=f.querySelector(".rotulo");' +
+        // o nome acessível não pode depender do rótulo visível
+        'return !!lr && lr.textContent==="Lista de itens" && l.getAttribute("aria-label")==="Lista de itens" &&' +
+        ' !!fr && fr.textContent==="Ajustar" && f.getAttribute("aria-label")==="Ajustar tudo à tela" &&' +
+        ' !!l.querySelector("svg") && !!f.querySelector("svg");})()',
+    ),
+  );
+  ok(
+    "quadros: o zoom tem .mais/.menos nomeados (o celular os empilha na ordem certa)",
+    g(
+      '(function(){var z=document.querySelector(".qzoom");if(!z)return false;' +
+        'return !!z.querySelector(".pm.menos") && !!z.querySelector(".pm.mais") && !!z.querySelector(".v") && !!z.querySelector(".sep") && !!z.querySelector(".fit");})()',
+    ),
+  );
+  ok(
+    "quadros: a dica troca o verbo no toque (Clique → Toque) e volta no mouse",
+    g(
+      '(function(){var real=ehToque;var tx=document.querySelector("#qhint .tx");' +
+        'ehToque=function(){return true};qDica("select");var toque=tx.textContent;' +
+        'ehToque=function(){return false};qDica("select");var mouse=tx.textContent;' +
+        'ehToque=real;qDica(_qTool);' +
+        'return toque.indexOf("Toque")===0 && mouse.indexOf("Clique")===0 && toque.indexOf("Shift")<0;})()',
+    ),
+  );
+  ok(
+    "quadros: cartão colado no topo vira a barra de ação para baixo (.abaixo)",
+    g(
+      '(function(){var q=quadroAtual();var cv=document.getElementById("qcanvas");' +
+        // jsdom não faz layout: o rect do canvas e do nó são fingidos aqui
+        'var rcv=cv.getBoundingClientRect;cv.getBoundingClientRect=function(){return {top:0,left:0,bottom:600,right:800,width:800,height:600}};' +
+        'var n=qNovoTextoEm(0,0,"nota");desenhaQuadro();var el=nodeEl(n.id);' +
+        'el.getBoundingClientRect=function(){return {top:10,left:0,bottom:110,right:190,width:190,height:100}};' +
+        '_qSelSet=new Set([n.id]);markSelDom();var virou=!!el.querySelector(".qacoes.abaixo");' +
+        'el.getBoundingClientRect=function(){return {top:300,left:0,bottom:400,right:190,width:190,height:100}};' +
+        'markSelDom();var normal=!el.querySelector(".qacoes.abaixo") && !!el.querySelector(".qacoes");' +
+        'cv.getBoundingClientRect=rcv;_qSelSet=new Set();qDelNode(n.id);return virou && normal;})()',
+    ),
+  );
+  ok(
+    "quadros: a busca do tablet abre e só se recolhe se estiver vazia",
+    g(
+      '(function(){if(typeof qBuscaAbrir==="undefined")return false;' +
+        'var el=document.querySelector(".qbusca"),inp=document.getElementById("qBusca");if(!el||!inp)return false;' +
+        'qBuscaAbrir();var abriu=el.classList.contains("aberta");' +
+        'inp.value="lanterna";qBuscaFechar();var ficou=el.classList.contains("aberta");' +
+        'inp.value="";qBuscaFechar();var fechou=!el.classList.contains("aberta");' +
+        'qBuscaInput("");return abriu && ficou && fechou;})()',
+    ),
+  );
+
+  /* Teste 8.8 — As MESMAS regras fora dos Quadros (Mapa e Grade).
+     Estes defeitos eram irmãos dos da aba Quadros: laço que exigia o
+     centro, Shift que não somava e painel que não fechava ao clicar fora. */
+  /* Os testes do Mapa entram e saem da vista sozinhos, e SEMEIAM dois pontos:
+     neste ponto do arquivo o catálogo da nuvem falsa ainda está vazio, então
+     o grafo não tem nada para selecionar. Ao sair, tudo volta como estava. */
+  const noMapa = (corpo) =>
+    g(
+      '(function(){var _v=state.view,_n=nodes;setView("mapa");render();' +
+        'nodes=[{id:"mA",x:120,y:120,r:9,cor:"#c9a35c",kind:"ficha",label:"A"},' +
+        '{id:"mB",x:320,y:220,r:9,cor:"#c9a35c",kind:"ficha",label:"B"}];' +
+        // com 0 fichas o mapa nem liga os eventos (sai antes do wireMap):
+        // depois de semear, liga na mão para que o clique chegue ao handler
+        'cam={x:0,y:0,s:1};var _svg=document.getElementById("svg");wireMap(_svg);draw(_svg);' +
+        'var _r=(function(){' +
+        corpo +
+        '})();nodes=_n;_selMap=new Set();setView(_v);render();return _r;})()',
+    );
+  ok(
+    "mapa: o laço pega o ponto que só ENCOSTA no disco (não exige o centro)",
+    noMapa(
+      'var svg=document.getElementById("svg");if(!svg||!nodes.length)return false;var r=svg.getBoundingClientRect(),z=zoomIF();var n=nodes[0];' +
+        'var cx=r.left+(n.x*cam.s+cam.x)*z, cy=r.top+(n.y*cam.s+cam.y)*z, rr=(n.r||6)*cam.s*z;' +
+        // laço que morde metade do disco, sem alcançar o centro
+        'var a=nodesInRect(svg,{x0:cx-80,y0:cy-80,x1:cx-rr*0.5,y1:cy+80});' +
+        // laço que para antes do disco
+        'var b=nodesInRect(svg,{x0:cx-80,y0:cy-80,x1:cx-rr*2,y1:cy+80});' +
+        'return a.has(n.id) && !b.has(n.id);',
+    ),
+  );
+  ok(
+    "mapa: Shift no clique soma ao que já estava marcado (e tira quem já estava)",
+    noMapa(
+      'var svg=document.getElementById("svg");if(!svg||nodes.length<2)return false;var r=svg.getBoundingClientRect(),z=zoomIF();' +
+        'var n0=nodes[0],n1=nodes[1];_selMap=new Set([n1.id]);draw(svg);' +
+        'var cx=r.left+(n0.x*cam.s+cam.x)*z, cy=r.top+(n0.y*cam.s+cam.y)*z;' +
+        // o handler chama draw(), que REFAZ os .gn: um elemento guardado de
+        // antes fica solto do documento e o clique nele não chega ao mapa.
+        'var alvo=function(){return document.querySelector(\'.gn[data-id="\'+(window.CSS&&CSS.escape?CSS.escape(n0.id):n0.id)+\'"]\')};' +
+        'var clicaShift=function(){var el=alvo();if(!el)return false;el.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:Math.round(cx),clientY:Math.round(cy),button:0,shiftKey:true}));window.dispatchEvent(new MouseEvent("mouseup",{bubbles:true}));return true};' +
+        'if(!clicaShift())return false;' +
+        'var somou=_selMap.has(n0.id)&&_selMap.has(n1.id);' +
+        'if(!clicaShift())return false;' +
+        'var tirou=!_selMap.has(n0.id)&&_selMap.has(n1.id);' +
+        'return somou&&tirou;',
+    ),
+  );
+  ok(
+    "mapa: o painel de Camadas entra na pilha de overlays (fecha pelo Esc)",
+    g(
+      '(function(){var mt=document.getElementById("maptoggles");if(!mt)return false;mt.classList.remove("open");toggleCamadas();var abriu=mt.classList.contains("open");var fechou=overlayFecharTopo()&&!mt.classList.contains("open");return abriu&&fechou;})()',
+    ),
+  );
+  ok(
+    "painéis: a lista única fecha ao clicar fora (menu ···, filtros, camadas, quadros, atalhos)",
+    g(
+      '(function(){if(typeof PAINEIS_FECHA_FORA==="undefined")return false;' +
+        'var ids=PAINEIS_FECHA_FORA.map(function(p){return p.id}).join(",");' +
+        'var mm=document.getElementById("moreMenu");overlayAbrir(mm,{id:"moreMenu"});' +
+        'var dentro=(mm.dispatchEvent(new MouseEvent("click",{bubbles:true})),mm.classList.contains("open"));' +
+        'document.body.dispatchEvent(new MouseEvent("click",{bubbles:true}));' +
+        'var fora=!mm.classList.contains("open");' +
+        'return ids==="moreMenu,filtrosPanel,maptoggles,qpop,qatalhos" && dentro && fora;})()',
+    ),
+  );
+  ok(
+    "quadros: o laço segue a CURVA do barbante, não a reta entre as pontas",
+    g(
+      '(function(){var q=quadroAtual();var antesN=q.nodes.slice(),antesS=q.setas.slice();' +
+        'q.nodes=[{id:"cA",tipo:"ref",kind:"pista",ref:"f1",x:60,y:120},{id:"cB",tipo:"ref",kind:"pista",ref:"f5",x:800,y:120}];' +
+        'q.setas=[{id:"sCurva",de:"cA",para:"cB"}];q.cam={x:0,y:0,s:1};desenhaQuadro();' +
+        'var cv=document.getElementById("qcanvas"),r=cv.getBoundingClientRect(),z=zoomIF();' +
+        'var pp=qSetaPontos(q,q.setas[0]),ctrl=qCurvaCtrl(pp.p1,pp.p2);' +
+        'var tela=function(p){return{x:r.left+(p.x*q.cam.s+q.cam.x)*z,y:r.top+(p.y*q.cam.s+q.cam.y)*z}};' +
+        'var mc=tela(qPontoNaCurva(pp.p1,ctrl,pp.p2,0.5)),mr=tela({x:(pp.p1.x+pp.p2.x)/2,y:(pp.p1.y+pp.p2.y)/2});' +
+        'var barriga=Math.abs(mc.y-mr.y);' +
+        'var caixa=function(p){return{x0:p.x-6,y0:p.y-6,x1:p.x+6,y1:p.y+6}};' +
+        'var naCurva=qSetasInRect(cv,q,caixa(mc)).size>0;' +
+        // espelha a barriga para o outro lado: lá a curva não passa
+        'var espelho={x:mr.x,y:mr.y-(mc.y-mr.y)};' +
+        'var foraDaCurva=qSetasInRect(cv,q,caixa(espelho)).size>0;' +
+        'q.nodes=antesN;q.setas=antesS;desenhaQuadro();' +
+        'return barriga>10 && naCurva && !foraDaCurva;})()',
+    ),
+  );
 
   /* Teste 9 — Setas estilo tldraw (Etapa D) */
   ok(

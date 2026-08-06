@@ -202,6 +202,355 @@ const SEED = (vista) => `
     }
     // lista de quadros aberta pelo seletor do celular (2 quadros)
     else if (base === "teorias-sel") { setView("teorias"); novoQuadro(); setTimeout(function(){ qEscolherQuadro(); }, 60); }
+    // popover de quadros aberto no chip (com vários quadros para filtrar)
+    else if (base === "teorias-pop") {
+      setView("teorias");
+      for (var _i = 0; _i < 5; _i++) novoQuadro();
+      DADOS.quadros.forEach(function (q, i) {
+        q.nome = ["O apagão do farol","Linha do tempo — 12/03","Suspeitos","Doca 3","Rede do porto","Álibis cruzados"][i] || q.nome;
+      });
+      trocarQuadro(1);
+      setTimeout(function () { qPop(true); }, 60);
+    }
+    // O laço mede a CURVA do barbante ou a reta entre as pontas?
+    // Compara dois lugares: onde a curva passa (tem de pegar) e onde só a
+    // reta passa, longe da curva (não pode pegar).
+    else if (base === "teorias-curva") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:120},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:800, y:120}
+      );
+      _q.setas.push({id:"sA", de:"qa", para:"qb"});
+      desenhaQuadro();
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas"), r = cv.getBoundingClientRect();
+        var z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var tela = function (p) { return { x: r.left + (p.x*_q.cam.s + _q.cam.x)*z, y: r.top + (p.y*_q.cam.s + _q.cam.y)*z }; };
+        var pp = qSetaPontos(_q, _q.setas[0]);
+        var ctrl = qCurvaCtrl(pp.p1, pp.p2);
+        var meioCurva = tela(qPontoNaCurva(pp.p1, ctrl, pp.p2, 0.5));
+        var meioReta = tela({ x: (pp.p1.x + pp.p2.x)/2, y: (pp.p1.y + pp.p2.y)/2 });
+        var barriga = Math.round(Math.abs(meioCurva.y - meioReta.y));
+        var laco = function (cx, cy, raio) {
+          _qSetaSel = new Set();
+          cv.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(cx-raio), clientY:Math.round(cy-raio), button:0}));
+          cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(cx+raio), clientY:Math.round(cy+raio)}));
+          var pegou = _qSetaSel.size > 0;
+          window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+          return pegou;
+        };
+        var naCurva = laco(meioCurva.x, meioCurva.y, 6);
+        // ponto na RETA, deslocado para o lado oposto da barriga: a curva
+        // não passa por lá, então o laço não pode marcar o barbante
+        var foraDaCurva = laco(meioReta.x, meioReta.y - (meioCurva.y - meioReta.y), 6);
+        document.title = "BARBANTE barriga=" + barriga + "px | laco-na-curva-pega=" + naCurva +
+          " | laco-fora-da-curva-nao-pega=" + !foraDaCurva;
+      }, 350);
+    }
+    // GRADE: o painel de filtros fecha ao clicar fora, no desktop?
+    else if (base === "grade-filtros-fora") {
+      setView("grade"); render();
+      setTimeout(function () {
+        toggleFiltros();
+        var pn = document.getElementById("filtrosPanel");
+        var abriu = pn.classList.contains("open");
+        // clique DENTRO do painel não pode fechá-lo
+        pn.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var ficouDentro = pn.classList.contains("open");
+        document.getElementById("grade").dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var fechou = !pn.classList.contains("open");
+        // o menu ··· continua fechando fora (a lista nova assumiu o ouvinte antigo)
+        var mm = document.getElementById("moreMenu");
+        overlayAbrir(mm, {id:"moreMenu"});
+        var mmAbriu = mm.classList.contains("open");
+        document.getElementById("grade").dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var mmFechou = !mm.classList.contains("open");
+        document.title = "FILTROS abre=" + abriu + " | clique-dentro-mantem=" + ficouDentro +
+          " | fecha-clicando-fora=" + fechou +
+          " || MENU-3-PONTOS abre=" + mmAbriu + " fecha-fora=" + mmFechou;
+      }, 300);
+    }
+    // MAPA: o laço e o Shift têm os mesmos defeitos que os Quadros tinham?
+    // (só diagnóstico — a correção pedida foi na aba Quadros)
+    else if (base === "mapa-selecao") {
+      setView("mapa");
+      setTimeout(function () {
+        var svg = document.querySelector("#mapa svg") || document.querySelector("#mapa .mapsvg") || document.getElementsByTagName("svg")[0];
+        var r = svg.getBoundingClientRect(), z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var n0 = nodes[0];
+        var tela = function (wx, wy) { return { x: r.left + (wx*cam.s + cam.x)*z, y: r.top + (wy*cam.s + cam.y)*z }; };
+        var c = tela(n0.x, n0.y);
+        var md = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), button:0, shiftKey:!!sh})); };
+        var mv = function (x, y, sh) { svg.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(x), clientY:Math.round(y), shiftKey:!!sh})); };
+        // raio do disco DESENHADO, em pixels de tela
+        var rr = (n0.r || 6) * cam.s * z;
+        // laço que morde METADE do disco mas não alcança o centro
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x - rr*0.5, c.y + 60);
+        var pegouEncostando = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço que para ANTES do disco não pode pegar
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x - rr*2, c.y + 60);
+        var pegouLonge = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço cobrindo o centro: aí pega
+        _selMap = new Set();
+        md(c.x - 60, c.y - 60); mv(c.x + 60, c.y + 60);
+        var pegouCentro = _selMap.has(n0.id);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // Shift + laço soma ao que já estava?
+        var outro = nodes[1] ? nodes[1].id : null;
+        _selMap = new Set(outro ? [outro] : []);
+        md(c.x - 60, c.y - 60, true); mv(c.x + 60, c.y + 60, true);
+        var shiftSomou = outro ? (_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // Shift + clique num nó soma?
+        var g0 = document.querySelector('.gn[data-id="' + n0.id + '"]');
+        _selMap = new Set(outro ? [outro] : []); draw(svg);
+        g0 = document.querySelector('.gn[data-id="' + n0.id + '"]');
+        g0.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:Math.round(c.x), clientY:Math.round(c.y), button:0, shiftKey:true}));
+        var shiftCliqueSomou = outro ? (_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // laço SEM shift continua trocando (não pode virar sempre-soma)
+        _selMap = new Set(outro ? [outro] : []);
+        md(c.x - 60, c.y - 60); mv(c.x + 60, c.y + 60);
+        var semShiftTroca = outro ? (!_selMap.has(outro) && _selMap.has(n0.id)) : "sem2onode";
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        // painel de Camadas: fecha ao clicar fora? e pelo Esc?
+        toggleCamadas();
+        var camAberto = document.getElementById("maptoggles").classList.contains("open");
+        document.body.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var camFechou = !document.getElementById("maptoggles").classList.contains("open");
+        // Esc: parte de um estado CONHECIDO (fechado), abre e só então mede —
+        // senão o resultado depende do passo anterior e passa pelo motivo errado.
+        var mt = document.getElementById("maptoggles");
+        mt.classList.remove("open");
+        toggleCamadas();
+        var camReabriu = mt.classList.contains("open");
+        overlayFecharTopo();
+        var camEsc = camReabriu && !mt.classList.contains("open");
+        document.title = "MAPA raio-tela=" + rr.toFixed(1) +
+          " | laco-pega-encostando=" + pegouEncostando + " laco-longe-nao-pega=" + !pegouLonge +
+          " | laco-pega-centro=" + pegouCentro + " | shift-laco-soma=" + shiftSomou +
+          " | shift-clique-soma=" + shiftCliqueSomou + " | sem-shift-troca=" + semShiftTroca +
+          " | camadas-abre=" + camAberto + " camadas-fecha-fora=" + camFechou + " camadas-esc=" + camEsc;
+      }, 500);
+    }
+    // seleção: Delete apaga? Shift soma? o laço pega quem ENCOSTA nele?
+    else if (base === "teorias-selecao") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60,  y:60},
+        {id:"qb", tipo:"ref", kind:"pista", ref:"f5", x:400, y:60},
+        {id:"qc", tipo:"ref", kind:"pista", ref:"f2", x:60,  y:400}
+      );
+      desenhaQuadro();
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas"), r = cv.getBoundingClientRect();
+        var z = (typeof zoomIF === "function" ? zoomIF() : 1);
+        var tela = function (wx, wy) { return { x: r.left + (wx*_q.cam.s + _q.cam.x)*z, y: r.top + (wy*_q.cam.s + _q.cam.y)*z }; };
+        var md = function (el, x, y, sh) { el.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:x, clientY:y, button:0, shiftKey:!!sh})); };
+        var tecla = function (code) { (document.activeElement||document.body).dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:code, key:code==="Delete"?"Delete":code})); };
+        var elA = document.querySelector('.qnode[data-id="qa"]');
+        var elB = document.querySelector('.qnode[data-id="qb"]');
+
+        // 1) Delete apaga o cartão selecionado?
+        var rA = elA.getBoundingClientRect();
+        md(elA, Math.round(rA.left+20), Math.round(rA.bottom-10));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var sel1 = _qSelSet.size;
+        var antes = _q.nodes.length;
+        tecla("Delete");
+        var apagou = _q.nodes.length === antes - 1;
+        // repõe o cartão para os testes seguintes
+        _q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:60, y:60});
+        _qSelSet = new Set(); desenhaQuadro();
+        elA = document.querySelector('.qnode[data-id="qa"]');
+        elB = document.querySelector('.qnode[data-id="qb"]');
+
+        // 2) Shift+clique soma à seleção?
+        rA = elA.getBoundingClientRect();
+        var rB = elB.getBoundingClientRect();
+        md(elA, Math.round(rA.left+20), Math.round(rA.bottom-10));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        md(elB, Math.round(rB.left+20), Math.round(rB.bottom-10), true);
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var somou = _qSelSet.size === 2;
+
+        // 3) laço encostando SÓ na quina do cartão qc (x 60..236, y 400..~480)
+        _qSelSet = new Set(); markSelDom();
+        var p0 = tela(20, 360), p1 = tela(100, 430);   // pega ~40x30 do canto
+        md(cv, Math.round(p0.x), Math.round(p0.y));
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(p1.x), clientY:Math.round(p1.y)}));
+        var pegouEncostando = _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 4) Shift + laço soma ao que já estava marcado?
+        _qSelSet = new Set(["qb"]); markSelDom();
+        var q0 = tela(20, 360), q1 = tela(300, 600);
+        md(cv, Math.round(q0.x), Math.round(q0.y), true);
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(q1.x), clientY:Math.round(q1.y), shiftKey:true}));
+        var lacoSomou = _qSelSet.has("qb") && _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 4b) sem Shift, o laço TROCA a seleção (não soma)
+        _qSelSet = new Set(["qb"]); markSelDom();
+        var s0 = tela(20, 360), s1 = tela(300, 600);
+        md(cv, Math.round(s0.x), Math.round(s0.y));
+        cv.dispatchEvent(new MouseEvent("mousemove", {bubbles:true, clientX:Math.round(s1.x), clientY:Math.round(s1.y)}));
+        var lacoTroca = !_qSelSet.has("qb") && _qSelSet.has("qc");
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+
+        // 5) e numa NOTA? clicar no corpo dela seleciona, ou só entra na escrita?
+        _qSelSet = new Set(); markSelDom();
+        var nn = qNovoTextoEm(600, 300, "nota"); desenhaQuadro();
+        var elN = document.querySelector('.qnode[data-id="' + nn.id + '"]');
+        var edN = elN.querySelector(".qtxt"), rN = edN.getBoundingClientRect();
+        md(edN, Math.round(rN.left + 20), Math.round(rN.top + 12));
+        window.dispatchEvent(new MouseEvent("mouseup", {bubbles:true}));
+        var notaSelecionou = _qSelSet.has(nn.id);
+        var naoFocouNoClique = document.activeElement !== edN;
+        var antesN = _q.nodes.length;
+        tecla("Delete");
+        var notaApagou = _q.nodes.length === antesN - 1;
+
+        // 6) 2 cliques entram na escrita, e Esc sai dela deixando marcado
+        var nn2 = qNovoTextoEm(600, 300, "nota"); desenhaQuadro();
+        var el2 = document.querySelector('.qnode[data-id="' + nn2.id + '"]');
+        var ed2 = el2.querySelector(".qtxt");
+        ed2.blur(); _qSelSet = new Set(); markSelDom();
+        el2.dispatchEvent(new MouseEvent("dblclick", {bubbles:true}));
+        var doisCliquesEscreve = document.activeElement === ed2;
+        ed2.dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:"Escape", key:"Escape"}));
+        var escSaiu = document.activeElement !== ed2 && _qSelSet.has(nn2.id);
+
+        // 7) o ✕ e o 🎨 sumiram do papel?
+        var semX = !document.querySelector(".qnode .qdel") && !document.querySelector(".qnode .qcor");
+
+        // 8) painel de atalhos fecha ao clicar fora?
+        qAtalhos(true);
+        var atAberto = document.getElementById("qatalhos").classList.contains("open");
+        cv.dispatchEvent(new MouseEvent("click", {bubbles:true}));
+        var atFechou = !document.getElementById("qatalhos").classList.contains("open");
+
+        document.title = "sel-clique=" + sel1 + " | delete-apaga=" + apagou +
+          " | shift-clique-soma=" + somou + " | laco-pega-encostando=" + pegouEncostando +
+          " | shift-laco-soma=" + lacoSomou + " | laco-sem-shift-troca=" + lacoTroca +
+          " || NOTA: clique-seleciona=" + notaSelecionou + " nao-focou=" + naoFocouNoClique +
+          " delete-apaga=" + notaApagou + " 2cliques-escreve=" + doisCliquesEscreve +
+          " esc-sai=" + escSaiu +
+          " || sem-X=" + semX + " | atalhos-abre=" + atAberto + " atalhos-fecha-fora=" + atFechou;
+      }, 350);
+    }
+    // escrever numa nota e clicar fora: o foco sai do editor e as teclas de
+    // ferramenta voltam a trocar de ferramenta em vez de virar texto?
+    else if (base === "teorias-foco") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var n = qNovoTextoEm(160, 160, "nota");
+        var ed = document.querySelector('.qnode[data-id="' + n.id + '"] .qtxt');
+        ed.focus();
+        var dentro = document.activeElement === ed;
+        // clique no fundo do quadro (fora do editor)
+        cv.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:900, clientY:600, button:0}));
+        var saiu = document.activeElement !== ed;
+        // agora a tecla N tem de trocar de ferramenta, não escrever
+        var antes = _qTool, txt0 = ed.textContent;
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:"KeyN", key:"n"}));
+        var trocou = _qTool === "nota" && antes !== "nota";
+        var naoEscreveu = ed.textContent === txt0;
+        // clicar DENTRO do editor não pode tirar o foco dele
+        ed.focus();
+        ed.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, button:0}));
+        var ficou = document.activeElement === ed;
+        document.title = "focou=" + dentro + " | clique-fora-solta=" + saiu +
+          " | tecla-troca-ferramenta=" + trocou + " | nao-escreveu=" + naoEscreveu +
+          " | clique-dentro-mantem=" + ficou;
+      }, 300);
+    }
+    // clique fora fecha o painel de quadros? (e o chip continua alternando)
+    else if (base === "teorias-pop-fora") {
+      setView("teorias");
+      setTimeout(function () {
+        var chip = document.querySelector(".qchip"), cv = document.getElementById("qcanvas");
+        var clic = function (el) { el.dispatchEvent(new MouseEvent("click", {bubbles:true})); };
+        var aberto = function () { var p = document.getElementById("qpop"); return !!p && p.classList.contains("open"); };
+        clic(chip);      var a1 = aberto();   // chip abre
+        clic(cv);        var a2 = aberto();   // clique fora fecha
+        clic(chip);      var a3 = aberto();   // chip abre de novo
+        clic(chip);      var a4 = aberto();   // chip fecha (alterna)
+        document.title = "chip-abre=" + a1 + " | fora-fecha=" + !a2 +
+          " | reabre=" + a3 + " | chip-alterna=" + !a4;
+      }, 300);
+    }
+    // Onde as peças flutuantes param no celular? (a dock e o zoom vivem
+    // DENTRO do .qcanvas, que já termina acima da tabbar)
+    else if (base === "teorias-alturas") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var d = document.querySelector(".qdock"), z = document.querySelector(".qzoom");
+        var tb = document.querySelector(".tabbar") || document.querySelector("nav.tabbar");
+        var fab = document.querySelector(".fab");
+        var r = function (el) { return el ? el.getBoundingClientRect() : null; };
+        var rc = r(cv), rd = r(d), rz = r(z), rt = r(tb), rf = r(fab);
+        var vh = window.innerHeight;
+        document.title = "vh=" + vh +
+          " | canvas.bottom=" + (rc ? Math.round(rc.bottom) : "?") +
+          " | dock=" + (rd ? Math.round(rd.top)+".."+Math.round(rd.bottom) : "?") +
+          " | zoom=" + (rz ? Math.round(rz.top)+".."+Math.round(rz.bottom) : "?") +
+          " | tabbar.top=" + (rt ? Math.round(rt.top) : "SEM") +
+          " | fab=" + (rf ? Math.round(rf.left)+","+Math.round(rf.top)+".."+Math.round(rf.bottom) : "SEM") +
+          " | dock.right=" + (rd ? Math.round(rd.right) : "?") +
+          " | folga-dock-tabbar=" + (rd && rt ? Math.round(rt.top - rd.bottom) : "?");
+      }, 300);
+    }
+    // tablet EM TOQUE: a dica troca "Clique" por "Toque" (ehToque()).
+    // O Chrome headless não tem dedo, então o MQ_TOQUE é forçado aqui.
+    else if (base === "teorias-toque") {
+      // MQ_TOQUE é const; quem dá para trocar é a própria função.
+      try { ehToque = function () { return true; }; } catch (e) {}
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 0, y: 0, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push({id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:80, y:120});
+      desenhaQuadro();
+      setTimeout(function () {
+        qSetTool("select");
+        var h = document.getElementById("qhint");
+        document.title = "TOQUE dica=" + (h ? h.querySelector(".tx").textContent : "SEM DICA");
+      }, 200);
+    }
+    // painel de atalhos aberto (o que era a legenda fixa do rodapé)
+    else if (base === "teorias-atalhos") { setView("teorias"); setTimeout(function(){ qAtalhos(true); }, 60); }
+    // dica do alfinete: quadro com 2 cartões e NENHUM barbante (halo + anotação)
+    else if (base === "teorias-dica" || base === "teorias-acoes") {
+      setView("teorias");
+      var _q = quadroAtual();
+      _q.cam = { x: 40, y: 40, s: 1 };
+      _q.nodes.length = 0; _q.setas.length = 0;
+      _q.nodes.push(
+        {id:"qa", tipo:"ref", kind:"pista", ref:"f1", x:120, y:90},
+        {id:"qn", tipo:"texto", estilo:"nota", cor:0, texto:"A lanterna é da doca, mas a bateria é nova.", x:300, y:430, w:190}
+      );
+      desenhaQuadro();
+      // barra de ações: um item selecionado (e a dica do alfinete sai de cena)
+      if (base === "teorias-acoes") setTimeout(function () {
+        _q.setas.push({id:"sA", de:"qa", para:"qn"});
+        _qSelSet = new Set(["qn"]);
+        desenhaQuadro();
+      }, 120);
+    }
     // quadro arrastado: prova que a textura do fundo anda com a câmera
     else if (base === "teorias-pan") { setView("teorias"); var _q = quadroAtual(); _q.cam.x = -420; _q.cam.y = -260; aplicaCam(); }
     // zoom-hit: com a interface ampliada, o ponto clicado ainda cai no
