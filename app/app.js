@@ -6944,6 +6944,16 @@ function qPopFechado() {
   const chip = document.querySelector(".qchip");
   if (chip) chip.setAttribute("aria-expanded", "false");
 }
+/* Clicar fora fecha o painel — mesmo caminho do menu "···" (btnMore). O
+   próprio chip fica de fora: o onclick dele já alterna, e fechar aqui
+   depois faria o painel piscar e nunca abrir. */
+document.addEventListener("click", function (e) {
+  const el = document.getElementById("qpop");
+  if (!el || !el.classList.contains("open")) return;
+  if (el.contains(e.target)) return;
+  if (e.target.closest && e.target.closest(".qchip")) return;
+  overlayFechar("qpop");
+});
 /* Filtrar só troca a LISTA: o #qpop continua o mesmo elemento, então nem a
    pilha de overlays nem o foco do campo são mexidos a cada tecla. */
 function qPopFiltrar(v) {

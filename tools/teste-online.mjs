@@ -375,6 +375,16 @@ const entrou = () =>
     ),
   );
   ok(
+    // O toque no chip (onclick inline) não roda no jsdom: aqui só se prova
+    // que o clique NO chip não é confundido com "clique fora". O ciclo
+    // inteiro (abre/fora/reabre/alterna) foi conferido no navegador real
+    // pela vista teorias-pop-fora do servidor-visual.
+    "quadros: o painel de quadros fecha ao clicar fora, e o clique no chip não conta como fora",
+    g(
+      '(function(){var chip=document.querySelector(".qchip");qPop(true);var abriu=document.getElementById("qpop").classList.contains("open");document.getElementById("qcanvas").dispatchEvent(new MouseEvent("click",{bubbles:true}));var fechou=!document.getElementById("qpop").classList.contains("open");qPop(true);chip.dispatchEvent(new MouseEvent("click",{bubbles:true}));var segue=document.getElementById("qpop").classList.contains("open");qPop(false);return abriu && fechou && segue;})()',
+    ),
+  );
+  ok(
     "quadros: o painel de atalhos abre no botão e fecha pelo Esc (pilha de overlays)",
     g(
       '(function(){qAtalhos(true);var ab=document.getElementById("qatalhos").classList.contains("open");overlayFecharTopo();var fe=!document.getElementById("qatalhos").classList.contains("open");return ab && fe;})()',

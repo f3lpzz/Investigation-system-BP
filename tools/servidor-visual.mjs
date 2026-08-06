@@ -212,6 +212,21 @@ const SEED = (vista) => `
       trocarQuadro(1);
       setTimeout(function () { qPop(true); }, 60);
     }
+    // clique fora fecha o painel de quadros? (e o chip continua alternando)
+    else if (base === "teorias-pop-fora") {
+      setView("teorias");
+      setTimeout(function () {
+        var chip = document.querySelector(".qchip"), cv = document.getElementById("qcanvas");
+        var clic = function (el) { el.dispatchEvent(new MouseEvent("click", {bubbles:true})); };
+        var aberto = function () { var p = document.getElementById("qpop"); return !!p && p.classList.contains("open"); };
+        clic(chip);      var a1 = aberto();   // chip abre
+        clic(cv);        var a2 = aberto();   // clique fora fecha
+        clic(chip);      var a3 = aberto();   // chip abre de novo
+        clic(chip);      var a4 = aberto();   // chip fecha (alterna)
+        document.title = "chip-abre=" + a1 + " | fora-fecha=" + !a2 +
+          " | reabre=" + a3 + " | chip-alterna=" + !a4;
+      }, 300);
+    }
     // painel de atalhos aberto (o que era a legenda fixa do rodapé)
     else if (base === "teorias-atalhos") { setView("teorias"); setTimeout(function(){ qAtalhos(true); }, 60); }
     // dica do alfinete: quadro com 2 cartões e NENHUM barbante (halo + anotação)
