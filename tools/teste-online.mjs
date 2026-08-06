@@ -375,6 +375,12 @@ const entrou = () =>
     ),
   );
   ok(
+    "quadros: clicar fora do cartão solta o editor (senão as teclas de ferramenta viram texto)",
+    g(
+      '(function(){var n=qNovoTextoEm(160,160,"nota");var ed=document.querySelector(\'.qnode[data-id="\'+n.id+\'"] .qtxt\');ed.focus();var dentro=document.activeElement===ed;document.getElementById("qcanvas").dispatchEvent(new MouseEvent("mousedown",{bubbles:true,clientX:900,clientY:600,button:0}));var saiu=document.activeElement!==ed;ed.focus();ed.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,button:0}));var ficou=document.activeElement===ed;ed.blur();qDelNode(n.id);return dentro && saiu && ficou;})()',
+    ),
+  );
+  ok(
     // O toque no chip (onclick inline) não roda no jsdom: aqui só se prova
     // que o clique NO chip não é confundido com "clique fora". O ciclo
     // inteiro (abre/fora/reabre/alterna) foi conferido no navegador real

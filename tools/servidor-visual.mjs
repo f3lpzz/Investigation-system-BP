@@ -212,6 +212,33 @@ const SEED = (vista) => `
       trocarQuadro(1);
       setTimeout(function () { qPop(true); }, 60);
     }
+    // escrever numa nota e clicar fora: o foco sai do editor e as teclas de
+    // ferramenta voltam a trocar de ferramenta em vez de virar texto?
+    else if (base === "teorias-foco") {
+      setView("teorias");
+      setTimeout(function () {
+        var cv = document.getElementById("qcanvas");
+        var n = qNovoTextoEm(160, 160, "nota");
+        var ed = document.querySelector('.qnode[data-id="' + n.id + '"] .qtxt');
+        ed.focus();
+        var dentro = document.activeElement === ed;
+        // clique no fundo do quadro (fora do editor)
+        cv.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, clientX:900, clientY:600, button:0}));
+        var saiu = document.activeElement !== ed;
+        // agora a tecla N tem de trocar de ferramenta, não escrever
+        var antes = _qTool, txt0 = ed.textContent;
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", {bubbles:true, code:"KeyN", key:"n"}));
+        var trocou = _qTool === "nota" && antes !== "nota";
+        var naoEscreveu = ed.textContent === txt0;
+        // clicar DENTRO do editor não pode tirar o foco dele
+        ed.focus();
+        ed.dispatchEvent(new MouseEvent("mousedown", {bubbles:true, button:0}));
+        var ficou = document.activeElement === ed;
+        document.title = "focou=" + dentro + " | clique-fora-solta=" + saiu +
+          " | tecla-troca-ferramenta=" + trocou + " | nao-escreveu=" + naoEscreveu +
+          " | clique-dentro-mantem=" + ficou;
+      }, 300);
+    }
     // clique fora fecha o painel de quadros? (e o chip continua alternando)
     else if (base === "teorias-pop-fora") {
       setView("teorias");

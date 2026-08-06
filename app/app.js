@@ -7203,6 +7203,16 @@ function qFocarTexto(id) {
   const ed = el && el.querySelector(".qtxt");
   if (ed) ed.focus();
 }
+/* Tira o foco do editor de um cartão quando o clique cai FORA dele.
+   Devolve true se soltou. Clicar dentro do próprio editor não mexe em
+   nada — é assim que se posiciona o cursor no texto. */
+function qSoltarEditor(alvo) {
+  const ed = document.activeElement;
+  if (!ed || !ed.classList || !ed.classList.contains("qtxt")) return false;
+  if (alvo && ed.contains(alvo)) return false;
+  ed.blur();
+  return true;
+}
 /* Barra do barbante: mora no nó do meio da curva, onde o clique já
    seleciona a seta. Vive no .qworld para andar junto com a câmera. */
 function qAcoesSeta() {
@@ -8142,6 +8152,11 @@ function wireQuadro() {
   };
   cv.addEventListener("mousedown", function (e) {
     const q = quadroAtual();
+    /* Sair do editor ao clicar fora dele. Os arrastes deste canvas chamam
+       preventDefault, e isso IMPEDE o navegador de tirar o foco sozinho:
+       o cursor ficava preso na nota e as teclas de ferramenta (V/H/F/N/T/A)
+       viravam texto em vez de trocar de ferramenta. */
+    qSoltarEditor(e.target);
     /* As peças flutuantes (dock, dica, zoom, atalhos, barra de ações e o
        cartão de quadro vazio) ficam DENTRO do canvas: apertar nelas não
        pode virar laço de seleção nem arraste de cartão. */
