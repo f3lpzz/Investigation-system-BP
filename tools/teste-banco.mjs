@@ -17,7 +17,7 @@ test("migrações idempotentes, RLS e gravação condicional no Postgres", async
       create function auth.uid() returns uuid language sql stable as $$
         select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid
       $$;
-      create table storage.buckets(id text primary key,name text,public boolean);
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
       create table storage.objects(id integer generated always as identity primary key,bucket_id text,name text);
       alter table storage.objects enable row level security;
       create function storage.foldername(text) returns text[] language sql immutable as $$
@@ -27,10 +27,8 @@ test("migrações idempotentes, RLS e gravação condicional no Postgres", async
       grant select,insert,update,delete on storage.objects to authenticated;
       grant usage on all sequences in schema storage to authenticated;
     `);
-    const migracoes = [
-      "202609050001_base.sql",
-      "202609050002_concorrencia.sql",
-    ];
+    const migracoes = fs.readdirSync(new URL("../supabase/migrations/", import.meta.url))
+      .filter((nome) => nome.endsWith(".sql")).sort();
     for (let repeticao = 0; repeticao < 2; repeticao++)
       for (const nome of migracoes)
         await db.exec(

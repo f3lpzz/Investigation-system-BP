@@ -32,10 +32,10 @@ As capturas do Chrome ficam no artefato `capturas-painel` do workflow. Compare d
 
 ## Publicação pelo proprietário
 
-**Não fazer merge nem executar a exclusão em contas reais para testar.** O fluxo abaixo é do proprietário, após revisar o PR.
+**Não fazer merge nem executar a exclusão em contas reais para testar.** A atualização do Supabase deste projeto já foi autorizada e aplicada em 7 de setembro de 2026. O fluxo abaixo serve para outras instalações; no projeto atual, não reaplique migrações já registradas.
 
-1. Faça um backup do banco e teste primeiro em um projeto Supabase de desenvolvimento. O PR não acessa nem muda o Supabase de produção.
-2. Aplique, em ordem, `supabase/migrations/202609050001_base.sql` e `202609050002_concorrencia.sql`. Em uma instalação gerenciada pela CLI, use o fluxo normal de migrations; em uma instalação manual, execute os arquivos no SQL Editor. Não envie segredos para o Git.
+1. Faça um backup do banco e teste primeiro em um projeto Supabase de desenvolvimento. O merge do PR não aplica migrações automaticamente no Supabase.
+2. Aplique, em ordem, `supabase/migrations/20260907131749_base_confiabilidade.sql` e `20260907131806_concorrencia_catalogo.sql`. Em uma instalação gerenciada pela CLI, use o fluxo normal de migrations; em uma instalação manual, execute os arquivos no SQL Editor. Não envie segredos para o Git.
 3. Revise as políticas existentes no painel: as migrações substituem as políticas conhecidas pelos mesmos nomes, mas não removem políticas extras que o proprietário possa ter criado. Uma política permissiva adicional precisa ser revisada.
 4. Publique `apagar-conta`, incluindo o novo módulo `excluir-dados.mjs`. Não há nova chave no frontend nem nova tabela de dados pessoais.
 5. Faça o teste de isolamento com duas contas no Supabase real: catálogo e imagens, por UI e API. O teste Postgres local não atesta a configuração que já está instalada em produção.
@@ -56,4 +56,10 @@ As capturas do Chrome ficam no artefato `capturas-painel` do workflow. Compare d
 - A atualização incorpora o PR #23, já integrado em `online`: imagens das salas usam a URL original, sem o endpoint de transformação pago e sem pré-carregar todas as artes. A implementação agora fica em `app/arquivo.js`, preservando a divisão em módulos.
 - Os testes e a geração de capturas passaram no GitHub na primeira publicação. Cada atualização dispara uma nova execução; consulte os checks do PR para o resultado atual.
 - Os PNGs estão no artefato `capturas-painel`. A inspeção visual continua pendente; gerar screenshots não equivale a aprovar o visual.
-- Não houve execução das migrações nem publicação de funções no Supabase real. Siga o procedimento acima antes do merge pelo proprietário.
+- Supabase atualizado com autorização do proprietário: `20260907131749_base_confiabilidade` e `20260907131806_concorrencia_catalogo` aplicadas; `apagar-conta` v1 publicada com `verify_jwt=true`.
+- O índice redundante `idx_catalogo_user` foi removido após conferir sua definição. A política antiga do diretório foi substituída sem duplicar a regra de leitura.
+- Teste SQL no projeto real, em transação revertida: leitura própria, bloqueio de leitura/gravação/exclusão cruzadas, bloqueio de troca de dono, avanço da versão e recusa de gravação obsoleta. O hash dos catálogos e as contagens de usuários, salas e arquivos permaneceram iguais após o teste.
+- O endpoint publicado respondeu 401 tanto sem token quanto com token inválido. O fluxo autorizado de exclusão e suas falhas foram testados com cliente simulado, incluindo mais de 1.000 imagens e subpastas; nenhuma conta real foi apagada para testar.
+- O frontend deste PR ativa `APAGAR_CONTA_ATIVO`. A produção receberá o botão quando o proprietário fizer merge; Supabase já está preparado.
+- Advisors de performance sem avisos; o único aviso de segurança é a proteção paga de senhas vazadas, mantida desativada por solicitação expressa.
+- Os quatro arquivos de migração espelham as versões e o SQL registrados no Supabase, incluindo os dois históricos recuperados. Não representam um dump completo das configurações: o bucket de imagens atual continua com o limite manual de 1 MiB (a migração histórica usava 5 MiB).

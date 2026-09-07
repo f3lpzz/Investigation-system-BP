@@ -32,6 +32,7 @@ create table if not exists public.diretorio_salas (
 );
 alter table public.diretorio_salas enable row level security;
 grant select on public.diretorio_salas to authenticated;
+drop policy if exists "diretorio_salas leitura autenticada" on public.diretorio_salas;
 drop policy if exists "diretorio: leitura autenticada" on public.diretorio_salas;
 create policy "diretorio: leitura autenticada" on public.diretorio_salas for select to authenticated using (true);
 
@@ -52,4 +53,16 @@ create policy "imagens: atualizar as proprias" on storage.objects for update to 
 drop policy if exists "imagens: apagar as proprias" on storage.objects;
 create policy "imagens: apagar as proprias" on storage.objects for delete to authenticated
   using (bucket_id = 'imagens' and (storage.foldername(name))[1] = (select auth.uid())::text);
+-- O índice simples repete a chave primária (user_id). Só remover a definição auditada.
+do $$
+begin
+  if to_regclass('public.idx_catalogo_user') is not null then
+    if pg_get_indexdef('public.idx_catalogo_user'::regclass) <>
+       'CREATE INDEX idx_catalogo_user ON public.catalogo_usuario USING btree (user_id)' then
+      raise exception 'idx_catalogo_user mudou; revisar antes de remover';
+    end if;
+    drop index public.idx_catalogo_user;
+  end if;
+end;
+$$;
 commit;

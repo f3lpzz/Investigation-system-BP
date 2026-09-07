@@ -40,8 +40,8 @@ O `DADOS` mantém as oito listas v6. Imagens privadas são referenciadas por `nu
 
 ## Backend e operação
 
-- `supabase/migrations/202609050001_base.sql`: tabelas, RLS e buckets; compatível com instalações feitas pelo guia manual.
-- `supabase/migrations/202609050002_concorrencia.sql`: trigger de versão para gravação condicional.
+- `supabase/migrations/20260907131749_base_confiabilidade.sql`: tabelas, RLS e buckets; compatível com instalações feitas pelo guia manual.
+- `supabase/migrations/20260907131806_concorrencia_catalogo.sql`: trigger de versão para gravação condicional.
 - `apagar-conta`: verifica o token, remove imagens em páginas e subpastas e apaga o Auth por último. A FK elimina o catálogo na mesma exclusão do usuário. Falhas são reportadas e a operação pode ser repetida.
 - `ia-processar`: token válido + allowlist no servidor. Segredos ficam exclusivamente nas variáveis de ambiente do Supabase.
 - `.github/workflows/verificar.yml`: testes e capturas do Chrome em PRs e branches de trabalho.
