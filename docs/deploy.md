@@ -1,5 +1,8 @@
 # Deploy — pôr no ar e manter (manual de operação)
 
+> **Atualização desta revisão:** o SQL executável e versionado está em `supabase/migrations/`. Aplique os dois arquivos em ordem e publique novamente a função `apagar-conta` com seu módulo auxiliar antes de liberar o frontend. Siga a [sequência completa](revisao-confiabilidade.md#publicação-pelo-proprietário). Os blocos abaixo explicam o modelo; o trigger de concorrência está na segunda migração e é necessário para a nova versão.
+
+
 > Receita reproduzível, **do zero ao ar**, com cliques e comandos concretos — e como manter depois. Onde houver **⛔ PARE**, é uma ação que exige conta/decisão do dono do projeto.
 > **Reconfira** limites/telas dos serviços ao executar (mudam). Cada passo tem um "✅ Como verificar"; o detalhe completo dos testes está no `testing.md`.
 

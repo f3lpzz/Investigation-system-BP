@@ -14,6 +14,8 @@
 | [`testing.md`](testing.md) | **Testes/QA**: como validar cada etapa e os testes de robustez. |
 | [`content-guide.md`](content-guide.md) | **Guia de conteúdo**: como catalogar pistas (sem spoiler, transcrição/tradução). |
 
+| [`revisao-confiabilidade.md`](revisao-confiabilidade.md) | Alterações desta revisão, validação e sequência de publicação do backend. |
+
 ## Sugestão de leitura
 
 - **Entender o sistema:** `spec.md` → `architecture.md` → `data-model.md`.

@@ -1,5 +1,22 @@
 # Testes — plano de testes da versão online
 
+## Comandos reproduzíveis nesta revisão
+
+Na pasta `tools`:
+
+```bash
+npm ci
+npm run checar-online
+npm run lint
+npm run teste-visual # exige Chrome; no CI gera capturas como artefatos
+```
+
+Os testes usam `tools/fixtures/catalogo.json`, nunca o catálogo pessoal excluído do Git. `checar-online` inclui a carga dos módulos, os testes legados, regressões de nuvem/IA, backup/exclusão e as migrações reais em Postgres local (PGlite). Os esquemas de Auth/Storage nesse teste são mínimos e simulados: ainda é obrigatório conferir o isolamento no Supabase real antes de publicar.
+
+`lint` lê todos os scripts locais na ordem de `painel.html` e analisa o escopo compartilhado. O workflow `.github/workflows/verificar.yml` executa as verificações e captura o app com Chrome em desktop e celular. Consulte também `revisao-confiabilidade.md`.
+
+
+
 > **Objetivo:** garantir que **cada parte funciona** e que **nada quebra**. O `deploy.md` aponta para cada camada daqui.
 > **Princípio:** testar **a cada etapa**. Se uma checagem ficar vermelha e não resolver em poucos minutos, **desfaça** (git).
 
@@ -90,7 +107,7 @@ No **site publicado**, rodar o roteiro dos **12 critérios de aceite** do `spec.
 
 1. **Falha ao salvar / rede caindo:** simular o Supabase indisponível e confirmar que o app **avisa** e **não perde** o que o usuário digitou (tenta de novo).
 2. **Recuperação da pausa de 7 dias:** o app **degrada com mensagem**, sem tela branca.
-3. **Sessão e sincronização:** a sessão **persiste** ao recarregar; editar nos dois aparelhos — "quem salva por último vence" (usar `atualizado_em`).
+3. **Sessão e sincronização:** a sessão **persiste** ao recarregar; editar nos dois aparelhos — a segunda gravação recebe conflito e não substitui a primeira (comparar `atualizado_em`).
 4. **Importar o `dados.js` real:** catálogo fica **completo e válido** (rodar o validador).
 5. **Export → Import:** exportar de uma conta e importar noutra dá catálogo **idêntico**.
 6. **Segurança aprofundada:** a **`service_role` NÃO** aparece no bundle; varredura de segredos antes de cada push; RLS não burlável pela REST.

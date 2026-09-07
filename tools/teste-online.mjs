@@ -1,3 +1,4 @@
+import { codigoApp } from "./carregar-app.mjs";
 // teste-online.mjs — valida a camada ONLINE (online.js) com um Supabase FALSO (mock).
 // Não precisa de internet nem do Supabase real. Roda com: node teste-online.mjs
 // Verifica: 1º acesso cria esqueleto v6; round-trip "ler = salvar" idêntico;
@@ -14,7 +15,7 @@ const ler = (n) => fs.readFileSync(path.join(ROOT, n), "utf8");
 
 const html = ler("painel.html");
 const dadosVazio = ler("dados-vazio.js");
-const app = ler("app.js");
+const app = codigoApp();
 const online = ler("online.js");
 const salasBase = ler("salas-base.js"); // lista-base das salas (semeia o Diretório)
 const iaJs = ler("ia.js"); // camada de IA (processar pistas)
@@ -30,7 +31,10 @@ const ok = (nome, cond) => {
 let sessionNow = null;
 let authCb = null;
 let cloud = {}; // user_id -> dados (o "banco" em memória)
-let upsertCalls = [];
+let upsertCalls = []; // gravações (insert/update)
+let versoes = {};
+let versaoSeq = 0;
+let falharSalvamento = false;
 let falharCarga = false; // quando true, a leitura da nuvem falha (teste de falha de carga)
 let diretorioSalas = []; // "tabela" diretorio_salas em memória (vazia = sem sobreposição)
 
@@ -54,12 +58,28 @@ function makeBuilder(table) {
       if (falharCarga)
         return { data: null, error: { message: "Failed to fetch" } };
       const uid = st.filtros.user_id;
-      if (uid in cloud) return { data: { dados: cloud[uid] }, error: null };
+      if (st.row) {
+        if (falharSalvamento) return {error:{message:"offline"},data:null};
+        if (uid in cloud && st.filtros.atualizado_em === versoes[uid]) {
+          cloud[uid] = JSON.parse(JSON.stringify(st.row.dados));
+          versoes[uid] = String(++versaoSeq);
+          upsertCalls.push(JSON.parse(JSON.stringify({user_id:uid,...st.row})));
+          return { data: {atualizado_em:versoes[uid]}, error:null };
+        }
+        return {data:null,error:null};
+      }
+      if (uid in cloud) {
+        if (!versoes[uid]) versoes[uid] = String(++versaoSeq);
+        return { data: { dados: cloud[uid], atualizado_em:versoes[uid] }, error: null };
+      }
       return { data: null, error: null };
     },
-    async upsert(row) {
+    update(row) { st.row = row; return b; },
+    async insert(row) {
       upsertCalls.push(JSON.parse(JSON.stringify(row)));
+      if (row.user_id in cloud) return { error: {code:"23505"} };
       cloud[row.user_id] = JSON.parse(JSON.stringify(row.dados));
+      versoes[row.user_id] = String(++versaoSeq);
       return { data: [row], error: null };
     },
   };
@@ -219,6 +239,7 @@ const entrou = () =>
   await until(() => g("DADOS.fichas.length") === 1);
   ok("round-trip: carregou 1 ficha da nuvem", g("DADOS.fichas.length") === 1);
   upsertCalls = [];
+  g("marcarAlterado()");
   await g("window.NUVEM.salvarAgora()");
   await until(() => upsertCalls.length >= 1);
   const salvo = upsertCalls[upsertCalls.length - 1].dados;
@@ -1178,6 +1199,31 @@ const entrou = () =>
     g('(function(){DADOS.personagens.push({nome:"Sem Citacao",imagem:"",descricao:"",fatos:[],notas:"",aliases:[]});return window.IA.personasElegiveis().every(x=>x.nome!=="Sem Citacao");})()'),
   );
   g("window.IA.chamar = window.__chamarOrig2;");
+
+  /* Regressões de integridade: sessão isolada dos cenários de UI acima. */
+  cloud["user-reg"] = JSON.parse(fs.readFileSync(path.join(HERE,"fixtures","catalogo.json"),"utf8"));
+  login({id:"user-reg",email:"reg@example.com"}); await until(entrou);
+  ok("regressões: entrou na sessão de teste", !!g("window.USUARIO"));
+  g('DADOS.fichas[0].notas="alteração imediatamente antes de sair";marcarAlterado()');
+  const uidFinal = g('window.USUARIO.id');
+  await g('window.sairDaConta()');
+  ok("logout: espera salvar a edição que ainda estava no debounce", cloud[uidFinal].fichas[0].notas === "alteração imediatamente antes de sair");
+  login({id:uidFinal,email:"teste@example.com"}); await until(entrou);
+  falharSalvamento = true;
+  g('DADOS.fichas[0].notas="rascunho offline";marcarAlterado()');
+  const saiuComFalha = await g('window.sairDaConta()');
+  ok("logout: falha de rede mantém a sessão e o rascunho", saiuComFalha === false && g('!!window.USUARIO && dirty && DADOS.fichas[0].notas === "rascunho offline"'));
+  falharSalvamento = false; await g('window.NUVEM.salvarAgora()');
+  ok("salvamento: retry confirma o rascunho", !g('dirty') && cloud[uidFinal].fichas[0].notas === "rascunho offline");
+  let bloqueouImagem = false;
+  try { await w.IA.imagens({paginas:[{imagem:"imagens/ausente.jpg"},{imagem:"https://example.com/p2.jpg"}]}); }
+  catch { bloqueouImagem = true; }
+  ok("IA: uma página não enviada bloqueia a transcrição inteira", bloqueouImagem);
+  const antesIA = g('JSON.stringify(DADOS.fichas[0])');
+  let bloqueouResposta = false;
+  try { w.IA.aplicar(g('DADOS.fichas[0].id'), {titulo:"NÃO APLICAR",paginas:[]}); }
+  catch { bloqueouResposta = true; }
+  ok("IA: resposta incompleta não altera título nem páginas", bloqueouResposta && g('JSON.stringify(DADOS.fichas[0])') === antesIA);
 
   ok("zero erros de runtime", erros.length === 0);
   if (erros.length) console.log("Erros:", erros.slice(0, 5));

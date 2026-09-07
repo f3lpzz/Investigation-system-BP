@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "app");
+const DIR = process.env.VISUAL_APP_DIR || join(dirname(fileURLToPath(import.meta.url)), "..", "app");
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -582,6 +582,22 @@ const SEED = (vista) => `
         }, 300);
       }, 250);
     }
+    else if (base === "conflito") {
+      setView("conta"); render();
+      var copia = JSON.parse(JSON.stringify(D));
+      window.MODO_ONLINE = true;
+      window.supabase = {createClient: function () { return {
+        auth: {onAuthStateChange: function(){}, getSession: async function(){return {data:{session:{user:{id:"visual",email:"teste@example.invalid"}}}};}},
+        from: function(tabela) {
+          if(tabela === "diretorio_salas") return {select: async function(){return {data:[]};}};
+          var gravando = false;
+          return {select:function(){return this;},eq:function(){return this;},update:function(){gravando=true;return this;},maybeSingle:async function(){return {data:gravando ? null : {dados:copia,atualizado_em:"2026-09-05T00:00:00Z"}};}};
+        }
+      };}};
+      var camada = document.createElement("script"); camada.src = "/online.js";
+      camada.onload = function(){ setTimeout(function(){ window.NUVEM.agendarSalvar(); window.NUVEM.salvarAgora(); },500); };
+      document.body.appendChild(camada);
+    }
     else { setView(base); render(); }
     if (v !== base) { setTimeout(function(){ __diag(); }, 400); }
   }
@@ -633,7 +649,10 @@ createServer((req, res) => {
     let body = readFileSync(file);
     const seed = new URLSearchParams(qs || "").get("seed");
     if (seed && p === "/painel.html") {
-      body = Buffer.from(body.toString("utf8").replace("</body>", SEED(seed) + "</body>"), "utf8");
+      // O servidor de teste é exclusivamente local: nunca consulta a nuvem real.
+      let pagina = body.toString("utf8").replace(/<script src="(?:https:[^"]+|supabase-config[^"]+|online\.js[^"]+|ia\.js[^"]+)"[^>]*><\/script>/g, "");
+      pagina = pagina.replace("</head>", '<script>window.MODO_ONLINE=false;</script></head>');
+      body = Buffer.from(pagina.replace("</body>", SEED(seed) + "</body>"), "utf8");
     }
     res.writeHead(200, { "Content-Type": MIME[extname(file)] || "application/octet-stream" });
     res.end(body);

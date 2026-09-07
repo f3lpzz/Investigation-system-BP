@@ -1,0 +1,137 @@
+{
+  "version": 6,
+  "fichas": [
+    {
+      "id": "f1",
+      "titulo": "Pista fictícia 1",
+      "sala": "Sala de teste",
+      "personagens": [],
+      "grupos": [],
+      "conexoes": [],
+      "notas": "",
+      "fav": false,
+      "pendente": false,
+      "paginas": [
+        {
+          "imagem": "",
+          "original": "Test clue 1.",
+          "traducao": "Pista de teste 1.",
+          "explica": "",
+          "rotulo": ""
+        }
+      ]
+    },
+    {
+      "id": "f2",
+      "titulo": "Pista fictícia 2",
+      "sala": "Sala de teste",
+      "personagens": [],
+      "grupos": [],
+      "conexoes": [],
+      "notas": "",
+      "fav": false,
+      "pendente": false,
+      "paginas": [
+        {
+          "imagem": "",
+          "original": "Test clue 2.",
+          "traducao": "Pista de teste 2.",
+          "explica": "",
+          "rotulo": ""
+        }
+      ]
+    },
+    {
+      "id": "f3",
+      "titulo": "Pista fictícia 3",
+      "sala": "Sala de teste",
+      "personagens": [],
+      "grupos": [],
+      "conexoes": [],
+      "notas": "",
+      "fav": false,
+      "pendente": false,
+      "paginas": [
+        {
+          "imagem": "",
+          "original": "Test clue 3.",
+          "traducao": "Pista de teste 3.",
+          "explica": "",
+          "rotulo": ""
+        }
+      ]
+    },
+    {
+      "id": "f4",
+      "titulo": "Pista fictícia 4",
+      "sala": "Sala de teste",
+      "personagens": [],
+      "grupos": [],
+      "conexoes": [],
+      "notas": "",
+      "fav": false,
+      "pendente": false,
+      "paginas": [
+        {
+          "imagem": "",
+          "original": "Test clue 4.",
+          "traducao": "Pista de teste 4.",
+          "explica": "",
+          "rotulo": ""
+        }
+      ]
+    },
+    {
+      "id": "f5",
+      "titulo": "Pista fictícia 5",
+      "sala": "Sala de teste",
+      "personagens": [],
+      "grupos": [],
+      "conexoes": [],
+      "notas": "",
+      "fav": false,
+      "pendente": false,
+      "paginas": [
+        {
+          "imagem": "",
+          "original": "Test clue 5.",
+          "traducao": "Pista de teste 5.",
+          "explica": "",
+          "rotulo": ""
+        }
+      ]
+    }
+  ],
+  "salas": [
+    {
+      "nome": "Sala de teste",
+      "descoberta": true,
+      "fatos": [],
+      "notas": "",
+      "imagem": ""
+    }
+  ],
+  "personagens": [],
+  "colecoes": [],
+  "grupos": [],
+  "teorias": [],
+  "quadros": [
+    {
+      "nome": "Quadro 1",
+      "cam": {
+        "x": 40,
+        "y": 40,
+        "s": 1
+      },
+      "nodes": [],
+      "setas": []
+    }
+  ],
+  "tipos": [
+    {
+      "id": "pista",
+      "nome": "Pista",
+      "cor": "#c9a35c"
+    }
+  ]
+}

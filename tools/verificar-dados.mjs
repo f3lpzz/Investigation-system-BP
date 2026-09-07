@@ -10,7 +10,7 @@ const ler = (nome) => fs.readFileSync(path.join(ROOT, nome), "utf8");
 const mSV = ler("app.js").match(/SCHEMA_VERSION\s*=\s*(\d+)/); // SCHEMA_VERSION vive no app.js apos a separacao
 const SCHEMA_VERSION = mSV ? parseInt(mSV[1], 10) : null;
 const out = {};
-vm.runInNewContext(ler("dados.js") + "\nout.DADOS = DADOS;", { out });
+vm.runInNewContext(("const DADOS = " + fs.readFileSync(path.join(HERE, "fixtures", "catalogo.json"), "utf8") + ";") + "\nout.DADOS = DADOS;", { out });
 const D = out.DADOS || {};
 const problemas = [], avisos = [];
 const erro = (m) => problemas.push(m), aviso = (m) => avisos.push(m);

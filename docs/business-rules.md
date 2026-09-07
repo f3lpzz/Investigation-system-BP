@@ -70,12 +70,15 @@
 
 | ID | Regra | Onde é garantida |
 |---|---|---|
-| RN-S-1 | **Autosave com atraso (~1,5 s)**; edições em rajada colapsam num único `upsert` (debounce). | `online.js` (`agendarSalvar`, 1500 ms) |
+| RN-S-1 | **Autosave com atraso (~1,5 s)**; edições em rajada colapsam numa gravação condicional (debounce). | `online.js` (`agendarSalvar`, 1500 ms) |
 | RN-S-2 | **Não perde o que foi digitado.** Se falhar, reagenda (~5 s) e sinaliza "Falha — tentando de novo". | `online.js` (`salvarNaNuvem`) |
 | RN-S-3 | **"Só logado depois de carregar."** Só marca logado após carregar com sucesso, para o autosave nunca gravar vazio por cima do catálogo real. | `online.js` (`entrarNoApp`) |
 | RN-S-4 | **Sincronização entre aparelhos** (fonte na nuvem; `atualizado_em` marca a última gravação). | `online.js` (`carregarDaNuvem`); `spec.md` U9 |
 | RN-S-5 | **1º acesso cria linha vazia** (esqueleto v6, salas do jogo "não descobertas"). | `online.js` (`carregarDaNuvem`) |
 | RN-S-6 | **Estados de salvamento visíveis** ("Salvando…", "Salvo na nuvem", "Falha…"). | `online.js` (`statusNuvem`) |
+| RN-S-7 | **Confirmação por edição.** Só mostrar salvo quando todas as edições locais tiverem sido confirmadas; snapshots em trânsito são imutáveis. | `controle-nuvem.js` |
+| RN-S-8 | **Conflito não sobrescreve.** Se a versão mudou, pausar a gravação e permitir exportar a cópia local ou recarregar com confirmação. | `online.js` + trigger `catalogo_versao` |
+| RN-S-9 | **Sair aguarda salvar.** Se houver falha, manter sessão e rascunho na memória. | `online.js` (`sair`) |
 
 ## RN-IMG — Imagens
 
@@ -101,8 +104,8 @@
 | ID | Regra | Onde é garantida |
 |---|---|---|
 | RN-IE-1 | **Importar SUBSTITUI o catálogo** (troca o da nuvem pelo do arquivo); exige confirmação explícita. | `online.js` (`importarDados`) |
-| RN-IE-2 | **Validação do arquivo:** só importa se tiver `fichas` como array; imagens locais/base64 migram para o Storage. | `online.js` (`migrarImagensDoImport`) |
-| RN-IE-3 | **Exportar é backup pessoal** (baixar o JSON a qualquer momento). | `app.js` (`exportarBackup`); `spec.md` U12 |
+| RN-IE-2 | **Validação do arquivo:** valida as oito listas, tipos e IDs antes de substituir; sanitiza HTML e restaura imagens na conta de destino. | `online.js` (`migrarImagensDoImport`) |
+| RN-IE-3 | **Exportar é backup pessoal portátil** (JSON com catálogo e imagens privadas; URLs externas continuam referências). | `app.js` (`exportarBackup`); `spec.md` U12 |
 
 ## RN-LGPD — Conta, privacidade e direitos do titular
 
@@ -113,6 +116,7 @@
 | RN-LGPD-3 | **Confirmação forte:** exige digitar **"APAGAR"** (exato) para confirmar. | `online.js` (`apagarConta`) |
 | RN-LGPD-4 | **Botão de apagar só quando o servidor existe** (`window.APAGAR_CONTA_ATIVO`). | `online.js` (`ajustarUIConta`) |
 | RN-LGPD-5 | **Direitos exportar/apagar sempre disponíveis** ao titular. | `spec.md` U12/U14 |
+| RN-LGPD-6 | **Exclusão retomável.** Percorrer todas as páginas e subpastas; conferir erros; apagar Auth por último, com catálogo em cascata. A falha parcial é informada e permite repetir. | `apagar-conta/excluir-dados.mjs` |
 
 ## RN-CONT — Regras de conteúdo (catalogação)
 

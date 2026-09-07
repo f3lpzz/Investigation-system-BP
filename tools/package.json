@@ -11,9 +11,17 @@
     "teste-dossie": "node teste-dossie.mjs",
     "teste-barbante": "node teste-barbante.mjs",
     "checar": "node verificar-dados.mjs && node teste-carga.mjs && node teste-dossie.mjs && node teste-barbante.mjs",
-    "checar-online": "node verificar-dados.mjs && node teste-carga.mjs && node teste-dossie.mjs && node teste-barbante.mjs && node teste-online.mjs",
-    "format": "prettier --write \"../app/painel.html\" \"../app/estilos.css\" \"../app/app.js\" *.mjs",
-    "lint": "eslint \"../app/app.js\""
+    "checar-online": "npm run checar && node teste-online.mjs && npm run teste-confiabilidade",
+    "format": "prettier --write \"../app/*.js\" \"../app/painel.html\" *.mjs",
+    "lint": "node lint.mjs",
+    "teste-confiabilidade": "node --test teste-confiabilidade.mjs teste-banco.mjs",
+    "teste-visual": "node teste-visual.mjs"
   },
-  "devDependencies": { "eslint": "^9.9.0", "globals": "^15.9.0", "jsdom": "^24.1.0", "prettier": "^3.3.3" }
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "eslint": "^9.9.0",
+    "globals": "^15.9.0",
+    "jsdom": "^24.1.0",
+    "prettier": "^3.3.3"
+  }
 }

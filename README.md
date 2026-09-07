@@ -34,7 +34,10 @@ Principais arquivos do app (`app/`):
 | Arquivo | O que é |
 |---|---|
 | `painel.html` | A página principal (o painel). |
-| `app.js` | O miolo do app (render, filtros, mapa, quadros, edição). |
+| `app.js` | Estado do catálogo, fichas, edição e utilitários locais. |
+| `mapa.js` / `quadros.js` / `arquivo.js` | Mapa de conexões, quadros e diretório/entidades/conta. |
+| `catalogo.js` / `backup.js` / `controle-nuvem.js` | Validação segura, backup com imagens e fila de salvamento. |
+| `iniciar.js` | Inicialização, depois dos demais módulos. |
 | `online.js` | Camada online: login + carregar/salvar na nuvem + imagens. |
 | `salas-base.js` | Lista-base das salas (dado do jogo; semeia o Diretório). |
 | `estilos.css` / `online.css` | Estilos do painel e da tela de login. |
@@ -52,8 +55,9 @@ As checagens ficam em `tools/`:
 
 ```bash
 cd tools
-npm install            # uma vez
-npm run checar-online  # valida os dados + a carga do app + a camada online
+npm ci                 # versões exatas do lockfile
+npm run checar-online  # fixtures + carga + nuvem/IA + regressões + Postgres local
+npm run lint           # todos os scripts do painel
 ```
 
 > A chave secreta `service_role` do Supabase **nunca** vai no código nem no repositório.
@@ -62,6 +66,8 @@ npm run checar-online  # valida os dados + a carga do app + a camada online
 ---
 
 ## Publicar
+
+Antes de colocar esta revisão em produção, siga [a sequência de atualização](docs/revisao-confiabilidade.md#publicação-pelo-proprietário): migrações do banco, função de exclusão e teste de isolamento. O PR não publica o backend automaticamente.
 
 O site é estático e é publicado pelo **Cloudflare Pages** com **Output directory: `app`**,
 atualizando a cada `git push`. Passo a passo completo (Supabase + Cloudflare) em
