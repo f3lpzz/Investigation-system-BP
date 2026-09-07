@@ -11,8 +11,8 @@
       rel="stylesheet"
     />
     <!-- ?v= força o celular a baixar a versão nova (troque ao mudar o CSS/JS) -->
-    <link rel="stylesheet" href="estilos.css?v=20260718b" />
-    <link rel="stylesheet" href="online.css?v=20260718b" />
+    <link rel="stylesheet" href="estilos.css?v=20260905" />
+    <link rel="stylesheet" href="online.css?v=20260905" />
   </head>
   <body class="app-carregando view-grade">
     <div class="shell">
@@ -548,16 +548,23 @@
     <!-- SDK do Supabase (cliente de auth + banco + storage) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.0"></script>
     <!-- Config pública (URL + chave anon) e liga o MODO_ONLINE -->
-    <script src="supabase-config.js?v=20260718b"></script>
+    <script src="supabase-config.js?v=20260905"></script>
+    <script src="catalogo.js?v=20260905"></script>
+    <script src="backup.js?v=20260905"></script>
+    <script src="controle-nuvem.js?v=20260905"></script>
     <!-- Esqueleto v6 vazio: a fonte real é a nuvem (não o dados.js) -->
-    <script src="dados-vazio.js?v=20260718b"></script>
+    <script src="dados-vazio.js?v=20260905"></script>
     <!-- O app (miolo inalterado) -->
-    <script src="app.js?v=20260718b"></script>
+    <script src="app.js?v=20260905"></script>
+    <script src="mapa.js?v=20260905"></script>
+    <script src="quadros.js?v=20260905"></script>
+    <script src="arquivo.js?v=20260905"></script>
+    <script src="iniciar.js?v=20260905"></script>
     <!-- Lista-base das salas (dado do jogo): semeia o Diretório de usuários novos -->
-    <script src="salas-base.js?v=20260718b"></script>
+    <script src="salas-base.js?v=20260905"></script>
     <!-- Camada online: login + carregar/salvar na nuvem -->
-    <script src="online.js?v=20260718b"></script>
+    <script src="online.js?v=20260905"></script>
     <!-- IA: processar pistas (inerte sem window.IA_ATIVA) -->
-    <script src="ia.js?v=20260718b"></script>
+    <script src="ia.js?v=20260905"></script>
   </body>
 </html>

@@ -81,9 +81,10 @@
   var usuarioAtual = null;
   var modoForm = "login"; // login | signup | reset | nova-senha
   var entrando = false; // trava síncrona contra entrada dupla no app
-  var saveTimer = null;
-  var salvandoAgora = false;
-  var precisaSalvarDeNovo = false;
+  var controle = null;
+  var geracaoSessao = 0;
+  var operacaoConta = false;
+  var ultimoStatus = "saved";
 
   /* ---- Helpers de tela ---- */
   function $(id) {
@@ -107,6 +108,7 @@
 
   /* ---- Status do botão "Salvar" no modo nuvem ---- */
   function statusNuvem(st) {
+    ultimoStatus = st;
     var ic = $("saveIc"),
       lb = $("saveLb"),
       b = $("btnSalvar");
@@ -115,10 +117,30 @@
       saving: ["", "Salvando…", "info"],
       saved: ["", "Tudo salvo na nuvem", "ok"],
       erro: ["", "Falha — tentando de novo", "warn"],
+      conflito: ["", "Conflito — confira antes de salvar", "warn"],
     };
     var m = M[st] || M.saved;
     if (ic) ic.textContent = "";
     if (lb) lb.textContent = m[1];
+    var ct = $("contaSaveTit"),
+      dot = $("contaSaveDot"),
+      sub = $("contaSaveSub");
+    var tc = document.querySelector('#tabbar .tbit[data-view="conta"]');
+    if (tc) {
+      tc.classList.remove("st-ok", "st-info", "st-warn");
+      tc.classList.add("st-" + m[2]);
+    }
+    if (ct) ct.textContent = m[1];
+    if (sub)
+      sub.textContent =
+        st === "conflito"
+          ? "O catálogo mudou em outro aparelho."
+          : st === "erro"
+            ? "Suas alterações continuam nesta aba."
+            : "salvamento automático ativo";
+    if (dot) dot.className = "save-dot2 st-" + m[2];
+    if (typeof anunciarStatus === "function") anunciarStatus(m[1]);
+    if (st === "conflito") mostrarConflito();
     if (b) {
       b.classList.remove("st-ok", "st-info", "st-warn");
       b.classList.add("st-" + m[2]);
@@ -137,7 +159,11 @@
     "tipos",
   ];
   function aplicarDadosNoApp(novo) {
-    novo = novo || esqueletoVazioV6();
+    novo = window.Catalogo.preparar(novo || esqueletoVazioV6());
+    Object.keys(DADOS).forEach(function (k) {
+      if (!LISTAS.includes(k) && !Object.prototype.hasOwnProperty.call(novo, k))
+        delete DADOS[k];
+    });
     LISTAS.forEach(function (k) {
       if (!Array.isArray(DADOS[k])) DADOS[k] = [];
       DADOS[k].length = 0;
@@ -146,7 +172,7 @@
       });
     });
     Object.keys(novo).forEach(function (k) {
-      if (!Array.isArray(novo[k])) DADOS[k] = novo[k];
+      if (!LISTAS.includes(k)) DADOS[k] = novo[k];
     });
     if (!Array.isArray(DADOS.tipos) || !DADOS.tipos.length) {
       DADOS.tipos =
@@ -170,9 +196,21 @@
      fatos, posição no mapa). Salas do diretório que faltarem são adicionadas.
      Se a busca falhar, mantém o que já havia (degradação graciosa). */
   var CAMPOS_JOGO_SALA = [
-    "num", "nome_en", "nome_pt", "descricao_en", "descricao_pt",
-    "raridade_en", "raridade_pt", "custo_en", "custo_pt",
-    "tipo_en", "tipo_pt", "categorias", "diretorio", "imagem", "fonte",
+    "num",
+    "nome_en",
+    "nome_pt",
+    "descricao_en",
+    "descricao_pt",
+    "raridade_en",
+    "raridade_pt",
+    "custo_en",
+    "custo_pt",
+    "tipo_en",
+    "tipo_pt",
+    "categorias",
+    "diretorio",
+    "imagem",
+    "fonte",
   ];
   async function carregarDiretorioSalas() {
     try {
@@ -213,80 +251,123 @@
 
   /* ---- Carregar o catálogo da nuvem (ou criar vazio no 1º acesso) ---- */
   async function carregarDaNuvem(user) {
+    var geracao = geracaoSessao;
     var r = await sb
       .from("catalogo_usuario")
-      .select("dados")
+      .select("dados,atualizado_em")
       .eq("user_id", user.id)
       .maybeSingle();
     if (r.error) throw r.error;
-    var dados = r.data && r.data.dados ? r.data.dados : null;
-    if (!dados || !Array.isArray(dados.fichas)) {
-      dados = esqueletoVazioV6();
-      var up = await sb.from("catalogo_usuario").upsert(
-        {
-          user_id: user.id,
-          dados: dados,
-          atualizado_em: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-      if (up.error) throw up.error;
+    if (!r.data) {
+      var criada = await sb
+        .from("catalogo_usuario")
+        .insert({ user_id: user.id, dados: esqueletoVazioV6() });
+      // Outro aparelho pode ter criado a linha durante a leitura inicial.
+      if (criada.error && criada.error.code !== "23505") throw criada.error;
+      r = await sb
+        .from("catalogo_usuario")
+        .select("dados,atualizado_em")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (r.error || !r.data)
+        throw r.error || new Error("Catálogo indisponível");
     }
-    // Sobrepõe o diretório compartilhado (dado do jogo) antes de aplicar.
+    var dados = window.Catalogo.preparar(r.data.dados);
     var diretorio = await carregarDiretorioSalas();
     if (diretorio) sobreporDiretorioSalas(dados, diretorio);
+    if (geracao !== geracaoSessao) return false;
+    if (controle) controle.encerrar();
     aplicarDadosNoApp(dados);
-    // Pré-carrega as miniaturas das salas (em segundo plano) para o Diretório
-    // já aparecer pronto quando o usuário abrir a aba.
+    controle = window.ControleNuvem.criar({
+      versao: r.data.atualizado_em,
+      dados: function () {
+        return DADOS;
+      },
+      status: statusNuvem,
+      confirmar: function () {
+        if (typeof marcarSalvo === "function") marcarSalvo();
+      },
+      gravar: async function (snapshot, versao) {
+        // Comparação E gravação são uma única operação no Postgres.
+        var salvo = await sb
+          .from("catalogo_usuario")
+          .update({ dados: snapshot, atualizado_em: new Date().toISOString() })
+          .eq("user_id", user.id)
+          .eq("atualizado_em", versao)
+          .select("atualizado_em")
+          .maybeSingle();
+        if (salvo.error) throw salvo.error;
+        if (!salvo.data) {
+          var erro = new Error("Catálogo alterado em outro aparelho");
+          erro.code = "CONFLITO";
+          throw erro;
+        }
+        return salvo.data.atualizado_em;
+      },
+    });
     if (typeof precarregarThumbsSalas === "function") {
-      var _ric =
+      (
         window.requestIdleCallback ||
         function (f) {
           return setTimeout(f, 300);
-        };
-      _ric(precarregarThumbsSalas);
+        }
+      )(precarregarThumbsSalas);
     }
+    return true;
   }
 
-  /* ---- Salvar na nuvem (autosave com atraso ~1,5s) ---- */
-  function agendarSalvar() {
-    if (!usuarioAtual) return;
-    statusNuvem("saving");
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(salvarNaNuvem, 1500);
+  function mostrarConflito() {
+    var m = $("conflitoNuvem");
+    if (!m) {
+      m = document.createElement("div");
+      m.id = "conflitoNuvem";
+      m.className = "modal";
+      m.setAttribute("role", "dialog");
+      m.setAttribute("aria-modal", "true");
+      m.setAttribute("aria-labelledby", "conflitoTitulo");
+      m.innerHTML =
+        '<div class="modalbox" style="max-width:520px"><div class="modalhd"><h2 id="conflitoTitulo">O catálogo mudou em outro aparelho</h2><button class="close" aria-label="Fechar aviso">✕</button></div><div class="modalbody"><p>Suas alterações continuam nesta aba. Salve uma cópia antes de carregar a versão da nuvem. O salvamento está pausado para evitar substituir o trabalho de outro aparelho.</p><div class="editbtns"><button class="dbtn save" data-acao="backup">Salvar cópia desta aba</button><button class="dbtn" data-acao="carregar">Carregar versão da nuvem</button></div></div></div>';
+      m.querySelector(".close").onclick = function () {
+        m.classList.remove("open");
+      };
+      m.querySelector('[data-acao="backup"]').onclick = function () {
+        window.exportarBackup();
+      };
+      m.querySelector('[data-acao="carregar"]').onclick = async function () {
+        if (
+          operacaoConta ||
+          !usuarioAtual ||
+          !confirm(
+            "Carregar a versão da nuvem descarta as alterações desta aba. Você já salvou uma cópia do que quer preservar?",
+          )
+        )
+          return;
+        operacaoConta = true;
+        bloquearEdicao(true);
+        try {
+          if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+          if (await carregarDaNuvem(usuarioAtual)) m.classList.remove("open");
+        } catch (e) {
+          alert("Não consegui carregar: " + e.message);
+        } finally {
+          operacaoConta = false;
+          bloquearEdicao(false);
+        }
+      };
+      document.body.appendChild(m);
+    }
+    if (!m.classList.contains("open")) {
+      m.classList.add("open");
+      m.querySelector('[data-acao="backup"]').focus();
+    }
   }
-  async function salvarNaNuvem() {
-    if (!usuarioAtual) return;
-    if (salvandoAgora) {
-      precisaSalvarDeNovo = true;
-      return;
-    }
-    salvandoAgora = true;
-    try {
-      statusNuvem("saving");
-      var r = await sb.from("catalogo_usuario").upsert(
-        {
-          user_id: usuarioAtual.id,
-          dados: DADOS,
-          atualizado_em: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-      if (r.error) throw r.error;
-      if (typeof marcarSalvo === "function") marcarSalvo();
-      statusNuvem("saved");
-    } catch (e) {
-      // NÃO perde o que o usuário digitou: agenda nova tentativa.
-      statusNuvem("erro");
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(salvarNaNuvem, 5000);
-    } finally {
-      salvandoAgora = false;
-      if (precisaSalvarDeNovo) {
-        precisaSalvarDeNovo = false;
-        agendarSalvar();
-      }
-    }
+  function agendarSalvar() {
+    if (usuarioAtual && controle) controle.alterar();
+  }
+  function salvarNaNuvem() {
+    if (!usuarioAtual || !controle) return Promise.resolve(false);
+    if (controle.estado() === "conflito") mostrarConflito();
+    return controle.salvar();
   }
   // Exposto para o gancho _persistApenas() e para o botão "Salvar".
   window.NUVEM = {
@@ -295,6 +376,9 @@
     carregar: carregarDaNuvem,
     sobreporDiretorioSalas: sobreporDiretorioSalas,
     carregarDiretorioSalas: carregarDiretorioSalas,
+    atualizarStatus: function () {
+      statusNuvem(ultimoStatus);
+    },
   };
 
   /* ===========================================================
@@ -381,7 +465,9 @@
   // Exibição: resolve "nuvem:caminho" -> URL assinada temporária (com cache).
   var PLACEHOLDER_IMG =
     "data:image/svg+xml;utf8," +
-    encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>');
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+    );
   function resolverImg(img) {
     var raw = img.getAttribute("src") || "";
     if (raw.indexOf("nuvem:") !== 0) return;
@@ -442,50 +528,77 @@
      - Traz as 8 listas (via aplicarDadosNoApp) e salva na nuvem.
      - URLs da web seguem como estão.
      =========================================================== */
-  async function subirImagemImport(valor, base) {
-    if (typeof valor !== "string" || !valor) return valor;
-    if (valor.indexOf("nuvem:") === 0 || valor.indexOf("http") === 0) return valor;
-    // local (imagens/...) ou base64 (data:): busca o conteúdo e envia ao Storage.
+  window.exportarBackup = async function () {
+    if (!usuarioAtual) return false;
     try {
-      var resp = await fetch(valor);
-      var blob = await resp.blob();
-      var novo = await window.salvarImagemArquivo(blob, base || "import");
-      return novo || valor; // se o upload falhar, mantém o original
+      toast("Preparando backup com suas imagens…", 4000);
+      var backup = await window.BackupCatalogo.criar(
+        DADOS,
+        sb.storage.from(BUCKET_IMG),
+      );
+      var a = document.createElement("a");
+      var url = URL.createObjectURL(
+        new Blob([JSON.stringify(backup)], { type: "application/json" }),
+      );
+      a.href = url;
+      a.download =
+        "magnify-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 1000);
+      toast("Backup completo baixado ✓", 2500);
+      return true;
     } catch (e) {
-      return valor;
+      alert("Não consegui exportar o backup completo: " + e.message);
+      return false;
+    }
+  };
+  async function importarDocumento(documento) {
+    if (!usuarioAtual || operacaoConta) return false;
+    // A validação vem ANTES da confirmação, uploads e substituição.
+    window.Catalogo.validar(
+      documento.formato === "magnify-backup" ? documento.dados : documento,
+    );
+    if (
+      !confirm(
+        "Importar vai SUBSTITUIR seu catálogo pelo do arquivo. Continuar?",
+      )
+    )
+      return false;
+    operacaoConta = true;
+    bloquearEdicao(true);
+    var geracao = geracaoSessao;
+    try {
+      if (controle && controle.pendente() && !(await salvarNaNuvem()))
+        throw new Error("Salve ou resolva o conflito atual antes de importar.");
+      var resultado = await window.BackupCatalogo.restaurar(
+        documento,
+        usuarioAtual.id,
+        sb.storage.from(BUCKET_IMG),
+      );
+      if (geracao !== geracaoSessao)
+        throw new Error(
+          "A sessão mudou durante a importação. Entre novamente.",
+        );
+      aplicarDadosNoApp(resultado.dados);
+      marcarAlterado();
+      var salvo = await salvarNaNuvem();
+      toast(
+        salvo
+          ? "Catálogo e imagens importados ✓"
+          : "Importação nesta aba; o salvamento ainda está pendente.",
+        6000,
+      );
+      return salvo;
+    } finally {
+      operacaoConta = false;
+      bloquearEdicao(false);
     }
   }
-  async function migrarImagensDoImport(o) {
-    var conta = 0;
-    async function trata(obj, campo, base) {
-      var v = obj[campo];
-      if (
-        typeof v === "string" &&
-        v &&
-        v.indexOf("nuvem:") !== 0 &&
-        v.indexOf("http") !== 0
-      ) {
-        var nv = await subirImagemImport(v, base);
-        if (nv !== v) {
-          obj[campo] = nv;
-          conta++;
-        }
-      }
-    }
-    var fs = o.fichas || [];
-    for (var i = 0; i < fs.length; i++) {
-      if (fs[i].imagem) await trata(fs[i], "imagem", "ficha");
-      var pgs = fs[i].paginas || [];
-      for (var j = 0; j < pgs.length; j++) await trata(pgs[j], "imagem", "ficha");
-    }
-    var listas = ["salas", "personagens", "grupos", "colecoes"];
-    for (var k = 0; k < listas.length; k++) {
-      var arr = o[listas[k]] || [];
-      for (var m = 0; m < arr.length; m++)
-        await trata(arr[m], "imagem", listas[k].slice(0, 4));
-    }
-    return conta;
-  }
+  window.NUVEM.importarDocumento = importarDocumento;
   window.importarDados = function () {
     var inp = document.createElement("input");
     inp.type = "file";
@@ -496,34 +609,9 @@
       var rd = new FileReader();
       rd.onload = async function () {
         try {
-          var t = String(rd.result || "");
-          var o = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
-          if (!o || !Array.isArray(o.fichas))
-            throw new Error("não parece um dados.js válido");
-          if (
-            !window.confirm(
-              "Importar vai SUBSTITUIR o seu catálogo na nuvem pelo do arquivo (e enviar as imagens). Continuar?",
-            )
-          )
-            return;
-          if (typeof toast === "function")
-            toast("Importando… enviando imagens para a nuvem.", 4000);
-          var n = await migrarImagensDoImport(o);
-          aplicarDadosNoApp(o);
-          await salvarNaNuvem();
-          if (typeof toast === "function")
-            toast(
-              "Catálogo importado ✓ — " +
-                (o.fichas ? o.fichas.length : 0) +
-                " ficha(s), " +
-                n +
-                " imagem(ns) enviada(s) à nuvem.",
-              6000,
-            );
+          await importarDocumento(window.Catalogo.ler(rd.result));
         } catch (e) {
-          alert(
-            "Não consegui importar: " + (e && e.message ? e.message : String(e)),
-          );
+          alert("Não consegui importar: " + e.message);
         }
       };
       rd.readAsText(file);
@@ -538,7 +626,7 @@
        imagens + catálogo + login. A chave secreta vive só no servidor.
      =========================================================== */
   window.apagarConta = async function () {
-    if (!usuarioAtual) return;
+    if (!usuarioAtual || operacaoConta) return;
     var c = window.prompt(
       "Isto vai APAGAR sua conta e TODOS os seus dados (catálogo + imagens), para sempre — não tem como desfazer.\n\nPara confirmar, digite APAGAR:",
     );
@@ -547,7 +635,12 @@
       alert('Cancelado (você não digitou "APAGAR").');
       return;
     }
+    operacaoConta = true;
+    bloquearEdicao(true);
+    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
     try {
+      // Nenhum autosave pode recriar o catálogo enquanto a exclusão está em curso.
+      if (controle) await controle.pausar();
       if (typeof toast === "function") toast("Apagando sua conta…", 5000);
       var sess = await sb.auth.getSession();
       var token =
@@ -567,11 +660,11 @@
       try {
         res = await r.json();
       } catch (e) {}
-      if (!r.ok || res.error)
-        throw new Error(res.error || "HTTP " + r.status);
+      if (!r.ok || res.error) throw new Error(res.error || "HTTP " + r.status);
       // Sucesso: limpa tudo localmente e volta ao login.
-      clearTimeout(saveTimer);
-      saveTimer = null;
+      if (controle) controle.encerrar();
+      controle = null;
+      geracaoSessao++;
       usuarioAtual = null;
       window.USUARIO = null;
       try {
@@ -585,6 +678,10 @@
         "Não consegui apagar a conta: " +
           (e && e.message ? e.message : String(e)),
       );
+    } finally {
+      operacaoConta = false;
+      bloquearEdicao(false);
+      if (controle) controle.retomar();
     }
   };
 
@@ -598,16 +695,18 @@
       "abrirBackups",
     ];
     locais.forEach(function (fn) {
-      var btn = document.querySelector(
-        '#modalGestao [onclick^="' + fn + '"]',
-      );
+      var btn = document.querySelector('#modalGestao [onclick^="' + fn + '"]');
       var item = btn && btn.closest ? btn.closest(".ftitem") : null;
       if (item) item.style.display = "none";
     });
     // O botão "Apagar minha conta" só aparece quando a Edge Function
     // "apagar-conta" estiver publicada (window.APAGAR_CONTA_ATIVO = true).
     var ft = document.querySelector("#modalGestao .ftbtns");
-    if (window.APAGAR_CONTA_ATIVO && ft && !ft.querySelector(".btn-apagar-conta")) {
+    if (
+      window.APAGAR_CONTA_ATIVO &&
+      ft &&
+      !ft.querySelector(".btn-apagar-conta")
+    ) {
       var span = document.createElement("span");
       span.className = "ftitem";
       span.innerHTML =
@@ -632,7 +731,7 @@
     document.body.classList.remove("pre-login");
     document.body.classList.add("app-carregando");
     try {
-      await carregarDaNuvem(user);
+      if (!(await carregarDaNuvem(user))) return;
       // SÓ considera "logado" DEPOIS de carregar com sucesso. Se marcássemos antes
       // e a carga falhasse, o autosave poderia gravar o esqueleto VAZIO por cima
       // do catálogo real na nuvem (perda de dados).
@@ -677,7 +776,8 @@
       sub = $("authSub");
     // E-mail não faz sentido na tela de "nova senha" (a sessão de recuperação já existe).
     var emailEl = $("authEmail");
-    var emailWrap = emailEl && emailEl.closest ? emailEl.closest("label") : null;
+    var emailWrap =
+      emailEl && emailEl.closest ? emailEl.closest("label") : null;
     if (emailWrap) emailWrap.style.display = m === "nova-senha" ? "none" : "";
     msg("");
     if (m === "login") {
@@ -712,7 +812,8 @@
     var senha = ($("authPass") || {}).value || "";
     if (modoForm !== "nova-senha" && !email)
       return msg("Digite o seu e-mail.", "erro");
-    if (modoForm !== "reset" && !senha) return msg("Digite a sua senha.", "erro");
+    if (modoForm !== "reset" && !senha)
+      return msg("Digite a sua senha.", "erro");
 
     ocupado(true);
     try {
@@ -789,18 +890,48 @@
     }
   }
 
+  function bloquearEdicao(b) {
+    document.querySelectorAll(".shell, #drawer, .modal").forEach(function (el) {
+      el.inert = b;
+    });
+  }
   async function sair() {
-    // Limpa a camada de salvamento para não vazar timers/flags entre sessões.
-    clearTimeout(saveTimer);
-    saveTimer = null;
-    salvandoAgora = false;
-    precisaSalvarDeNovo = false;
+    if (operacaoConta) return false;
+    operacaoConta = true;
+    bloquearEdicao(true);
+    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
     try {
-      await sb.auth.signOut();
-    } catch (e) {}
-    // Limpa a tela: zera o DADOS para não deixar o catálogo de quem saiu.
+      if (controle && controle.pendente() && !(await salvarNaNuvem())) {
+        alert(
+          "Não foi possível salvar suas alterações. Você continua conectado; tente salvar novamente ou exporte um backup.",
+        );
+        return false;
+      }
+      var r = await sb.auth.signOut();
+      if (r && r.error) throw r.error;
+      limparSessao();
+      mostrarLogin();
+      return true;
+    } catch (e) {
+      alert("Não consegui sair: " + traduzErro(e));
+      return false;
+    } finally {
+      operacaoConta = false;
+      bloquearEdicao(false);
+    }
+  }
+  function limparSessao() {
+    geracaoSessao++;
+    if (controle) controle.encerrar();
+    controle = null;
+    usuarioAtual = null;
+    window.USUARIO = null;
+    urlCacheImg = {};
+    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+    document.querySelectorAll(".modal.open").forEach(function (m) {
+      m.classList.remove("open");
+    });
     aplicarDadosNoApp(esqueletoVazioV6());
-    mostrarLogin();
   }
   window.sairDaConta = sair;
   // Versão com confirmação, usada pelo botão "Sair" da barra lateral.
@@ -816,7 +947,8 @@
 
   function traduzErro(e) {
     var t = e && e.message ? e.message : String(e);
-    if (/Invalid login credentials/i.test(t)) return "E-mail ou senha incorretos.";
+    if (/Invalid login credentials/i.test(t))
+      return "E-mail ou senha incorretos.";
     if (/Email not confirmed/i.test(t))
       return "Confirme o seu e-mail antes de entrar (veja a caixa de entrada e o spam).";
     if (/User already registered/i.test(t))
@@ -866,7 +998,10 @@
         var mostrar = inp.type === "password"; // oculta agora -> vamos mostrar
         inp.type = mostrar ? "text" : "password";
         b.innerHTML = mostrar ? OLHO_ABERTO : OLHO_FECHADO;
-        b.setAttribute("aria-label", mostrar ? "Ocultar senha" : "Mostrar senha");
+        b.setAttribute(
+          "aria-label",
+          mostrar ? "Ocultar senha" : "Mostrar senha",
+        );
       });
     });
     // No modo online, o botão "Salvar" salva na nuvem.
@@ -887,6 +1022,7 @@
     if (sessao && sessao.user) {
       if (!usuarioAtual) entrarNoApp(sessao.user);
     } else {
+      limparSessao();
       mostrarLogin();
     }
   });
