@@ -305,6 +305,8 @@
         return salvo.data.atualizado_em;
       },
     });
+    // Gancho desligado enquanto não houver miniaturas de verdade
+    // (ver thumbSala em arquivo.js); preserva a correção do PR #23.
     if (typeof precarregarThumbsSalas === "function") {
       (
         window.requestIdleCallback ||

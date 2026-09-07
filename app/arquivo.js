@@ -1235,53 +1235,41 @@ function setDirCat(c) {
   state.dirCat = c;
   renderDiretorio();
 }
-// Converte a URL pública de uma imagem do Supabase numa MINIATURA leve
-// (endpoint de transformação -> WebP, ~8KB em vez de ~120KB). O navegador
-// negocia WebP pelo header Accept. URLs que não são do Storage público
-// (data:, web) voltam sem alteração. Só reduz o que a página das salas exibe.
+// Devolve a URL da imagem da sala como ela é, sem alteração.
+//
+// Antes esta função apontava para o endpoint de transformação do Supabase
+// (/storage/v1/render/image/public/...?width=...&resize=cover) para servir
+// miniaturas de ~8KB. Esse recurso é de plano pago: no plano atual o servidor
+// responde 403 {"error":"FeatureNotEnabled"} em JSON, e o Chrome descarta a
+// resposta com ERR_BLOCKED_BY_ORB (ele bloqueia JSON que chega numa <img>).
+// Resultado: cada sala fazia 2 pedidos — um que sempre falhava e o original
+// pelo fallback do onerror. Enquanto o redimensionamento não estiver ligado,
+// pedir direto o original evita o pedido perdido.
+//
+// O recorte quadrado dos cards não depende disto: quem faz é o
+// `object-fit: cover` do CSS, e as artes das salas já são 512x512 quadradas —
+// o `resize=cover` nunca mexeu no enquadramento, só no peso do arquivo.
+//
+// Para religar as miniaturas depois (plano Pro ou bucket de thumbs próprio),
+// basta voltar a montar a URL aqui: todas as telas passam por esta função, e o
+// parâmetro `w` (o lado desejado em pixels) continua sendo informado por elas.
 function thumbSala(url, w) {
   if (typeof url !== "string") return url || "";
-  var marca = "/storage/v1/object/public/";
-  var i = url.indexOf(marca);
-  if (i < 0) return url;
-  var lado = w || 240;
-  // Quadrado com resize=cover: o Supabase recorta o excesso mantendo a
-  // proporção (sem distorcer). As artes das salas são bem altas — proporção
-  // original deixava o card gigante; contain deixava faixas vazias.
-  return (
-    url.slice(0, i) +
-    "/storage/v1/render/image/public/" +
-    url.slice(i + marca.length) +
-    "?width=" +
-    lado +
-    "&height=" +
-    lado +
-    "&resize=cover&quality=60"
-  );
+  return url;
 }
-// Pré-carrega (em segundo plano) as miniaturas das salas já descobertas, para
-// que a aba Diretório apareça pronta. Leve (~7KB cada) e com concorrência
-// limitada para não dar pico de rede.
+// Pré-carregava (em segundo plano) as miniaturas das salas já descobertas para
+// que a aba Diretório abrisse pronta. Fazia sentido quando cada miniatura tinha
+// ~7KB; sem o redimensionamento do Supabase (ver `thumbSala`) isso viraria o
+// download das artes inteiras — ~120KB por sala, mais de uma centena delas —
+// logo na abertura do app, mesmo para quem nunca abre o Diretório.
+//
+// Fica desligada até as miniaturas voltarem. As imagens continuam carregando
+// normalmente quando o Diretório é aberto: as tags <img> de lá usam
+// loading="lazy", então cada card busca a sua na hora em que aparece.
 var _thumbsSalasPre = false;
 function precarregarThumbsSalas() {
   if (_thumbsSalasPre || typeof Image === "undefined") return;
   _thumbsSalasPre = true;
-  var urls = (DADOS.salas || [])
-    .filter(function (s) {
-      return s && s.descoberta !== false && s.imagem;
-    })
-    .map(function (s) {
-      return thumbSala(s.imagem, 240);
-    });
-  var i = 0,
-    CONC = 6;
-  function proximo() {
-    if (i >= urls.length) return;
-    var im = new Image();
-    im.onload = im.onerror = proximo;
-    im.src = urls[i++];
-  }
-  for (var k = 0; k < CONC; k++) proximo();
 }
 function renderDiretorio() {
   const box = document.getElementById("diretorio");

@@ -50,9 +50,10 @@ As capturas do Chrome ficam no artefato `capturas-painel` do workflow. Compare d
 - Uma exclusão que falhar após remover algumas imagens pode ter progresso parcial. O catálogo e o Auth são mantidos até a última etapa, e a operação pode ser repetida; não há promessa de rollback dos arquivos removidos.
 - Os arquivos continuam sendo scripts clássicos com escopo compartilhado. A separação é gradual e conserva os handlers existentes.
 
-## Estado desta entrega — 5 de setembro de 2026
+## Estado desta entrega — 7 de setembro de 2026
 
-- Testes locais existentes, 141 checagens online, oito testes de confiabilidade/banco e lint passaram.
-- A gravação no GitHub retornou HTTP 403 (`Resource not accessible by integration`). Os commits estão na branch local; a branch remota, o PR e o preview ainda não foram criados.
-- A captura visual não concluiu: o navegador da sessão bloqueou localhost e o Chromium local excedeu o tempo limite sem gerar PNG. Conforme a skill `verificar-visual`, a mudança visual **não está aprovada**. O workflow está preparado para gerar capturas quando a branch for publicada; é necessário inspecionar os PNGs antes de aprovar o PR.
-- Não houve execução das migrações nem publicação de funções no Supabase real.
+- A branch `feature/confiabilidade` foi publicada e o PR #24 está aberto como rascunho para `online`.
+- A atualização incorpora o PR #23, já integrado em `online`: imagens das salas usam a URL original, sem o endpoint de transformação pago e sem pré-carregar todas as artes. A implementação agora fica em `app/arquivo.js`, preservando a divisão em módulos.
+- Os testes e a geração de capturas passaram no GitHub na primeira publicação. Cada atualização dispara uma nova execução; consulte os checks do PR para o resultado atual.
+- Os PNGs estão no artefato `capturas-painel`. A inspeção visual continua pendente; gerar screenshots não equivale a aprovar o visual.
+- Não houve execução das migrações nem publicação de funções no Supabase real. Siga o procedimento acima antes do merge pelo proprietário.
