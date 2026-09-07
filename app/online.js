@@ -236,8 +236,9 @@
     var diretorio = await carregarDiretorioSalas();
     if (diretorio) sobreporDiretorioSalas(dados, diretorio);
     aplicarDadosNoApp(dados);
-    // Pré-carrega as miniaturas das salas (em segundo plano) para o Diretório
-    // já aparecer pronto quando o usuário abrir a aba.
+    // Gancho do pré-carregamento das miniaturas das salas. Está desligado
+    // enquanto não houver miniaturas de verdade (ver `thumbSala` em app.js);
+    // a chamada fica aqui para religar sem mexer no fluxo de login.
     if (typeof precarregarThumbsSalas === "function") {
       var _ric =
         window.requestIdleCallback ||
