@@ -1,5 +1,8 @@
 # Deploy — pôr no ar e manter (manual de operação)
 
+> **Atualização desta revisão:** as migrações de confiabilidade e a função `apagar-conta` já foram aplicadas ao projeto atual com autorização do proprietário. O SQL e o histórico estão em `supabase/migrations/`. Não reaplique versões já registradas. Para outro ambiente, siga a [sequência completa](revisao-confiabilidade.md#publicação-pelo-proprietário); o frontend continua sendo publicado pelo merge do proprietário.
+
+
 > Receita reproduzível, **do zero ao ar**, com cliques e comandos concretos — e como manter depois. Onde houver **⛔ PARE**, é uma ação que exige conta/decisão do dono do projeto.
 > **Reconfira** limites/telas dos serviços ao executar (mudam). Cada passo tem um "✅ Como verificar"; o detalhe completo dos testes está no `testing.md`.
 

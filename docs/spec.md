@@ -32,7 +32,7 @@ Cada item é curto e **testável**.
 | U9 | **Sincronizar entre aparelhos** | abrir no celular/outro PC e estar tudo lá |
 | U10 | **Enviar imagens** das cartas/salas | ilustrar as fichas |
 | U11 | **Importar o meu `dados.js` atual** | trazer o catálogo que já fiz |
-| U12 | **Exportar meus dados** (baixar JSON) | ter backup pessoal |
+| U12 | **Exportar meus dados** (JSON com imagens privadas) | ter backup pessoal |
 | U13 | **Sair** (logout) | proteger minha conta em PC compartilhado |
 | U14 | **Apagar minha conta e meus dados** | exercer meu direito (LGPD) |
 
@@ -81,12 +81,12 @@ Roteiro testável. A versão online está pronta quando **todos** passam:
 2. **Google:** consigo entrar com o Google em 1 clique.
 3. **Esqueci a senha:** peço redefinição, recebo o e-mail e troco a senha.
 4. **Catalogar:** crio/edito/excluo fichas, salas, personagens, conexões.
-5. **Autosave + persistência:** faço uma alteração, **não** clico em salvar, recarrego a página e a alteração está lá.
-6. **Sincronizar:** abro em **outro navegador/aparelho**, faço login e vejo o **mesmo** catálogo, atualizado.
+5. **Autosave + persistência:** faço uma alteração, aguardo a confirmação, recarrego e a alteração está lá. Edições feitas durante uma gravação também persistem. Sair aguarda salvar; em falha, conserva sessão e rascunho.
+6. **Sincronizar:** abro em **outro navegador/aparelho**, faço login e vejo o **mesmo** catálogo, atualizado. Duas abas editando a mesma versão geram um aviso de conflito, sem sobrescrever a primeira gravação.
 7. **Imagens na nuvem:** anexo uma foto numa ficha; ela é enviada para a nuvem e aparece ao recarregar em outro aparelho.
 8. **Importar:** importo o meu `dados.js` atual e meu catálogo aparece completo.
 9. **Isolamento (o mais importante):** crio uma **2ª conta**, catalogo coisas diferentes, e — logado em cada uma — **não vejo** nada da outra (nem dados, nem imagens).
-10. **Exportar:** baixo meus dados como arquivo (JSON) e o arquivo contém meu catálogo.
+10. **Exportar:** baixo meus dados como arquivo (JSON), incluindo as imagens privadas. Posso restaurar em outra conta sem depender das imagens da conta original; links externos continuam referências.
 11. **Apagar conta:** apago a conta; meus dados, imagens e login somem; não consigo mais entrar com aquela conta.
 12. **No ar:** o site está publicado num endereço público, abre numa janela anônima e tudo acima funciona lá.
 

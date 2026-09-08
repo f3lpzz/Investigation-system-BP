@@ -1,95 +1,51 @@
 # Arquitetura — como as peças se encaixam
 
-> Mostra o desenho do sistema, o **caminho do dado** e o **porquê** de cada escolha. O passo a passo de configuração fica no `deploy.md`.
+## Visão geral
 
----
+Frontend estático em HTML/CSS/JavaScript, publicado no Cloudflare Pages. Supabase fornece Auth, Postgres, Storage e Edge Functions. Cada conta tem uma linha JSONB com o catálogo v6; imagens privadas ficam na pasta do usuário. O RLS é a fronteira de acesso.
 
-## 1. Visão geral
+## Módulos do frontend
 
-```
-   Pessoa no navegador
-            │
-   ┌────────▼─────────┐   fala (HTTPS)   ┌────────────────────────────────────┐
-   │  O APP (site       │ ───────────────▶ │  SUPABASE (backend, grátis):        │
-   │  estático)         │ ◀─────────────── │   • Auth   (contas/login)           │
-   │  + tela de login   │   supabase-js v2 │   • Postgres (catalogo_usuario)     │
-   └───────────────────┘                   │   • Storage (imagens por usuário)   │
-   hospedado de graça                       │   • RLS  (trava por usuário)        │
-   (Cloudflare Pages, via GitHub)           └────────────────────────────────────┘
-```
+| Arquivo | Responsabilidade |
+|---|---|
+| `app.js` | Estado, normalizações legadas, fichas, filtros, histórico e ferramentas locais. |
+| `mapa.js` | Grafo, câmera, seleção e navegação no mapa. |
+| `quadros.js` | Cartões, barbantes, geometria, ferramentas e menções. |
+| `arquivo.js` | Salas, personagens, grupos, diretório e área Conta. |
+| `iniciar.js` | Inicializa filtros, renderização e histórico após os módulos. |
+| `catalogo.js` | Validação sem mutação e reconstrução de HTML seguro. |
+| `controle-nuvem.js` | Fila de snapshots, confirmação por edição, retry e conflitos. |
+| `backup.js` | Exportação portátil com bytes das imagens e restauração na conta de destino. |
+| `online.js` | Auth, ponte com banco/Storage, importação e avisos de sincronização. |
+| `ia.js` | Envio completo das páginas, revisão e processamento em lote. |
 
-- **Frontend:** um site estático (HTML/CSS/JS puro), publicado de graça no Cloudflare Pages. Tem uma tela de login e carrega/salva na nuvem.
-- **Backend:** **Supabase** — entrega login, banco e armazenamento de imagens **prontos**, sem servidor para manter. Tier gratuito.
-- **Os dados:** o `DADOS` inteiro vira **1 registro por usuário** na tabela `catalogo_usuario` (coluna `jsonb`). Imagens vão para o Storage. (Ver `data-model.md`.)
+São scripts clássicos, compartilhando o escopo atual para preservar os handlers existentes. `painel.html` define a ordem; os testes a leem do mesmo HTML e também verificam a execução arquivo por arquivo. Não há build obrigatório. A separação reduz o tamanho dos arquivos sem introduzir um framework ou reescrever o esquema.
 
----
+## Carregamento e salvamento
 
-## 2. O caminho do dado (fluxo)
+1. Login válido → lê `dados` e `atualizado_em` do próprio usuário.
+2. Se a linha não existir, tenta `insert`; se outro aparelho criar primeiro, relê sem sobrescrever.
+3. Valida o catálogo inteiro, sobrepõe os dados compartilhados das salas e aplica na memória. Um catálogo inválido permanece intacto na nuvem; o app mostra erro.
+4. Cada edição incrementa a revisão local e agenda uma gravação após ~1,5 s.
+5. O controlador captura um snapshot imutável e faz `update` filtrando usuário **e versão lida** (`atualizado_em`). O trigger do banco gera uma nova versão monotônica.
+6. Uma linha retornada confirma a gravação. Edições surgidas durante o request são gravadas na sequência; “Tudo salvo” só aparece quando todas foram confirmadas.
+7. Zero linhas retornadas significa conflito. O app pausa o salvamento e oferece exportar uma cópia ou carregar a versão da nuvem com confirmação.
+8. Falha de rede preserva a memória e agenda retry. O logout aguarda a fila e permanece conectado se salvar falhar. Callbacks de uma sessão encerrada não alteram a seguinte.
 
-```
-1. Pessoa abre o site  ─▶  não logada? mostra LOGIN/CADASTRO.
-2. Faz login (e-mail/senha ou Google)  ─▶  Supabase Auth devolve a sessão (e o user.id).
-3. App busca a linha do usuário em catalogo_usuario:
-      • existe   ─▶ carrega `dados` para o DADOS em memória  ─▶ renderiza o painel.
-      • não existe (1º acesso) ─▶ cria a linha com um DADOS vazio padrão (esqueleto v6).
-4. Pessoa usa o painel normalmente (criar/editar fichas, mapa, etc.).
-5. A cada mudança ─▶ marca "sujo" ─▶ AUTOSAVE com atraso (~1–2 s, "debounce")
-                  ─▶ salvarNaNuvem(): upsert do campo `dados` + atualiza `atualizado_em`.
-6. Anexou imagem ─▶ upload no Storage (pasta {user_id}/) ─▶ guarda o caminho no campo `imagem`.
-7. Em outro aparelho ─▶ login ─▶ passo 3 traz o mesmo catálogo (sincronizou).
-```
+Não há colaboração em tempo real nem edição offline/PWA. Abrir o catálogo em outro aparelho carrega a última versão; editar simultaneamente é protegido por conflito, sem mesclagem automática. Fechar o navegador à força com alterações pendentes ainda pode perder conteúdo: o app conserva o aviso de saída e permite exportar uma cópia.
 
-**Observação:** o "miolo" do app (render, filtros, edição, mapa, quadros) **continua trabalhando com o `DADOS` em memória, do mesmo jeito**. Só trocam as **bordas**: de onde o `DADOS` vem (nuvem em vez de arquivo) e para onde vai (upsert em vez de gravar arquivo).
+## Dados, imagens e backup
 
----
+O `DADOS` mantém as oito listas v6. Imagens privadas são referenciadas por `nuvem:{uid}/arquivo`; exibição usa URL assinada. O novo backup é um JSON com envelope `magnify-backup`, catálogo e imagens privadas em data URLs. A restauração valida antes de substituir e envia as imagens para a conta de destino. URLs externas continuam referências. Backups legados sem bytes não transferem imagens privadas entre contas.
 
-## 3. O que muda × o que continua igual
+## Backend e operação
 
-**Continua IGUAL (não pode quebrar):**
-- O objeto `DADOS` e seu formato (esquema **v6**: `fichas`, `salas`, `personagens`, `colecoes`, `grupos`, `teorias`, `quadros`, `tipos`).
-- Toda a UI e a lógica do painel (telas, botões, filtros, mapa, quadros, desfazer/refazer).
+- `supabase/migrations/20260907131749_base_confiabilidade.sql`: tabelas, RLS e buckets; compatível com instalações feitas pelo guia manual.
+- `supabase/migrations/20260907131806_concorrencia_catalogo.sql`: trigger de versão para gravação condicional.
+- `apagar-conta`: verifica o token, remove imagens em páginas e subpastas e apaga o Auth por último. A FK elimina o catálogo na mesma exclusão do usuário. Falhas são reportadas e a operação pode ser repetida.
+- `ia-processar`: token válido + allowlist no servidor. Segredos ficam exclusivamente nas variáveis de ambiente do Supabase.
+- `.github/workflows/verificar.yml`: testes e capturas do Chrome em PRs e branches de trabalho.
 
-**MUDA (de forma controlada):**
-1. **De onde vêm / para onde vão os dados:** carregar da nuvem ao logar e **autosave** na nuvem.
-2. **Entra uma tela de login/cadastro** antes do painel.
-3. **Imagens** vão para o Storage; o campo `imagem` guarda o caminho (`nuvem:{user_id}/...`). URLs da web seguem como estão.
-4. **O `dados.js` deixa de ser a fonte da verdade** (vira, no máximo, arquivo de importação).
+A escolha de uma linha JSONB preserva o app atual, mas cada save ainda transfere o catálogo completo. A extração para tabelas por entidade seria uma evolução separada, motivada por medições de volume/latência. A fila evita gravações concorrentes e a comparação de versões protege o trabalho em múltiplos aparelhos.
 
----
-
-## 4. Decisões e trade-offs (o "porquê")
-
-| Escolha | Alternativa | Por que esta |
-|---|---|---|
-| **Supabase** (Postgres + Auth + Storage + RLS) | Firebase | O `DADOS` é grande; Postgres aguenta vários MB num registro e o **RLS** dá o isolamento "cada um o seu". Firestore limita ~1 MB/documento. |
-| **1 registro jsonb por usuário** | Tabelas normalizadas (1 linha por ficha) | **Menor risco**: o miolo do app não muda (continua com o `DADOS` em memória). |
-| **Cloudflare Pages** | Netlify/Vercel/GitHub Pages | **Banda ilimitada** no grátis; deploy automático do GitHub. |
-| **Autosave com debounce (~1–2 s)** | Salvar a cada tecla / botão manual | Não martela o banco e mantém a experiência "salva sozinho". |
-| **Login e-mail/senha + Google** | Só um deles / link mágico | Cobre o usuário comum (senha) e o cômodo (Google). |
-
-**Riscos conhecidos e mitigação:**
-- **Pausa do Supabase após 7 dias sem acesso** → religar é 1 clique (~60s). Com usuários acessando, não pausa.
-- **Storage 1 GB** → **comprimir imagens no upload**.
-- **Chave pública no front** → segura **se** o RLS estiver correto. Por isso o teste de isolamento (2 contas) é obrigatório antes de publicar (ver `security.md`).
-
----
-
-## 5. Limites do tier gratuito (reconferir ao executar)
-
-- **Supabase:** banco 500 MB; Storage 1 GB; ~5 GB tráfego/mês; 50.000 usuários ativos/mês; API ilimitada; pausa após 7 dias sem acesso; máx. 2 projetos.
-- **Cloudflare Pages:** banda ilimitada; 500 builds/mês; até 20.000 arquivos/site; 25 MiB/arquivo.
-
-Quando apertar, o gargalo provável é o Storage (imagens) — daí a compressão.
-
----
-
-## 6. Componentes do app (visão de implementação)
-
-1. **Cliente Supabase:** `@supabase/supabase-js` (CDN), configurado com **URL** + **chave `anon`** (em `app/supabase-config.js`).
-2. **Camada de auth/UI:** tela de login/cadastro/esqueci-senha; mostrar painel só quando logado; `onAuthStateChange` para reagir a login/logout. (`app/online.js`)
-3. **Camada de dados (a ponte):** `carregarDaNuvem()` (no login) e `salvarNaNuvem()` (autosave debounce). (`app/online.js`)
-4. **Camada de imagens:** upload no Storage + exibição por URL assinada. (`app/online.js`)
-5. **Conta/LGPD:** botões **Sair**, **Exportar meus dados**, **Apagar conta e dados**.
-6. **Importação:** botão "Importar `dados.js`" para trazer o catálogo atual.
-
-> Detalhe operacional (SQL, cliques, configuração) no `deploy.md`. Critério de isolamento em `spec.md` (critério 9) e `security.md`.
+Deploy e teste real de isolamento continuam sendo responsabilidade do proprietário antes do merge em produção; consulte `deploy.md`, `security.md` e `revisao-confiabilidade.md`.

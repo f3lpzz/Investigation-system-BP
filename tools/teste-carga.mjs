@@ -1,3 +1,4 @@
+import { codigoApp } from "./carregar-app.mjs";
 // teste-carga.mjs - Abre o painel "sem tela" (headless) e confere o basico.
 // Roda com: npm install  (uma vez)  e depois:  node teste-carga.mjs
 import { JSDOM } from "jsdom";
@@ -6,7 +7,7 @@ import { fileURLToPath } from "url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "app");
 const ler = (n) => fs.readFileSync(path.join(ROOT, n), "utf8");
-const html = ler("painel.html"), dados = ler("dados.js"), app = ler("app.js");
+const html = ler("painel.html"), dados = ("const DADOS = " + fs.readFileSync(path.join(HERE, "fixtures", "catalogo.json"), "utf8") + ";"), app = codigoApp();
 const erros=[]; let falhas=0;
 const ok=(n,v)=>{console.log((v?"OK  ":"FALHOU  ")+n);if(!v)falhas++;};
 const dom=new JSDOM(html,{pretendToBeVisual:true});

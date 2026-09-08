@@ -5,6 +5,7 @@
 // PRÓPRIO token (não há parâmetro user_id), então ninguém apaga a conta de outro.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { excluirDadosDaConta } from "./excluir-dados.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -39,23 +40,7 @@ Deno.serve(async (req) => {
     if (uErr || !u?.user) return json({ error: "token invalido" }, 401);
     const uid = u.user.id;
 
-    // 1) Apaga as imagens da pasta {uid}/ no Storage.
-    const { data: arquivos } = await admin.storage
-      .from("imagens")
-      .list(uid, { limit: 1000 });
-    if (arquivos && arquivos.length) {
-      const caminhos = arquivos.map((f) => `${uid}/${f.name}`);
-      await admin.storage.from("imagens").remove(caminhos);
-    }
-
-    // 2) Apaga a linha do catálogo (defensivo; o delete do usuário já cascateia).
-    await admin.from("catalogo_usuario").delete().eq("user_id", uid);
-
-    // 3) Apaga o usuário do Auth (cascateia o catálogo via FK on delete cascade).
-    const { error: delErr } = await admin.auth.admin.deleteUser(uid);
-    if (delErr) {
-      return json({ error: "falha ao apagar a conta: " + delErr.message }, 500);
-    }
+    await excluirDadosDaConta(admin, uid);
 
     return json({ ok: true });
   } catch (e) {

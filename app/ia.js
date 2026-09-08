@@ -40,7 +40,11 @@
         const antiga = iaNormaliza(pg.original);
         if (antiga.length < 25) continue;
         for (const nova of novas) {
-          if (nova === antiga || nova.includes(antiga) || antiga.includes(nova)) {
+          if (
+            nova === antiga ||
+            nova.includes(antiga) ||
+            antiga.includes(nova)
+          ) {
             return { id: f.id, titulo: f.titulo || "(sem título)" };
           }
         }
@@ -53,7 +57,12 @@
   async function iaImagens(f) {
     const urls = [];
     const avisos = [];
-    for (const pg of (f.paginas || []).slice(0, 3)) {
+    const paginas = f.paginas || [];
+    if (paginas.length > 3)
+      throw new Error(
+        "A IA aceita até 3 páginas por ficha. Separe as páginas em fichas menores antes de processar.",
+      );
+    for (const pg of paginas) {
       const im = pg.imagem || "";
       if (im.startsWith("nuvem:")) {
         const r = await window.sb.storage
@@ -69,6 +78,10 @@
         avisos.push("uma página usa imagem local (não enviável): " + im);
       }
     }
+    if (urls.length !== paginas.length)
+      throw new Error(
+        "Não consegui enviar todas as páginas. Confira as imagens e tente novamente; nenhum texto foi alterado.",
+      );
     return { urls, avisos };
   }
 
@@ -115,11 +128,15 @@
         personagens: DADOS.personagens.map(
           (p) =>
             p.nome +
-            ((p.aliases || []).length ? " (apelidos: " + p.aliases.join(", ") + ")" : ""),
+            ((p.aliases || []).length
+              ? " (apelidos: " + p.aliases.join(", ") + ")"
+              : ""),
         ),
         grupos: DADOS.grupos.map((g) => g.nome),
       };
       const res = await window.IA.chamar(payload);
+      if (DADOS.fichas.find((x) => x.id === id) !== f) return;
+      validarPaginas(f, res.resultado);
       const dup = window.IA.duplicata(res.resultado, id);
       iaAbrirRevisao(id, res.resultado, dup, avisos, res.uso, res.modelo);
     } catch (e) {
@@ -217,14 +234,37 @@
   let _loteRodando = false;
 
   // Aplica um resultado (da IA ou editado) na ficha — testável sem tela.
+  function validarPaginas(f, r) {
+    if (
+      !r ||
+      !Array.isArray(r.paginas) ||
+      r.paginas.length !== (f.paginas || []).length ||
+      r.paginas.some(
+        (p) =>
+          !p ||
+          typeof p.transcricao !== "string" ||
+          typeof p.traducao !== "string",
+      )
+    )
+      throw new Error(
+        "A IA não devolveu todas as páginas na ordem esperada. Nenhum texto foi alterado; tente novamente.",
+      );
+  }
   function iaAplicar(id, r) {
     const f = DADOS.fichas.find((x) => x.id === id);
     if (!f) return false;
+    validarPaginas(f, r);
     if (r.titulo) f.titulo = r.titulo;
     f.paginas = f.paginas || [];
     (r.paginas || []).forEach(function (p, i) {
       if (!f.paginas[i])
-        f.paginas[i] = { imagem: "", original: "", traducao: "", explica: "", rotulo: "" };
+        f.paginas[i] = {
+          imagem: "",
+          original: "",
+          traducao: "",
+          explica: "",
+          rotulo: "",
+        };
       f.paginas[i].original = p.transcricao || "";
       f.paginas[i].traducao = p.traducao || "";
     });
@@ -276,7 +316,8 @@
     if (typeof render === "function") render();
     if (!_loteRodando) {
       if (typeof abrir === "function") abrir(id); // reabre o painel atualizado
-      if (typeof toast === "function") toast("✨ Ficha preenchida pela IA ✓", 3000);
+      if (typeof toast === "function")
+        toast("✨ Ficha preenchida pela IA ✓", 3000);
     }
     return true;
   }
@@ -300,7 +341,9 @@
       personagens: DADOS.personagens.map(
         (p) =>
           p.nome +
-          ((p.aliases || []).length ? " (apelidos: " + p.aliases.join(", ") + ")" : ""),
+          ((p.aliases || []).length
+            ? " (apelidos: " + p.aliases.join(", ") + ")"
+            : ""),
       ),
       grupos: DADOS.grupos.map((g) => g.nome),
     };
@@ -311,7 +354,10 @@
   function iaProcessarLote(ids) {
     if (_lote && _lote.rodando) {
       if (typeof toast === "function")
-        toast("Já existe um processamento em andamento (painel no canto).", 4000);
+        toast(
+          "Já existe um processamento em andamento (painel no canto).",
+          4000,
+        );
       return;
     }
     const fila = (ids || []).filter((id) => {
@@ -402,9 +448,15 @@
         // 1 nova tentativa (rede/instabilidade); persistiu -> cai no catch de fora
         res = await window.IA.chamar(iaPayloadDe(urls));
       }
+      if (_lote.cancelado || DADOS.fichas.find((x) => x.id === id) !== f)
+        return;
+      validarPaginas(f, res.resultado);
       const dup = window.IA.duplicata(res.resultado, id);
       if (dup) {
-        _lote.puladas.push({ id: id, motivo: "possível duplicata de " + dup.id });
+        _lote.puladas.push({
+          id: id,
+          motivo: "possível duplicata de " + dup.id,
+        });
         return;
       }
       window.IA.aplicar(id, res.resultado);
@@ -455,7 +507,12 @@
     if (typeof toast === "function")
       toast(
         (L.cancelado ? "Lote cancelado — " : "Lote concluído — ") +
-          "✓ " + L.ok + " · ⏭ " + L.puladas.length + " · ⚠ " + L.erros.length,
+          "✓ " +
+          L.ok +
+          " · ⏭ " +
+          L.puladas.length +
+          " · ⚠ " +
+          L.erros.length,
         5000,
       );
   }
@@ -505,7 +562,10 @@
   function iaPersonasProcessar(nomes, force) {
     if (_lote && _lote.rodando) {
       if (typeof toast === "function")
-        toast("Já existe um processamento em andamento (painel no canto).", 4000);
+        toast(
+          "Já existe um processamento em andamento (painel no canto).",
+          4000,
+        );
       return;
     }
     let alvo;
@@ -598,8 +658,14 @@
             titulo: f.titulo || "",
             sala: f.sala || "",
             grupo: (f.grupos || [])[0] || "",
-            original: pgs.map((x) => x.original || "").filter(Boolean).join("\n\n"),
-            traducao: pgs.map((x) => x.traducao || "").filter(Boolean).join("\n\n"),
+            original: pgs
+              .map((x) => x.original || "")
+              .filter(Boolean)
+              .join("\n\n"),
+            traducao: pgs
+              .map((x) => x.traducao || "")
+              .filter(Boolean)
+              .join("\n\n"),
             resumo: (pgs[0] && pgs[0].explica) || "",
           };
         })
@@ -624,6 +690,7 @@
         _lote.erros.push({ id: it.nome, motivo: "resposta sem descrição" });
         return;
       }
+      if (_lote.cancelado || !DADOS.personagens.includes(p)) return;
       p.descricao = d;
       p.ia_desc = { fichas: it.fichas, em: new Date().toISOString() };
       if (typeof marcarAlterado === "function") marcarAlterado();

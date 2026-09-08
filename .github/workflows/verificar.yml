@@ -1,0 +1,37 @@
+name: Verificar painel
+on:
+  push:
+    branches: [online, "feature/**"]
+  pull_request:
+    branches: [online]
+permissions:
+  contents: read
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: tools
+      - run: npm run checar-online
+        working-directory: tools
+      - run: npm run lint
+        working-directory: tools
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node tools/teste-visual.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: capturas-painel
+          path: visual/*.png
+          if-no-files-found: error

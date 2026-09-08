@@ -73,3 +73,10 @@ Este teste prova que o RLS funciona. **Não publique sem ele.**
 - [ ] Senha do banco guardada num lugar seguro (fora do git).
 
 > Resumo: **chave secreta nunca no front/git + RLS correto + teste de isolamento.**
+
+
+## Validação da importação e do banco nesta revisão
+
+`catalogo.js` valida as oito listas antes de substituir o catálogo. IDs e campos usados em HTML/CSS têm tipos restritos; o HTML rico de cartões e teorias é reconstruído por uma lista de tags permitidas, sem scripts, eventos ou URLs executáveis. Menções conservam apenas os atributos necessários. `dados.js` é lido como JSON, nunca executado.
+
+As migrações em `supabase/migrations/` mantêm as políticas conhecidas por usuário. `tools/teste-banco.mjs` verifica isolamento de leitura/escrita, proteção de caminhos de imagens e concorrência em Postgres local. Políticas adicionais e configuração real do Supabase precisam da verificação manual descrita acima.

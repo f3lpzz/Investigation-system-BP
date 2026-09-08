@@ -128,25 +128,33 @@ create index if not exists idx_catalogo_user on public.catalogo_usuario (user_id
 
 A tabela tem **Row Level Security** ligada e políticas para que cada pessoa só leia/crie/altere **a própria linha** (`(select auth.uid()) = user_id`). O SQL completo está no **`deploy.md`** (e a explicação de por que isso protege os dados, no `security.md`).
 
-### Ler e salvar (pseudo-fluxo)
+### Ler e salvar
+
+A leitura retorna `dados,atualizado_em`. A criação inicial usa `insert`, nunca sobrescreve uma linha encontrada. Cada atualização usa:
 
 ```js
-// AO LOGAR: carrega o DADOS do usuário (ou cria vazio no 1º acesso)
-const { data } = await supabase
-  .from('catalogo_usuario')
-  .select('dados')
+const resultado = await supabase.from('catalogo_usuario')
+  .update({ dados: snapshot })
   .eq('user_id', user.id)
+  .eq('atualizado_em', versaoLida)
+  .select('atualizado_em')
   .maybeSingle();
-DADOS = data?.dados ?? esqueletoVazioV6();
+```
 
-// AO MUDAR ALGO: autosave com atraso (~1,5 s) -> upsert
-async function salvarNaNuvem() {
-  await supabase.from('catalogo_usuario').upsert(
-    { user_id: user.id, dados: DADOS, atualizado_em: new Date().toISOString() },
-    { onConflict: 'user_id' }
-  );
+O trigger `catalogo_versao`, definido nas migrações, gera `atualizado_em` no servidor, sempre maior que a versão anterior. Zero linhas significa conflito. A versão de concorrência pertence à linha do banco, não altera `DADOS.version` nem as oito listas.
+
+### Envelope de backup portátil
+
+```json
+{
+  "formato": "magnify-backup",
+  "versao": 1,
+  "dados": { "version": 6, "fichas": [], "salas": [], "personagens": [], "colecoes": [], "grupos": [], "teorias": [], "quadros": [], "tipos": [] },
+  "imagens": { "nuvem:origem/foto.png": "data:image/png;base64,..." }
 }
 ```
+
+O envelope não é salvo no banco. Ao restaurar, `dados` continua v6 e as referências de imagens são remapeadas para os novos caminhos da conta. Campos adicionais do catálogo são preservados; campos de outra sessão são limpos. HTML dos quadros é sanitizado mantendo formatação permitida e menções. Backups `.js` com JSON v6 continuam aceitos, sem executar JavaScript.
 
 ---
 
@@ -173,9 +181,9 @@ O Firestore (Firebase) limita **~1 MB por documento**. No Postgres (Supabase) um
 | Hoje (local) | Online |
 |---|---|
 | `dados.js` (`const DADOS = {…}`) | linha em `catalogo_usuario.dados` (jsonb), 1 por usuário |
-| Salvar arquivo (File System Access API) | `upsert` no banco (autosave) |
+| Salvar arquivo (File System Access API) | `update` condicional no banco (autosave) |
 | `imagens/arquivo.png` (local) | upload no Storage `imagens/{user_id}/…` + caminho `nuvem:` no campo `imagem` |
 | Imagens base64 embutidas | convertidas para arquivo no Storage |
 | URLs da web | continuam como estão |
 
-> **Migração do catálogo atual:** botão "Importar `dados.js`" que lê o arquivo e faz `upsert` do `DADOS` na conta (ver `spec.md` U11 e `architecture.md`).
+> **Migração do catálogo atual:** botão "Importar `dados.js`" que valida o arquivo e grava o `DADOS` com comparação de versão (ver `spec.md` U11 e `architecture.md`).

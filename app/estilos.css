@@ -7221,3 +7221,9 @@ body.view-conta .filtros-panel {
     inset: -10px;
   }
 }
+
+/* Estados de nuvem na área Conta; mesma paleta dos indicadores existentes. */
+.save-dot2.st-info { background: var(--amber, #c9a35c); }
+.save-dot2.st-warn { background: var(--red, #b8452e); }
+#conflitoNuvem .editbtns { flex-wrap: wrap; }
+#conflitoNuvem .modalbox { max-width: min(520px, calc(100vw - 32px)); }

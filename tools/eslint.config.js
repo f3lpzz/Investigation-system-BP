@@ -1,12 +1,12 @@
 import globals from "globals";
-// O alvo (app.js) e passado na linha de comando: eslint "../Painel (o app)/app.js"
+// Configuração compartilhada pelo lint dos scripts clássicos do painel.
 export default [
   { ignores: ["**/node_modules/**"] },
   {
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: "latest",
       sourceType: "script",
-      globals: { ...globals.browser, DADOS: "writable" },
+      globals: { ...globals.browser },
     },
     rules: {
       "no-unused-vars": "off",

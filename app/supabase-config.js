@@ -20,7 +20,7 @@ window.MODO_ONLINE = true;
 /* O botão "Apagar minha conta" só aparece quando a Edge Function
    "apagar-conta" estiver publicada no Supabase. Mude para true depois
    de autorizar e publicar a função. */
-window.APAGAR_CONTA_ATIVO = false;
+window.APAGAR_CONTA_ATIVO = true;
 
 /* IA (processar pistas): o botão ✨ só aparece quando a Edge Function
    "ia-processar" estiver publicada + a secret OPENAI_API_KEY configurada.

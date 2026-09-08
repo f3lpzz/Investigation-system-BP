@@ -1,3 +1,4 @@
+import { codigoApp } from "./carregar-app.mjs";
 /* Testa o ALFINETE como botão e o BARBANTE PRESO EM BARBANTE (issue #9).
    Roda o app de verdade no jsdom (como o teste-carga), porque o que quebra
    aqui é o encaixe entre HTML, dados e geometria — screenshot mostra a tela
@@ -36,7 +37,7 @@ w.onerror = (m) => erros.push(String(m));
 const ctx = vm.createContext(w);
 const g = (s) => vm.runInContext(s, ctx);
 try {
-  vm.runInContext(ler("dados.js") + "\n" + ler("app.js"), ctx);
+  vm.runInContext(("const DADOS = " + fs.readFileSync(path.join(HERE, "fixtures", "catalogo.json"), "utf8") + ";") + "\n" + codigoApp(), ctx);
 } catch (e) {
   erros.push("THROW: " + e.message);
 }
