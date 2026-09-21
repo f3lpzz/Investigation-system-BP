@@ -43,9 +43,16 @@ O `DADOS` mantém as oito listas v6. Imagens privadas são referenciadas por `nu
 - `supabase/migrations/20260907131749_base_confiabilidade.sql`: tabelas, RLS e buckets; compatível com instalações feitas pelo guia manual.
 - `supabase/migrations/20260907131806_concorrencia_catalogo.sql`: trigger de versão para gravação condicional.
 - `apagar-conta`: verifica o token, remove imagens em páginas e subpastas e apaga o Auth por último. A FK elimina o catálogo na mesma exclusão do usuário. Falhas são reportadas e a operação pode ser repetida.
-- `ia-processar`: token válido + allowlist no servidor. Segredos ficam exclusivamente nas variáveis de ambiente do Supabase.
+- `ia-processar`: token válido + allowlist, limites de entrada/cota no servidor,
+  usa a Responses API com saída estruturada e interrompe chamadas acima de 120 s.
+  A migração `20260921143824_limitar_uso_ia.sql` mantém a cota atômica por
+  usuário e receita; só a `service_role` pode consumi-la. Segredos ficam
+  exclusivamente nas variáveis de ambiente do Supabase.
 - `.github/workflows/verificar.yml`: testes e capturas do Chrome em PRs e branches de trabalho.
 
 A escolha de uma linha JSONB preserva o app atual, mas cada save ainda transfere o catálogo completo. A extração para tabelas por entidade seria uma evolução separada, motivada por medições de volume/latência. A fila evita gravações concorrentes e a comparação de versões protege o trabalho em múltiplos aparelhos.
 
 Deploy e teste real de isolamento continuam sendo responsabilidade do proprietário antes do merge em produção; consulte `deploy.md`, `security.md` e `revisao-confiabilidade.md`.
+
+A auditoria detalhada, os gargalos medidos no código e o plano evolutivo estão
+em `revisao-arquitetura-supabase-ia.md`.

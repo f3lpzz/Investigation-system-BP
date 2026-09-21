@@ -11,6 +11,7 @@ test("migrações idempotentes, RLS e gravação condicional no Postgres", async
     await db.exec(`
       create role authenticated;
       create role anon;
+      create role service_role;
       create schema auth;
       create schema storage;
       create table auth.users(id uuid primary key);
@@ -27,8 +28,10 @@ test("migrações idempotentes, RLS e gravação condicional no Postgres", async
       grant select,insert,update,delete on storage.objects to authenticated;
       grant usage on all sequences in schema storage to authenticated;
     `);
-    const migracoes = fs.readdirSync(new URL("../supabase/migrations/", import.meta.url))
-      .filter((nome) => nome.endsWith(".sql")).sort();
+    const migracoes = fs
+      .readdirSync(new URL("../supabase/migrations/", import.meta.url))
+      .filter((nome) => nome.endsWith(".sql"))
+      .sort();
     for (let repeticao = 0; repeticao < 2; repeticao++)
       for (const nome of migracoes)
         await db.exec(
@@ -137,8 +140,27 @@ test("migrações idempotentes, RLS e gravação condicional no Postgres", async
       "A",
     );
     await assert.rejects(() =>
+      db.query("select public.consumir_cota_ia($1,'pista',2,3600)", [A]),
+    );
+    await assert.rejects(() =>
       db.query("insert into diretorio_salas(nome) values ('intruso')"),
     );
+    await db.exec("reset role;set role service_role");
+    const cotas = [];
+    for (let i = 0; i < 3; i++) {
+      cotas.push(
+        (
+          await db.query(
+            "select public.consumir_cota_ia($1,'pista',2,3600) as cota",
+            [A],
+          )
+        ).rows[0].cota,
+      );
+    }
+    assert.equal(cotas[0].permitido, true);
+    assert.equal(cotas[1].permitido, true);
+    assert.equal(cotas[2].permitido, false);
+    assert.equal(cotas[2].restante, 0);
     await db.exec("reset role;set role anon");
     await assert.rejects(() => db.query("select * from catalogo_usuario"));
     await db.exec("reset role");

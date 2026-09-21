@@ -214,7 +214,11 @@
   ];
   async function carregarDiretorioSalas() {
     try {
-      var r = await sb.from("diretorio_salas").select("*");
+      var r = await sb
+        .from("diretorio_salas")
+        .select(
+          "nome,num,nome_en,nome_pt,descricao_en,descricao_pt,raridade_en,raridade_pt,custo_en,custo_pt,tipo_en,tipo_pt,categorias,diretorio,imagem,fonte",
+        );
       if (r.error) throw r.error;
       return Array.isArray(r.data) ? r.data : [];
     } catch (e) {
@@ -252,6 +256,9 @@
   /* ---- Carregar o catálogo da nuvem (ou criar vazio no 1º acesso) ---- */
   async function carregarDaNuvem(user) {
     var geracao = geracaoSessao;
+    // Catálogo pessoal e diretório compartilhado são independentes. Buscar os
+    // dois juntos remove uma ida completa ao Supabase do caminho do login.
+    var diretorioPendente = carregarDiretorioSalas();
     var r = await sb
       .from("catalogo_usuario")
       .select("dados,atualizado_em")
@@ -273,7 +280,7 @@
         throw r.error || new Error("Catálogo indisponível");
     }
     var dados = window.Catalogo.preparar(r.data.dados);
-    var diretorio = await carregarDiretorioSalas();
+    var diretorio = await diretorioPendente;
     if (diretorio) sobreporDiretorioSalas(dados, diretorio);
     if (geracao !== geracaoSessao) return false;
     if (controle) controle.encerrar();
@@ -347,7 +354,7 @@
         operacaoConta = true;
         bloquearEdicao(true);
         try {
-          if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+          if (window.IA && window.IA.cancelar) window.IA.cancelar();
           if (await carregarDaNuvem(usuarioAtual)) m.classList.remove("open");
         } catch (e) {
           alert("Não consegui carregar: " + e.message);
@@ -639,7 +646,7 @@
     }
     operacaoConta = true;
     bloquearEdicao(true);
-    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+    if (window.IA && window.IA.cancelar) window.IA.cancelar();
     try {
       // Nenhum autosave pode recriar o catálogo enquanto a exclusão está em curso.
       if (controle) await controle.pausar();
@@ -901,7 +908,7 @@
     if (operacaoConta) return false;
     operacaoConta = true;
     bloquearEdicao(true);
-    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+    if (window.IA && window.IA.cancelar) window.IA.cancelar();
     try {
       if (controle && controle.pendente() && !(await salvarNaNuvem())) {
         alert(
@@ -929,7 +936,7 @@
     usuarioAtual = null;
     window.USUARIO = null;
     urlCacheImg = {};
-    if (window.IA && window.IA.loteCancela) window.IA.loteCancela();
+    if (window.IA && window.IA.cancelar) window.IA.cancelar();
     document.querySelectorAll(".modal.open").forEach(function (m) {
       m.classList.remove("open");
     });
