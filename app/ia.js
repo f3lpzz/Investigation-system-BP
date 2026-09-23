@@ -17,6 +17,7 @@
   function $(id) {
     return document.getElementById(id);
   }
+  let _abortAtual = null;
 
   // ---- Anti-duplicata (Regra 2): determinístico, sem IA ----
   // Remove os marcadores entre colchetes ([Ilustração: …], [ilegível]) antes de
@@ -55,29 +56,35 @@
 
   // ---- Imagens da ficha -> URLs que a OpenAI consegue ver ----
   async function iaImagens(f) {
-    const urls = [];
-    const avisos = [];
     const paginas = f.paginas || [];
     if (paginas.length > 3)
       throw new Error(
         "A IA aceita até 3 páginas por ficha. Separe as páginas em fichas menores antes de processar.",
       );
-    for (const pg of paginas) {
-      const im = pg.imagem || "";
-      if (im.startsWith("nuvem:")) {
-        const r = await window.sb.storage
-          .from("imagens")
-          .createSignedUrl(im.slice(6), 900); // 15 min bastam
-        if (r.data && r.data.signedUrl) urls.push(r.data.signedUrl);
-        else avisos.push("não consegui gerar o link de uma imagem");
-      } else if (/^https:\/\//i.test(im)) {
-        urls.push(im);
-      } else if (im.startsWith("data:image/")) {
-        urls.push(im);
-      } else if (im) {
-        avisos.push("uma página usa imagem local (não enviável): " + im);
-      }
-    }
+    // As URLs assinadas são independentes: gerar em paralelo evita somar uma
+    // ida ao Storage por página antes mesmo de a IA começar.
+    const resultados = await Promise.all(
+      paginas.map(async function (pg) {
+        const im = pg.imagem || "";
+        if (im.startsWith("nuvem:")) {
+          const r = await window.sb.storage
+            .from("imagens")
+            .createSignedUrl(im.slice(6), 900); // 15 min bastam
+          return r.data && r.data.signedUrl
+            ? { url: r.data.signedUrl }
+            : { aviso: "não consegui gerar o link de uma imagem" };
+        } else if (/^https:\/\//i.test(im)) {
+          return { url: im };
+        } else if (im.startsWith("data:image/")) {
+          return { url: im };
+        } else if (im) {
+          return { aviso: "uma página usa imagem local (não enviável): " + im };
+        }
+        return { aviso: "uma página está sem imagem" };
+      }),
+    );
+    const urls = resultados.map((x) => x.url).filter(Boolean);
+    const avisos = resultados.map((x) => x.aviso).filter(Boolean);
     if (urls.length !== paginas.length)
       throw new Error(
         "Não consegui enviar todas as páginas. Confira as imagens e tente novamente; nenhum texto foi alterado.",
@@ -93,18 +100,70 @@
         ? sess.data.session.access_token
         : null;
     if (!token) throw new Error("sessão expirada — entre de novo.");
-    const r = await fetch(window.SUPABASE_URL + "/functions/v1/ia-processar", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token,
-        apikey: window.SUPABASE_ANON_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    const res = await r.json().catch(() => ({}));
-    if (!r.ok || res.error) throw new Error(res.error || "HTTP " + r.status);
-    return res;
+    if (_abortAtual)
+      throw new Error("já existe uma chamada da IA em andamento");
+    const controller = new AbortController();
+    _abortAtual = controller;
+    let expirou = false;
+    const timer = setTimeout(function () {
+      expirou = true;
+      controller.abort();
+    }, 125000);
+    try {
+      const r = await fetch(
+        window.SUPABASE_URL + "/functions/v1/ia-processar",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            apikey: window.SUPABASE_ANON_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        },
+      );
+      const res = await r.json().catch(() => ({}));
+      if (!r.ok || res.error) {
+        const erro = new Error(res.error || "HTTP " + r.status);
+        // Só instabilidade temporária merece a segunda tentativa do lote.
+        erro.tentavel = r.status === 408 || r.status >= 500;
+        throw erro;
+      }
+      return res;
+    } catch (e) {
+      if (e && e.name === "AbortError") {
+        const erro = new Error(
+          expirou
+            ? "a IA demorou demais; tente novamente"
+            : "processamento cancelado",
+        );
+        erro.tentavel = false;
+        erro.cancelado = !expirou;
+        throw erro;
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      if (_abortAtual === controller) _abortAtual = null;
+    }
+  }
+
+  async function iaChamarComRetry(payload) {
+    try {
+      return await window.IA.chamar(payload);
+    } catch (erro) {
+      if (erro && erro.tentavel === false) throw erro;
+      return window.IA.chamar(payload);
+    }
+  }
+
+  function iaCancelarTudo() {
+    if (_lote && _lote.rodando) {
+      _lote.cancelado = true;
+      _lote.pausado = false;
+    }
+    if (_abortAtual) _abortAtual.abort();
   }
 
   // ---- Botão ✨: processa a ficha e abre a revisão ----
@@ -140,6 +199,7 @@
       const dup = window.IA.duplicata(res.resultado, id);
       iaAbrirRevisao(id, res.resultado, dup, avisos, res.uso, res.modelo);
     } catch (e) {
+      if (e && e.cancelado) return;
       alert("Não consegui processar: " + (e && e.message ? e.message : e));
     }
   }
@@ -441,13 +501,7 @@
         _lote.puladas.push({ id: id, motivo: "sem imagem que a IA veja" });
         return;
       }
-      let res;
-      try {
-        res = await window.IA.chamar(iaPayloadDe(urls));
-      } catch (e1) {
-        // 1 nova tentativa (rede/instabilidade); persistiu -> cai no catch de fora
-        res = await window.IA.chamar(iaPayloadDe(urls));
-      }
+      const res = await iaChamarComRetry(iaPayloadDe(urls));
       if (_lote.cancelado || DADOS.fichas.find((x) => x.id === id) !== f)
         return;
       validarPaginas(f, res.resultado);
@@ -462,6 +516,7 @@
       window.IA.aplicar(id, res.resultado);
       _lote.ok++;
     } catch (e) {
+      if (_lote.cancelado) return;
       _lote.erros.push({ id: id, motivo: (e && e.message) || String(e) });
     }
   }
@@ -523,8 +578,7 @@
   }
   function iaLoteCancela() {
     if (!_lote || !_lote.rodando) return;
-    _lote.cancelado = true;
-    _lote.pausado = false;
+    iaCancelarTudo();
   }
 
   /* ===========================================================
@@ -679,12 +733,7 @@
         personagem: { nome: p.nome, aliases: p.aliases || [] },
         pistas: pistas,
       };
-      let res;
-      try {
-        res = await window.IA.chamar(payload);
-      } catch (e1) {
-        res = await window.IA.chamar(payload); // 1 nova tentativa
-      }
+      const res = await iaChamarComRetry(payload);
       const d = res && res.resultado && res.resultado.descricao;
       if (!d) {
         _lote.erros.push({ id: it.nome, motivo: "resposta sem descrição" });
@@ -698,6 +747,7 @@
       if (typeof render === "function") render();
       _lote.ok++;
     } catch (e) {
+      if (_lote.cancelado) return;
       _lote.erros.push({ id: it.nome, motivo: (e && e.message) || String(e) });
     }
   }
@@ -719,6 +769,7 @@
     personaIniciar: iaPersonaIniciar,
     lotePausa: iaLotePausa,
     loteCancela: iaLoteCancela,
+    cancelar: iaCancelarTudo,
     loteEstado: function () {
       return _lote;
     },

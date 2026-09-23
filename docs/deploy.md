@@ -126,6 +126,16 @@ Na área logada: **Sair**; **Exportar meus dados** (baixar o JSON); **Apagar min
 
 **✅ Como verificar:** o **JSON exportado** contém o catálogo completo; **apagar a conta** remove linha + imagens + login — e depois **não dá mais para entrar**.
 
+### Ordem para publicar a IA
+
+1. Aplicar todas as migrações, incluindo `20260921143824_limitar_uso_ia.sql`.
+2. Configurar os secrets `OPENAI_API_KEY` e `IA_EMAILS`. Opcionalmente,
+   configurar `IA_LIMITE_HORA` (padrão 60 por usuário, separadamente para
+   pistas e personagens).
+3. Publicar a Edge Function `ia-processar`.
+4. Fazer uma chamada de cada receita e conferir no log `ia_processada`, duração
+   e tokens. A função falha fechada com 503 se a migração de cota estiver ausente.
+
 ---
 
 ## 7. ⛔ PARE — Teste de isolamento (inegociável antes de publicar)

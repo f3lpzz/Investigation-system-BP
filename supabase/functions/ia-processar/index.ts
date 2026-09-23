@@ -13,6 +13,14 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Montagem do texto do dossiê: arquivo à parte para o teste do Node poder
 // rodar o MESMO código que roda aqui (ver tools/teste-dossie.mjs).
 import { montarDescricao } from "./montar-dossie.mjs";
+import {
+  extrairRespostaOpenAI,
+  LIMITES_IA,
+  listaTextos,
+  montarContextoPersonagem,
+  montarRequisicaoOpenAI,
+  validarImagens,
+} from "./nucleo.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,11 +28,42 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(body: unknown, status = 200) {
+function json(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, "Content-Type": "application/json" },
+    headers: {
+      ...CORS,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      ...headers,
+    },
   });
+}
+
+function inteiroAmbiente(
+  nome: string,
+  padrao: number,
+  minimo: number,
+  maximo: number,
+) {
+  const valor = Number(Deno.env.get(nome));
+  return Number.isInteger(valor) && valor >= minimo && valor <= maximo
+    ? valor
+    : padrao;
+}
+
+async function identificadorSeguro(uid: string) {
+  const bytes = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(uid),
+  );
+  return Array.from(new Uint8Array(bytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // Regras fixas da "receita" processar-pista (vivem no servidor de propósito).
@@ -120,7 +159,8 @@ const ESQUEMA = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST") return json({ error: "metodo nao permitido" }, 405);
+  if (req.method !== "POST")
+    return json({ error: "metodo nao permitido" }, 405);
 
   try {
     // ---- 1) Autenticação (mesmo padrão da apagar-conta) ----
@@ -151,14 +191,24 @@ Deno.serve(async (req) => {
     if (!apiKey) return json({ error: "OPENAI_API_KEY não configurada" }, 500);
 
     // ---- 3) Entrada (com limites para conter custo) ----
-    const body = await req.json();
+    const tamanhoDeclarado = Number(req.headers.get("content-length") || 0);
+    if (tamanhoDeclarado > LIMITES_IA.corpoBytes) {
+      return json({ error: "pedido grande demais" }, 413);
+    }
+    const corpo = await req.text();
+    if (new TextEncoder().encode(corpo).byteLength > LIMITES_IA.corpoBytes) {
+      return json({ error: "pedido grande demais" }, 413);
+    }
+    let body: Record<string, any>;
+    try {
+      body = JSON.parse(corpo);
+    } catch {
+      return json({ error: "JSON invalido" }, 400);
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json({ error: "corpo do pedido invalido" }, 400);
+    }
     const modo = body.modo === "personagem" ? "personagem" : "pista";
-    const lista = (arr: unknown, max: number) =>
-      (Array.isArray(arr) ? arr : [])
-        .filter((x) => typeof x === "string")
-        .slice(0, max);
-    const txt = (v: unknown, max: number) =>
-      typeof v === "string" ? v.slice(0, max) : "";
 
     let sysPrompt: string;
     let userContent: unknown;
@@ -167,128 +217,137 @@ Deno.serve(async (req) => {
 
     if (modo === "personagem") {
       // ---- Receita 2: dossiê de personagem (texto-somente) ----
-      const p = body.personagem || {};
-      const nome = txt(p.nome, 120);
-      if (!nome) return json({ error: "personagem sem nome" }, 400);
-      const aliases = lista(p.aliases, 12).map((a) => a.slice(0, 80));
-      const pistas = (Array.isArray(body.pistas) ? body.pistas : []).slice(0, 60);
-      if (!pistas.length)
-        return json({ error: "nenhuma pista citando o personagem" }, 400);
-      const blocos = pistas.map((f: Record<string, unknown>, i: number) => {
-        // Id no formato "carimbo" que o app mostra nos cards (f10 → F-010),
-        // para os bullets do dossiê citarem a pista do jeito que o usuário vê.
-        const idVis = (txt(f.id, 20) || "?").replace(
-          /^([a-z]+)(\d+)$/i,
-          (_m, letra, num) => letra.toUpperCase() + "-" + num.padStart(3, "0"),
-        );
-        const cab = `[${idVis}] ${txt(f.titulo, 200) || "(sem título)"}` +
-          (txt(f.sala, 80) ? ` — sala: ${txt(f.sala, 80)}` : "") +
-          (txt(f.grupo, 80) ? ` — grupo: ${txt(f.grupo, 80)}` : "");
-        const en = txt(f.original, 6000);
-        const pt = txt(f.traducao, 6000);
-        const rs = txt(f.resumo, 1000);
-        return (
-          `--- PISTA ${i + 1} ---\n${cab}\n` +
-          (en ? `EN: ${en}\n` : "") +
-          (pt ? `PT: ${pt}\n` : "") +
-          (rs ? `Resumo: ${rs}\n` : "")
-        );
-      });
+      let contexto;
+      try {
+        contexto = montarContextoPersonagem(body);
+      } catch (e) {
+        return json({ error: String((e as Error).message || e) }, 400);
+      }
       sysPrompt = REGRAS_PERSONA;
       userContent =
-        `PERSONAGEM: ${nome}` +
-        (aliases.length ? ` (apelidos: ${aliases.join(", ")})` : "") +
-        `\n\nPISTAS QUE O CITAM (${pistas.length}):\n\n` +
-        blocos.join("\n") +
+        `PERSONAGEM: ${contexto.nome}` +
+        (contexto.aliases.length
+          ? ` (apelidos: ${contexto.aliases.join(", ")})`
+          : "") +
+        `\n\nPISTAS QUE O CITAM (${contexto.usadas} de ${contexto.recebidas}):\n\n` +
+        contexto.blocos.join("\n") +
+        (contexto.truncado
+          ? "\nAVISO: o contexto atingiu o limite; use somente as pistas acima.\n"
+          : "") +
         `\nEscreva o dossiê deste personagem.`;
       schemaName = "dossie_personagem";
       schemaObj = ESQUEMA_PERSONA;
     } else {
       // ---- Receita 1: processar pista (visão) ----
-      const imagens: string[] = (body.imagens || []).slice(0, 3);
-      if (!imagens.length) return json({ error: "nenhuma imagem enviada" }, 400);
-      for (const url of imagens) {
-        if (
-          typeof url !== "string" ||
-          !(url.startsWith("https://") || url.startsWith("data:image/"))
-        ) {
-          return json({ error: "imagem inválida (use https ou data:image)" }, 400);
-        }
+      let imagens: string[];
+      try {
+        imagens = validarImagens(body.imagens);
+      } catch (e) {
+        return json({ error: String((e as Error).message || e) }, 400);
       }
-      const salas = lista(body.salas, 200);
-      const personagens = lista(body.personagens, 200);
-      const grupos = lista(body.grupos, 60);
+      const salas = listaTextos(body.salas, 200, 120);
+      const personagens = listaTextos(body.personagens, 200, 240);
+      const grupos = listaTextos(body.grupos, 60, 120);
       sysPrompt = REGRAS;
       userContent = [
         {
-          type: "text",
+          type: "input_text",
           text:
             `LISTA DE PERSONAGENS EXISTENTES:\n${personagens.join("; ") || "(vazia)"}\n\n` +
             `LISTA DE GRUPOS EXISTENTES:\n${grupos.join("; ") || "(vazia)"}\n\n` +
             `LISTA DE SALAS (apenas referência de nomes; NÃO escolha sala):\n${salas.join("; ") || "(vazia)"}\n\n` +
             `Processe a(s) ${imagens.length} imagem(ns) desta pista, na ordem enviada (1 item de "paginas" por imagem).`,
         },
-        ...imagens.map((url) => ({ type: "image_url", image_url: { url } })),
+        ...imagens.map((url) => ({
+          type: "input_image",
+          image_url: url,
+          detail: "high",
+        })),
       ];
       schemaName = "ficha_pista";
       schemaObj = ESQUEMA;
     }
 
-    // ---- 4) Chamada à OpenAI (JSON garantido) ----
-    const modelo = Deno.env.get("OPENAI_MODEL") || "gpt-5-nano";
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    // ---- 4) Cota atomica no Postgres (protege custo e rajadas) ----
+    const limiteHora = inteiroAmbiente("IA_LIMITE_HORA", 60, 1, 10000);
+    const { data: cota, error: cotaErro } = await admin.rpc(
+      "consumir_cota_ia",
+      {
+        p_user_id: u.user.id,
+        p_rota: modo,
+        p_limite: limiteHora,
+        p_janela_segundos: 3600,
       },
-      body: JSON.stringify({
-        model: modelo,
-        // GPT-5: os tokens de raciocínio contam DENTRO deste limite —
-        // teto alto + esforço baixo evita resposta vazia por "length".
-        max_completion_tokens: 16000,
-        reasoning_effort: "low",
-        messages: [
-          { role: "system", content: sysPrompt },
-          { role: "user", content: userContent },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: schemaName, strict: true, schema: schemaObj },
+    );
+    if (cotaErro) {
+      console.error(
+        JSON.stringify({ evento: "ia_cota_falhou", codigo: cotaErro.code }),
+      );
+      return json({ error: "controle de uso da IA indisponivel" }, 503);
+    }
+    if (!cota?.permitido) {
+      const reinicia = Date.parse(cota?.reinicia_em || "");
+      const espera = Number.isFinite(reinicia)
+        ? Math.max(1, Math.ceil((reinicia - Date.now()) / 1000))
+        : 3600;
+      return json(
+        {
+          error: "limite temporario da IA atingido; tente novamente mais tarde",
         },
-      }),
-    });
+        429,
+        { "Retry-After": String(espera) },
+      );
+    }
 
-    const dados = await resp.json();
+    // ---- 5) Chamada à OpenAI Responses API (JSON garantido) ----
+    const modelo = Deno.env.get("OPENAI_MODEL") || "gpt-5-nano";
+    const pedidoOpenAI = montarRequisicaoOpenAI({
+      modelo,
+      instrucoes: sysPrompt,
+      conteudo: userContent,
+      schemaNome: schemaName,
+      schema: schemaObj,
+      modo,
+      safetyIdentifier: await identificadorSeguro(u.user.id),
+    });
+    const inicio = Date.now();
+    const abortarOpenAI = new AbortController();
+    const timerOpenAI = setTimeout(() => abortarOpenAI.abort(), 120000);
+    const abortarComCliente = () => abortarOpenAI.abort();
+    req.signal.addEventListener("abort", abortarComCliente, { once: true });
+    let resp: Response;
+    try {
+      resp = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pedidoOpenAI),
+        // A plataforma encerra requests ociosos em 150 s; abortar antes produz
+        // um erro controlado. O cancelamento do navegador também é propagado.
+        signal: abortarOpenAI.signal,
+      });
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") {
+        return json({ error: "A IA demorou demais; tente novamente" }, 504);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timerOpenAI);
+      req.signal.removeEventListener("abort", abortarComCliente);
+    }
+
+    const dados = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       const msg = dados?.error?.message || `OpenAI HTTP ${resp.status}`;
       return json({ error: "Falha na IA: " + msg }, 502);
     }
-    const escolha = dados?.choices?.[0];
-    if (escolha?.message?.refusal) {
-      return json({ error: "A IA recusou o pedido: " + escolha.message.refusal }, 502);
-    }
-    if (escolha?.finish_reason === "length") {
-      return json(
-        { error: "A IA estourou o limite de resposta (length). Tente de novo; se persistir, aumente max_completion_tokens." },
-        502,
-      );
-    }
     let resultado;
     try {
-      resultado = JSON.parse(escolha?.message?.content || "");
-    } catch {
-      return json(
-        {
-          error:
-            "Resposta da IA não veio no formato esperado (finish_reason=" +
-            (escolha?.finish_reason || "?") +
-            ", conteudo_vazio=" +
-            String(!(escolha?.message?.content || "").length) +
-            ")",
-        },
-        502,
-      );
+      resultado = extrairRespostaOpenAI(dados);
+    } catch (e) {
+      return json({ error: String((e as Error).message || e) }, 502);
     }
 
     // Dossiê: monta a "descricao" (resumo + linha em branco + bullets) AQUI,
@@ -298,16 +357,30 @@ Deno.serve(async (req) => {
       resultado.descricao = montarDescricao(resultado);
     }
 
+    const duracaoMs = Date.now() - inicio;
+    console.log(
+      JSON.stringify({
+        evento: "ia_processada",
+        modo,
+        duracao_ms: duracaoMs,
+        modelo,
+        openai_request_id: resp.headers.get("x-request-id") || undefined,
+        tokens_entrada: dados?.usage?.input_tokens,
+        tokens_saida: dados?.usage?.output_tokens,
+      }),
+    );
     return json({
       ok: true,
       resultado,
       modelo,
       uso: dados?.usage
         ? {
-            entrada: dados.usage.prompt_tokens,
-            saida: dados.usage.completion_tokens,
+            entrada: dados.usage.input_tokens,
+            saida: dados.usage.output_tokens,
+            cache: dados.usage.input_tokens_details?.cached_tokens || 0,
           }
         : null,
+      duracao_ms: duracaoMs,
     });
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);

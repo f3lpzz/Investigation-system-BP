@@ -13,7 +13,7 @@ npm run teste-visual # exige Chrome; no CI gera capturas como artefatos
 
 Os testes usam `tools/fixtures/catalogo.json`, nunca o catálogo pessoal excluído do Git. `checar-online` inclui a carga dos módulos, os testes legados, regressões de nuvem/IA, backup/exclusão e as migrações reais em Postgres local (PGlite). Os esquemas de Auth/Storage nesse teste são mínimos e simulados: ainda é obrigatório conferir o isolamento no Supabase real antes de publicar.
 
-`lint` lê todos os scripts locais na ordem de `painel.html` e analisa o escopo compartilhado. O workflow `.github/workflows/verificar.yml` executa as verificações e captura o app com Chrome em desktop e celular. Consulte também `revisao-confiabilidade.md`.
+`lint` lê todos os scripts locais na ordem de `painel.html` e analisa o escopo compartilhado. `teste-ia-backend.mjs` confere os limites de entrada/contexto e o contrato da Responses API sem gastar tokens. `teste-banco.mjs` também prova que a cota é atômica e inacessível ao usuário autenticado. O workflow `.github/workflows/verificar.yml` executa as verificações e captura o app com Chrome em desktop e celular. Consulte também `revisao-confiabilidade.md`.
 
 
 
