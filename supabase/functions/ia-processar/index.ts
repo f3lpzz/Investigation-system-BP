@@ -84,10 +84,10 @@ REGRAS INEGOCIÁVEIS:
 // Texto-somente (sem imagens): recebe os trechos das pistas que citam o
 // personagem e escreve a descrição em resumo + bullets de fatos objetivos,
 // um por fato, citando o id da pista. SEM interpretação/especulação.
-const REGRAS_PERSONA = `Você escreve o dossiê de UM personagem do jogo Blue Prince para um catálogo pessoal fan-made, a partir de trechos de pistas fornecidos. Responda SEMPRE no JSON pedido.
+const REGRAS_PERSONA = `Você escreve o dossiê de UM personagem a partir de trechos de pistas fornecidos. Responda SEMPRE no JSON pedido.
 
 REGRAS INEGOCIÁVEIS:
-1. FONTES: use APENAS os trechos fornecidos. Não use conhecimento externo sobre o jogo e não invente nada que nenhuma pista sustente.
+1. FONTES: use APENAS os trechos fornecidos. Não use conhecimento externo aos trechos e não invente nada que nenhuma pista sustente.
 2. SÓ FATOS OBJETIVOS: relate o que cada pista DIZ sobre o personagem, nada além. NUNCA deduza, sugira ou especule — frases como "o que sugere…", "possivelmente…", "indicando envolvimento…" são PROIBIDAS. O que terceiros fizeram com criações do personagem fica de fora, a menos que a interação seja com o personagem em si (ex.: "ele construiu o relógio" entra; "outra pessoa vendeu o relógio dele" só entra se a pista ligar a venda a ele).
 3. "resumo": 1 a 3 frases sobre quem é o personagem, só com fatos das pistas. NÃO amontoe os fatos aqui — eles vão detalhados em "fatos".
 4. "fatos": UM item por fato — não junte vários fatos num item, e não deixe fato de fora achando que o resumo já cobriu. Em "pista" ponha o id exatamente como aparece entre colchetes no cabeçalho da pista (ex.: F-010). Em "fato" a frase curta e objetiva. Ex.: pista "F-010", fato "Anne Babbage foi a primeira a alugar o livro 'A Sightseer's Guide to Reddington' em 1982". Uma pista com vários fatos gera vários itens, repetindo o id; mantenha os itens da mesma pista juntos, na ordem em que as pistas foram fornecidas.
