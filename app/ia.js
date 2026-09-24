@@ -195,9 +195,17 @@
       };
       const res = await window.IA.chamar(payload);
       if (DADOS.fichas.find((x) => x.id === id) !== f) return;
-      validarPaginas(f, res.resultado);
-      const dup = window.IA.duplicata(res.resultado, id);
-      iaAbrirRevisao(id, res.resultado, dup, avisos, res.uso, res.modelo);
+      const ajuste = iaConciliarPaginas(f, res.resultado);
+      validarPaginas(f, ajuste.resultado);
+      const dup = window.IA.duplicata(ajuste.resultado, id);
+      iaAbrirRevisao(
+        id,
+        ajuste.resultado,
+        dup,
+        ajuste.aviso ? [...avisos, ajuste.aviso] : avisos,
+        res.uso,
+        res.modelo,
+      );
     } catch (e) {
       if (e && e.cancelado) return;
       alert("Não consegui processar: " + (e && e.message ? e.message : e));
@@ -338,12 +346,46 @@
   // ficha nem dispara toast individual (seria 1 por pista).
   let _loteRodando = false;
 
+  // Uma foto pode mostrar duas páginas abertas. Se a IA as separou em itens,
+  // ambas ainda pertencem à mesma imagem/ficha: reunir sem perder texto.
+  function iaConciliarPaginas(f, resultado) {
+    const paginas = resultado && resultado.paginas;
+    if (
+      (f.paginas || []).length !== 1 ||
+      !Array.isArray(paginas) ||
+      paginas.length <= 1 ||
+      paginas.some(
+        (p) =>
+          !p ||
+          typeof p.transcricao !== "string" ||
+          typeof p.traducao !== "string",
+      )
+    )
+      return { resultado, aviso: "" };
+    return {
+      resultado: {
+        ...resultado,
+        paginas: [
+          {
+            transcricao: paginas.map((p) => p.transcricao).join("\n\n"),
+            traducao: paginas.map((p) => p.traducao).join("\n\n"),
+          },
+        ],
+      },
+      aviso:
+        `A IA separou esta imagem em ${paginas.length} trechos. ` +
+        "Reuni os textos na mesma página; confira a ordem antes de aplicar.",
+    };
+  }
+
   // Aplica um resultado (da IA ou editado) na ficha — testável sem tela.
   function validarPaginas(f, r) {
+    const esperadas = (f.paginas || []).length;
+    const recebidas = r && Array.isArray(r.paginas) ? r.paginas.length : null;
     if (
       !r ||
       !Array.isArray(r.paginas) ||
-      r.paginas.length !== (f.paginas || []).length ||
+      recebidas !== esperadas ||
       r.paginas.some(
         (p) =>
           !p ||
@@ -352,7 +394,7 @@
       )
     )
       throw new Error(
-        "A IA não devolveu todas as páginas na ordem esperada. Nenhum texto foi alterado; tente novamente.",
+        `A IA devolveu ${recebidas === null ? "um formato inválido" : recebidas + " trecho(s)"} para ${esperadas} imagem(ns). Nenhum texto foi alterado; tente novamente.`,
       );
   }
   function iaAplicar(id, r, substituirVazios = false) {
@@ -552,8 +594,9 @@
       const res = await iaChamarComRetry(iaPayloadDe(urls));
       if (_lote.cancelado || DADOS.fichas.find((x) => x.id === id) !== f)
         return;
-      validarPaginas(f, res.resultado);
-      const dup = window.IA.duplicata(res.resultado, id);
+      const ajuste = iaConciliarPaginas(f, res.resultado);
+      validarPaginas(f, ajuste.resultado);
+      const dup = window.IA.duplicata(ajuste.resultado, id);
       if (dup) {
         _lote.puladas.push({
           id: id,
@@ -561,7 +604,7 @@
         });
         return;
       }
-      window.IA.aplicar(id, res.resultado);
+      window.IA.aplicar(id, ajuste.resultado);
       _lote.ok++;
     } catch (e) {
       if (_lote.cancelado) return;

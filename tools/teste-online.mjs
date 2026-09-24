@@ -778,6 +778,30 @@ const entrou = () =>
     ),
   );
 
+  // Uma foto de livro aberto pode voltar como dois itens no JSON da IA.
+  // A revisão deve abrir e guardar ambos os textos na única imagem da ficha.
+  g(`
+    DADOS.fichas.push({id:"fSplit",titulo:"(pendente)",sala:"",grupos:[],personagens:[],conexoes:[],notas:"",pendente:true,fav:false,status:"",paginas:[{imagem:"data:image/png;base64,AAA",original:"",traducao:"",explica:"",rotulo:""}]});
+    window.__imagensAntesSplit = window.IA.imagens;
+    window.__chamarAntesSplit = window.IA.chamar;
+    window.IA.imagens = async () => ({urls:["data:image/png;base64,AAA"],avisos:[]});
+    window.IA.chamar = async () => ({resultado:{titulo:"Carta aberta",paginas:[
+      {transcricao:"Texto do lado esquerdo.",traducao:"Tradução do lado esquerdo."},
+      {transcricao:"Texto do lado direito.",traducao:"Tradução do lado direito."}
+    ],resumo:"Uma carta aberta.",personagens_existentes:[],personagens_novos:[],grupo:"",grupo_sugerido:"",observacoes:""}});
+  `);
+  await g('window.IA.processar("fSplit")');
+  ok(
+    "IA: página dupla em uma imagem abre a revisão com os dois textos e um aviso",
+    g('(function(){var m=document.getElementById("iamodal"),t=document.getElementById("ia-orig-0");return m.classList.contains("open") && t.value==="Texto do lado esquerdo.\\n\\nTexto do lado direito." && !document.getElementById("ia-orig-1") && m.textContent.includes("A IA separou esta imagem em 2 trechos");})()'),
+  );
+  g('window.IA.aplicarDoModal("fSplit")');
+  ok(
+    "IA: aplicar página dupla conserva os dois lados na mesma ficha",
+    g('(function(){var f=DADOS.fichas.find(x=>x.id==="fSplit");return !f.pendente && f.paginas.length===1 && f.paginas[0].original.includes("lado esquerdo") && f.paginas[0].original.includes("lado direito") && f.paginas[0].traducao.includes("lado direito");})()'),
+  );
+  g('window.IA.imagens = window.__imagensAntesSplit; window.IA.chamar = window.__chamarAntesSplit;');
+
   /* Teste 11 — Diretório de salas compartilhado (sobreposição) */
   // dados com 1 sala já "descoberta" e com notas pessoais + 1 sala fora do diretório
   const dadosDir = {

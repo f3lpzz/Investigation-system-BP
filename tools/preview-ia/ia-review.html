@@ -40,18 +40,30 @@
     </script>
     <script src="../../app/ia.js"></script>
     <script>
+      const imagemDividida = new URLSearchParams(location.search).has("split");
       IA.imagens = async () => ({ urls: [imagem], avisos: [] });
       IA.chamar = async () => ({
         resultado: {
           titulo: "Letras e Dicionário — Mudanças",
-          paginas: [
-            {
-              transcricao:
-                "He changed all the letters in the lines that he found,\nHe checked all the colors of the spines that were bound.",
-              traducao:
-                "Ele mudou todas as letras nas linhas que encontrou,\nEle verificou todas as cores das lombadas que estavam presas.",
-            },
-          ],
+          paginas: imagemDividida
+            ? [
+                {
+                  transcricao: "He changed all the letters in the lines that he found,",
+                  traducao: "Ele mudou todas as letras nas linhas que encontrou,",
+                },
+                {
+                  transcricao: "He checked all the colors of the spines that were bound.",
+                  traducao: "Ele verificou todas as cores das lombadas que estavam presas.",
+                },
+              ]
+            : [
+                {
+                  transcricao:
+                    "He changed all the letters in the lines that he found,\nHe checked all the colors of the spines that were bound.",
+                  traducao:
+                    "Ele mudou todas as letras nas linhas que encontrou,\nEle verificou todas as cores das lombadas que estavam presas.",
+                },
+              ],
           resumo:
             "O texto descreve mudanças nas letras, nas cores das lombadas e no significado de saudações e expressões.",
           personagens_existentes: ["Herbert"],
