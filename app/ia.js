@@ -214,51 +214,96 @@
       document.body.appendChild(m);
     }
     const f = DADOS.fichas.find((x) => x.id === id);
-    // A transcrição agora vem com o layout da carta (várias linhas): o
-    // textarea cresce junto, senão vira uma janelinha de rolagem.
-    const linhasDe = (t) =>
-      Math.min(16, Math.max(4, String(t || "").split("\n").length + 1));
+    const gruposAtuais = f.grupos || [];
+    const personagensIniciais = [
+      ...new Set([
+        ...(f.personagens || []),
+        ...(r.personagens_existentes || []),
+      ]),
+    ].filter((nome) => !(r.personagens_novos || []).includes(nome));
     const pgs = (r.paginas || []).map(
-      (p, i) => `
-      <div class="gsec card" style="margin-top:8px">
-        <h3>📄 Página ${i + 1}</h3>
-        <div class="field"><label>Original (EN)</label><textarea id="ia-orig-${i}" class="edinput" rows="${linhasDe(p.transcricao)}">${esc(p.transcricao || "")}</textarea></div>
-        <div class="field"><label>Tradução (PT)</label><textarea id="ia-trad-${i}" class="edinput" rows="${linhasDe(p.traducao)}">${esc(p.traducao || "")}</textarea></div>
-      </div>`,
+      (p, i) => {
+        const imagem = (f.paginas[i] || {}).imagem;
+        return `
+      <section class="ia-review-page" aria-labelledby="ia-page-title-${i}">
+        <div class="ia-review-section-head">
+          <h3 id="ia-page-title-${i}">Página ${i + 1}</h3>
+          <span>Confira o texto com a imagem</span>
+        </div>
+        <div class="ia-review-page-layout${imagem ? " has-image" : ""}">
+          ${imagem ? `<button type="button" class="ia-review-image" onclick="abrirLightbox(this.querySelector('img').src)" aria-label="Ampliar imagem da página ${i + 1}"><img src="${esc(imagem)}" alt="Imagem original da página ${i + 1}" onerror="this.closest('button').style.display='none'"><span>Ampliar imagem ↗</span></button>` : ""}
+          <div class="ia-review-texts">
+            <div class="ia-review-field"><label for="ia-orig-${i}">Transcrição original <span>EN</span></label><textarea id="ia-orig-${i}" class="edinput ia-review-textarea" rows="8" spellcheck="false">${esc(p.transcricao || "")}</textarea></div>
+            <div class="ia-review-field"><label for="ia-trad-${i}">Tradução <span>PT</span></label><textarea id="ia-trad-${i}" class="edinput ia-review-textarea" rows="8">${esc(p.traducao || "")}</textarea></div>
+          </div>
+        </div>
+      </section>`;
+      },
     );
     const opcoesGrupo =
-      '<option value="">(sem grupo)</option>' +
+      `<option value="">${gruposAtuais.length ? "Manter grupos atuais" : "Sem grupo"}</option>` +
       DADOS.grupos
         .map(
           (g) =>
             `<option value="${esc(g.nome)}"${g.nome === r.grupo ? " selected" : ""}>${esc(g.nome)}</option>`,
         )
-        .join("");
-    m.innerHTML = `<div class="modalbox" style="max-width:720px"><div class="modalhd"><h2>✨ Revisar o que a IA preencheu — <span class="idref">${esc(id)}</span></h2><button class="close" onclick="document.getElementById('iamodal').classList.remove('open')">✕</button></div>
-      <div class="modalbody">
-        ${dup ? `<div class="auth-msg show erro" style="max-height:none">⚠️ <b>Possível duplicata:</b> a transcrição bate com a pista <b>${esc(dup.id)} — ${esc(dup.titulo)}</b>. Confira antes de aplicar (talvez seja melhor atualizar aquela e excluir esta).</div>` : ""}
-        ${avisos && avisos.length ? `<div class="auth-msg show info" style="max-height:none">${esc(avisos.join(" · "))}</div>` : ""}
-        ${r.observacoes ? `<div class="auth-msg show info" style="max-height:none">🗒 IA: ${esc(r.observacoes)}</div>` : ""}
-        <div class="field"><label>Título</label><input id="ia-titulo" class="edinput" value="${esc(r.titulo || "")}"></div>
-        ${pgs.join("")}
-        <div class="field"><label>Resumo (o que a pista diz)</label><textarea id="ia-resumo" class="edinput" rows="3">${esc(r.resumo || "")}</textarea></div>
-        <div class="field"><label>Personagens já existentes (separados por ;)</label><input id="ia-pex" class="edinput" value="${esc((r.personagens_existentes || []).join("; "))}"></div>
-        <div class="field"><label>Personagens NOVOS a criar (separados por ; — apague os indesejados)</label><input id="ia-pnov" class="edinput" value="${esc((r.personagens_novos || []).join("; "))}"></div>
-        <div class="field"><label>Grupo</label><select id="ia-grupo" class="edinput">${opcoesGrupo}</select></div>
-        ${r.grupo_sugerido && !r.grupo ? `<div class="field"><label><input type="checkbox" id="ia-grupo-novo-ok"> Criar e usar o grupo novo sugerido: <b>${esc(r.grupo_sugerido)}</b></label></div>` : ""}
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-          <button class="topbtn" onclick="document.getElementById('iamodal').classList.remove('open')">Cancelar</button>
-          <button class="topbtn primary" onclick="window.IA.aplicarDoModal('${esc(id)}')">✔ Aplicar na ficha</button>
-        </div>
-        ${uso ? `<div class="dica" style="text-align:right;margin-top:6px">modelo ${esc(modelo || "?")} · ${uso.entrada || "?"} tokens entrada · ${uso.saida || "?"} saída</div>` : ""}
-      </div></div>`;
+        .join("") +
+      (gruposAtuais.length
+        ? '<option value="__ia_sem_grupo__">Remover grupos da ficha</option>'
+        : "") +
+      (r.grupo_sugerido && !r.grupo
+        ? `<option value="__ia_novo_grupo__">Criar grupo: ${esc(r.grupo_sugerido)}</option>`
+        : "");
+    m.innerHTML = `<div class="modalbox ia-review" role="dialog" aria-modal="true" aria-labelledby="ia-review-title" aria-describedby="ia-review-intro">
+      <div class="modalhd ia-review-header">
+        <div><div class="ia-review-kicker">REVISÃO DA IA · FICHA ${esc(id)}</div><h2 id="ia-review-title">Conferir dados da pista</h2><p id="ia-review-intro">Compare com a imagem e ajuste as informações antes de salvar na ficha.</p></div>
+        <button type="button" class="close" aria-label="Fechar revisão" onclick="document.getElementById('iamodal').classList.remove('open')">✕</button>
+      </div>
+      <div class="modalbody ia-review-body">
+        ${dup ? `<div class="auth-msg show erro ia-review-alert" style="max-height:none">⚠️ <b>Possível duplicata:</b> o texto coincide com <b>${esc(dup.id)} — ${esc(dup.titulo)}</b>. Confira as duas fichas antes de aplicar.</div>` : ""}
+        ${avisos && avisos.length ? `<div class="auth-msg show info ia-review-alert" style="max-height:none">${esc(avisos.join(" · "))}</div>` : ""}
+        ${r.observacoes ? `<div class="auth-msg show info ia-review-alert" style="max-height:none"><b>Observação da IA:</b> ${esc(r.observacoes)}</div>` : ""}
+        <section class="ia-review-section" aria-labelledby="ia-review-identidade">
+          <div class="ia-review-section-head"><h3 id="ia-review-identidade">Identificação</h3><span>Como esta pista aparecerá no catálogo</span></div>
+          <div class="ia-review-field"><label for="ia-titulo">Título da ficha</label><input id="ia-titulo" class="edinput" value="${esc(r.titulo || f.titulo || "")}" required><small>Use um nome curto que ajude a reconhecer a pista.</small></div>
+        </section>
+        <section class="ia-review-section" aria-labelledby="ia-review-conteudo">
+          <div class="ia-review-section-head"><h3 id="ia-review-conteudo">Conteúdo da pista</h3><span>Transcrição e tradução por página</span></div>
+          <div class="ia-review-pages">${pgs.join("")}</div>
+          <div class="ia-review-field ia-review-summary"><label for="ia-resumo">Resumo</label><textarea id="ia-resumo" class="edinput" rows="3">${esc(r.resumo || (f.paginas[0] || {}).explica || "")}</textarea><small>Explique em poucas frases o que a pista revela. Esse texto aparece na ficha.</small></div>
+        </section>
+        <section class="ia-review-section" aria-labelledby="ia-review-vinculos">
+          <div class="ia-review-section-head"><h3 id="ia-review-vinculos">Vínculos</h3><span>Relacione a pista ao arquivo</span></div>
+          <div class="ia-review-links">
+            <div class="ia-review-field"><label for="ia-pex">Personagens existentes</label><input id="ia-pex" class="edinput" value="${esc(personagensIniciais.join("; "))}" placeholder="Nome 1; Nome 2"><small>Vincula personagens já cadastrados. Separe os nomes com ponto e vírgula.</small></div>
+            <div class="ia-review-field"><label for="ia-pnov">Novos personagens</label><input id="ia-pnov" class="edinput" value="${esc((r.personagens_novos || []).join("; "))}" placeholder="Nome 1; Nome 2"><small>Estes nomes criarão fichas de personagem. Remova os que não desejar.</small></div>
+            <div class="ia-review-field"><label for="ia-grupo">Grupo da pista</label><select id="ia-grupo" class="edinput">${opcoesGrupo}</select><small>${gruposAtuais.length ? `Atuais: ${esc(gruposAtuais.join(", "))}. Escolha uma alteração ou mantenha como está.` : "Escolha um grupo existente, crie o sugerido ou deixe sem grupo."}</small></div>
+          </div>
+        </section>
+      </div>
+      <div class="ia-review-footer">
+        ${uso ? `<details class="ia-review-details"><summary>Detalhes do processamento</summary><span>${esc(modelo || "Modelo desconhecido")} · ${uso.entrada || "?"} tokens de entrada · ${uso.saida || "?"} de saída</span></details>` : "<span></span>"}
+        <div class="ia-review-actions"><button type="button" class="topbtn" onclick="document.getElementById('iamodal').classList.remove('open')">Cancelar</button><button type="button" class="topbtn primary" onclick="window.IA.aplicarDoModal('${esc(id)}')">Aplicar à ficha</button></div>
+      </div>
+    </div>`;
     m.classList.add("open");
     m._iaSugestaoGrupo = r.grupo_sugerido || "";
+    $("ia-titulo").focus();
   }
 
   // Lê o modal (com as edições do usuário) e aplica na ficha.
   function iaAplicarDoModal(id) {
     const m = $("iamodal");
+    const titulo = $("ia-titulo");
+    if (!titulo.value.trim()) {
+      titulo.setCustomValidity("Informe um título para a ficha.");
+      titulo.reportValidity();
+      titulo.focus();
+      titulo.addEventListener("input", () => titulo.setCustomValidity(""), {
+        once: true,
+      });
+      return;
+    }
     const lerLista = (elId) =>
       (($(elId) || {}).value || "")
         .split(";")
@@ -273,19 +318,19 @@
         traducao: ($("ia-trad-" + i) || {}).value || "",
       });
     }
+    const escolhaGrupo = ($("ia-grupo") || {}).value || "";
     const r = {
-      titulo: ($("ia-titulo") || {}).value || "",
+      titulo: titulo.value.trim(),
       paginas,
       resumo: ($("ia-resumo") || {}).value || "",
       personagens_existentes: lerLista("ia-pex"),
       personagens_novos: lerLista("ia-pnov"),
-      grupo: ($("ia-grupo") || {}).value || "",
+      grupo: escolhaGrupo === "__ia_novo_grupo__" ? "" : escolhaGrupo,
       grupo_sugerido:
-        $("ia-grupo-novo-ok") && $("ia-grupo-novo-ok").checked
-          ? m._iaSugestaoGrupo
-          : "",
+        escolhaGrupo === "__ia_novo_grupo__" ? m._iaSugestaoGrupo : "",
+      grupo_limpar: escolhaGrupo === "__ia_sem_grupo__",
     };
-    iaAplicar(id, r);
+    iaAplicar(id, r, true);
     if (m) m.classList.remove("open");
   }
 
@@ -310,7 +355,7 @@
         "A IA não devolveu todas as páginas na ordem esperada. Nenhum texto foi alterado; tente novamente.",
       );
   }
-  function iaAplicar(id, r) {
+  function iaAplicar(id, r, substituirVazios = false) {
     const f = DADOS.fichas.find((x) => x.id === id);
     if (!f) return false;
     validarPaginas(f, r);
@@ -328,7 +373,8 @@
       f.paginas[i].original = p.transcricao || "";
       f.paginas[i].traducao = p.traducao || "";
     });
-    if (r.resumo && f.paginas[0]) f.paginas[0].explica = r.resumo;
+    if (f.paginas[0] && (substituirVazios || r.resumo))
+      f.paginas[0].explica = r.resumo || "";
     // Personagens: novos são criados; a ficha marca existentes + novos.
     const nomes = [];
     (r.personagens_existentes || []).forEach(function (n) {
@@ -350,7 +396,8 @@
       }
       nomes.push(limpo);
     });
-    if (nomes.length) f.personagens = [...new Set(nomes)];
+    if (substituirVazios || nomes.length)
+      f.personagens = [...new Set(nomes)];
     // Grupo: existente escolhido, ou novo aprovado pelo usuário.
     let grupo = r.grupo || "";
     if (!grupo && r.grupo_sugerido) {
@@ -369,7 +416,8 @@
         grupo = nomeNovo;
       }
     }
-    if (grupo) f.grupos = [grupo];
+    if (r.grupo_limpar) f.grupos = [];
+    else if (grupo) f.grupos = [grupo];
     f.pendente = false; // processada!
     if (typeof marcarAlterado === "function") marcarAlterado();
     if (typeof rebuildFilters === "function") rebuildFilters();
