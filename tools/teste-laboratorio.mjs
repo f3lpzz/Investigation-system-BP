@@ -151,6 +151,16 @@ test("histórico: RLS entre contas, permissão só de avaliação, reserva idemp
         true,
       );
     assert.match((await reservar({ ...registro, id: b })).erro, /30 chamadas/);
+    await db.query("update lab_execucoes set esforco='high' where id=$1", [a]);
+    await assert.rejects(
+      db.query("update lab_execucoes set esforco='max' where id=$1", [a]),
+      /lab_execucoes_esforco_check/,
+    );
+    await db.query(
+      "update lab_execucoes set modelo='gpt-6-luna', esforco='max' where id=$1",
+      [a],
+    );
+    await db.query("update lab_execucoes set esforco='xhigh' where id=$1", [a]);
   } finally {
     await db.close();
   }
@@ -197,6 +207,8 @@ test("tela: entrada idêntica nos dois modelos, histórico e conteúdo tratado c
     w.eval(read("../app/lab-ia/lab.js"));
     w.document.getElementById("modo").value = "personagem";
     w.document.getElementById("exemplo").click();
+    w.document.getElementById("esforco-a").value = "high";
+    w.document.getElementById("esforco-b").value = "max";
     w.document
       .getElementById("comparar")
       .dispatchEvent(
@@ -206,6 +218,8 @@ test("tela: entrada idêntica nos dois modelos, histórico e conteúdo tratado c
       await new Promise((r) => setTimeout(r, 5));
     await new Promise((r) => setTimeout(r, 20));
     assert.equal(calls.length, 2);
+    assert.equal(calls.find((c) => c.modelo === "gpt-5-nano").esforco, "high");
+    assert.equal(calls.find((c) => c.modelo === "gpt-6-luna").esforco, "max");
     assert.deepEqual(calls[0].pistas, calls[1].pistas);
     assert.equal(calls[0].grupo_id, calls[1].grupo_id);
     assert.notEqual(calls[0].id, calls[1].id);

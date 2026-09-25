@@ -148,17 +148,27 @@
                     >GPT-5 nano · raciocínio<select id="esforco-a">
                       <option value="low">Baixo (atual)</option>
                       <option value="medium">Médio</option>
+                      <option value="high">Alto</option>
                     </select></label
                   ><label
                     >GPT-6 Luna · raciocínio<select id="esforco-b">
                       <option value="low">Baixo</option>
                       <option value="medium">Médio</option>
+                      <option value="high">Alto</option>
+                      <option value="xhigh">Muito alto</option>
+                      <option value="max">Máximo</option>
                     </select></label
                   >
                   <p class="hint">
                     Visão: alta definição. Limite de saída: 12.000 tokens para
                     pistas ou 6.000 para dossiês. Resposta em JSON estruturado.
                     Mesmas instruções e entrada nos dois modelos.
+                  </p>
+                  <p class="hint">
+                    Mais raciocínio pode aumentar tempo e custo, sem garantir
+                    uma resposta melhor. O limite de saída também inclui os
+                    tokens de raciocínio; se ele for atingido, a resposta pode
+                    ficar incompleta.
                   </p>
                 </details>
                 <button id="executar" class="primary" type="submit">

@@ -20,6 +20,8 @@ Branch de testes: `feature/testes-ia`. **Manter como ambiente de testes; não me
 
 Teste de dossiê também disponível, com entrada textual em JSON e um exemplo inteiramente fictício. Não importamos os dados das contas reais.
 
+Em **Configurações dos modelos**, o nano oferece baixo, médio e alto; o Luna oferece baixo, médio, alto, muito alto (`xhigh`) e máximo (`max`). O servidor e o banco validam os níveis por modelo. O padrão continua baixo. Aumentar o esforço pode aumentar tokens e demora, sem garantir melhora de qualidade. Os limites de 12.000/6.000 tokens também incluem raciocínio; níveis superiores podem esgotá-los e produzir saída incompleta. [Níveis do Luna](https://developers.openai.com/api/docs/models/gpt-6-luna) e [raciocínio na API](https://developers.openai.com/api/docs/guides/reasoning).
+
 ## O que fica igual ao aplicativo
 
 Responses API, instruções, schemas de JSON estrito, `store:false`, visão `high`, 12.000 tokens máximos para pistas e 6.000 para dossiês. A montagem de contexto e de descrição usa cópias dos mesmos módulos. A comparação muda apenas modelo e raciocínio selecionado; a ordem das chamadas é sorteada. A entrada normalizada recebe um hash para conferir equivalência entre chamadas.

@@ -92,7 +92,11 @@ Deno.serve(async (req) => {
       !UUID.test(body.id) ||
       !UUID.test(body.grupo_id) ||
       !["gpt-5-nano", "gpt-6-luna"].includes(body.modelo) ||
-      !["low", "medium"].includes(body.esforco) ||
+      !(
+        body.modelo === "gpt-6-luna"
+          ? ["low", "medium", "high", "xhigh", "max"]
+          : ["low", "medium", "high"]
+      ).includes(body.esforco) ||
       !["pista", "personagem"].includes(body.modo)
     )
       return json({ error: "Configuração inválida" }, 400);

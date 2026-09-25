@@ -8,7 +8,11 @@ create table public.lab_execucoes (
   pedido_hash text not null,
   modo text not null check (modo in ('pista', 'personagem')),
   modelo text not null check (modelo in ('gpt-5-nano', 'gpt-6-luna')),
-  esforco text not null check (esforco in ('low', 'medium')),
+  esforco text not null,
+  constraint lab_execucoes_esforco_check check (
+    (modelo = 'gpt-5-nano' and esforco in ('low', 'medium', 'high')) or
+    (modelo = 'gpt-6-luna' and esforco in ('low', 'medium', 'high', 'xhigh', 'max'))
+  ),
   estado text not null default 'processando' check (estado in ('processando','concluido','erro')),
   configuracao jsonb not null,
   resultado jsonb,
