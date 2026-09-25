@@ -12,11 +12,12 @@
     "teste-ia-backend": "node --test teste-ia-backend.mjs",
     "teste-barbante": "node teste-barbante.mjs",
     "checar": "node verificar-dados.mjs && node teste-carga.mjs && node teste-dossie.mjs && node --test teste-ia-backend.mjs && node teste-barbante.mjs",
-    "checar-online": "npm run checar && node teste-online.mjs && npm run teste-confiabilidade",
+    "checar-online": "npm run checar && node teste-online.mjs && npm run teste-confiabilidade && npm run teste-laboratorio",
     "format": "prettier --write \"../app/*.js\" \"../app/painel.html\" *.mjs",
     "lint": "node lint.mjs",
     "teste-confiabilidade": "node --test teste-confiabilidade.mjs teste-banco.mjs",
-    "teste-visual": "node teste-visual.mjs"
+    "teste-visual": "node teste-visual.mjs",
+    "teste-laboratorio": "node --test teste-laboratorio.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

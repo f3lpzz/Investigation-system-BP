@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Laboratório de IA · Investigation</title>
+    <link rel="stylesheet" href="./lab.css" />
+    <script type="module" src="./lab.js"></script>
+  </head>
+  <body>
+    <div class="environment">
+      <span class="dot"></span> AMBIENTE DE TESTES
+      <span class="environment-detail"
+        >Banco e contas exclusivos deste laboratório</span
+      >
+    </div>
+    <header class="topbar">
+      <a class="brand" href="./index.html"
+        ><span class="brand-icon">⌕</span> INVESTIGATION
+        <small>LAB / 01</small></a
+      ><button id="sair" class="quiet" hidden>Sair da conta de teste</button>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">CUSTO · TEMPO · QUALIDADE</p>
+        <h1>A mesma pista.<br /><em>Dois modelos.</em></h1>
+        <p>
+          Compare o GPT-5 nano com o GPT-6 Luna usando as instruções do seu
+          aplicativo. Cada resultado fica registrado para você avaliar.
+        </p>
+      </section>
+      <p
+        id="mensagem"
+        class="notice"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></p>
+      <section id="acesso" class="login card">
+        <div>
+          <p class="eyebrow">ACESSO AO LABORATÓRIO</p>
+          <h2>Entre com uma conta de teste</h2>
+          <p>Use um dos acessos fictícios criados para este ambiente.</p>
+        </div>
+        <form id="login">
+          <label
+            >E-mail de teste<input
+              id="email"
+              type="email"
+              autocomplete="username"
+              required
+              placeholder="teste-a@investigation.test" /></label
+          ><label
+            >Senha<input
+              id="senha"
+              type="password"
+              autocomplete="current-password"
+              required /></label
+          ><button class="primary" type="submit">
+            Entrar no laboratório <span>→</span>
+          </button>
+        </form>
+      </section>
+      <div id="laboratorio" hidden>
+        <div class="workspace">
+          <section class="card setup">
+            <p class="eyebrow">01 / PREPARAR</p>
+            <h2>Seu caso de teste</h2>
+            <p class="hint">
+              Uma comparação faz duas chamadas à OpenAI. Os gastos são reais e
+              ficam na sua conta de API.
+            </p>
+            <form id="comparar">
+              <fieldset id="entradas">
+                <label
+                  >Nome do caso<input
+                    id="caso"
+                    maxlength="120"
+                    required
+                    placeholder="Ex.: Carta com texto pequeno"
+                /></label>
+                <label
+                  >O que vamos testar?<select id="modo">
+                    <option value="pista">
+                      Transcrição e tradução de pista
+                    </option>
+                    <option value="personagem">Dossiê de personagem</option>
+                  </select></label
+                >
+                <div id="modo-pista">
+                  <label class="upload"
+                    >Imagens da pista<input
+                      id="imagens"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      multiple
+                    /><span
+                      >Selecione até 3 imagens · PNG, JPG ou WebP · 5 MB
+                      cada</span
+                    ></label
+                  >
+                  <div id="miniaturas" class="thumbnails"></div>
+                  <details>
+                    <summary>Contexto do catálogo (opcional)</summary>
+                    <p class="hint">
+                      Use os mesmos nomes que enviaria pelo aplicativo. Separe
+                      um item por linha.
+                    </p>
+                    <label
+                      >Personagens existentes<textarea
+                        id="personagens"
+                        rows="2"
+                      ></textarea></label
+                    ><label
+                      >Grupos existentes<textarea
+                        id="grupos"
+                        rows="2"
+                      ></textarea></label
+                    ><label
+                      >Salas<textarea id="salas" rows="2"></textarea>
+                    </label>
+                  </details>
+                </div>
+                <div id="modo-personagem" hidden>
+                  <label
+                    >Nome do personagem<input
+                      id="personagem"
+                      maxlength="120" /></label
+                  ><label
+                    >Pistas em JSON<textarea
+                      id="pistas"
+                      rows="8"
+                      spellcheck="false"
+                      placeholder='[{"id":"F-001","titulo":"Bilhete","traducao":"Lia assinou o bilhete."}]'
+                    ></textarea></label
+                  ><button id="exemplo" type="button" class="quiet">
+                    Preencher exemplo fictício
+                  </button>
+                </div>
+                <details class="config">
+                  <summary>Configurações dos modelos</summary>
+                  <p class="hint">
+                    Comece com “baixo” nos dois, como no aplicativo atual.
+                    Depois, mude uma configuração por vez.
+                  </p>
+                  <label
+                    >GPT-5 nano · raciocínio<select id="esforco-a">
+                      <option value="low">Baixo (atual)</option>
+                      <option value="medium">Médio</option>
+                    </select></label
+                  ><label
+                    >GPT-6 Luna · raciocínio<select id="esforco-b">
+                      <option value="low">Baixo</option>
+                      <option value="medium">Médio</option>
+                    </select></label
+                  >
+                  <p class="hint">
+                    Visão: alta definição. Limite de saída: 12.000 tokens para
+                    pistas ou 6.000 para dossiês. Resposta em JSON estruturado.
+                    Mesmas instruções e entrada nos dois modelos.
+                  </p>
+                </details>
+                <button id="executar" class="primary" type="submit">
+                  Comparar os dois modelos <span>→</span>
+                </button>
+              </fieldset>
+            </form>
+            <p class="footnote">
+              As imagens são enviadas para a análise, mas não ficam salvas no
+              histórico do laboratório. Para repetir, selecione os arquivos
+              novamente.
+            </p>
+          </section>
+          <section class="results">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">02 / COMPARAR</p>
+                <h2>Respostas lado a lado</h2>
+              </div>
+              <span id="progresso" class="pill">Aguardando uma pista</span>
+            </div>
+            <p id="resumo-comparacao" class="hint">
+              Confira a fidelidade ao original, a tradução e as informações
+              inventadas ou omitidas.
+            </p>
+            <div class="result-grid">
+              <article id="resultado-a" class="card result">
+                <p class="eyebrow">REFERÊNCIA</p>
+                <h3>GPT-5 nano</h3>
+                <div class="empty">
+                  A resposta do modelo atual aparecerá aqui.
+                </div>
+              </article>
+              <article id="resultado-b" class="card result">
+                <p class="eyebrow">CANDIDATO</p>
+                <h3>GPT-6 Luna</h3>
+                <div class="empty">
+                  A resposta do novo modelo aparecerá aqui.
+                </div>
+              </article>
+            </div>
+            <div class="method">
+              <span>COMO LER O TESTE</span>
+              <p>
+                Compare também os erros e o tempo de resposta. Faça pelo menos 3
+                rodadas com cada pista: uma única resposta não representa a
+                qualidade média do modelo.
+              </p>
+              <p>
+                Os valores em dólares são estimativas calculadas com os tokens
+                informados pela OpenAI, incluindo raciocínio e cache. Confira a
+                cobrança final no painel da OpenAI.
+              </p>
+            </div>
+          </section>
+        </div>
+        <section class="history card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">03 / REVISITAR</p>
+              <h2>Histórico desta conta</h2>
+            </div>
+            <div class="actions">
+              <button id="atualizar" class="quiet">Atualizar</button
+              ><button id="exportar" class="quiet">Exportar JSON</button
+              ><button id="csv" class="quiet">Exportar CSV</button>
+            </div>
+          </div>
+          <p id="total" class="hint"></p>
+          <div id="historico" class="history-list">
+            <p>Nenhum teste ainda.</p>
+          </div>
+        </section>
+      </div>
+      <footer>
+        Investigation · Laboratório isolado
+        <span>Receita do aplicativo em 24/09/2026 · Base e7241e0</span>
+      </footer>
+    </main>
+  </body>
+</html>

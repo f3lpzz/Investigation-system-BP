@@ -1,0 +1,4 @@
+# Branch exclusiva de testes. Não mesclar esta configuração na online.
+/ /lab-ia/ 302
+/painel* /lab-ia/ 302
+/index* /lab-ia/ 302
